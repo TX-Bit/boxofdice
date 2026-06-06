@@ -12,14 +12,17 @@ final class GameViewModel: ObservableObject {
 
     @Published private var engine = GameEngine()
     @Published private(set) var isRolling = false
-    @Published private var animationDice: (Int, Int) = (0, 0)
+    @Published private var animationDice: [Int] = [0, 0, 0]
     @Published private(set) var highlightedHint: Set<Int> = []
+    @Published private(set) var elapsedSeconds: Int = 0
 
     private let feedback: GameFeedbackProviding
     private var rollTask: Task<Void, Never>?
-    private var confirmBehavior: ConfirmBehavior = .manual
+    private var timerTask: Task<Void, Never>?
+    private var gameStartTime: Date?
     private var diceAnimationSpeed: DiceAnimationSpeed = .normal
     private var feedbackOptions = FeedbackOptions()
+    private var isTimed: Bool = false
 
     // A future WatchGameView can reuse this view model with either GameFeedback.shared
     // or a watchOS-specific GameFeedbackProviding adapter.
@@ -53,22 +56,27 @@ final class GameViewModel: ObservableObject {
     private var rollingDieCount = 2
 
     // During rolling, display the animation frames; afterwards show the real dice.
-    var dice: (Int, Int) { isRolling ? animationDice : engine.dice }
-    var diceTotal: Int { dice.0 + dice.1 }
+    var dice: [Int] { isRolling ? animationDice : engine.dice }
+    var diceTotal: Int { dice.reduce(0, +) }
     var hasRolled: Bool { isRolling || engine.hasRolled }
 
     // MARK: - Actions
 
-    func configure(confirmBehavior: ConfirmBehavior, diceAnimationSpeed: DiceAnimationSpeed, feedbackOptions: FeedbackOptions) {
-        self.confirmBehavior = confirmBehavior
+    func configure(diceAnimationSpeed: DiceAnimationSpeed, feedbackOptions: FeedbackOptions, isTimed: Bool = false) {
         self.diceAnimationSpeed = diceAnimationSpeed
         self.feedbackOptions = feedbackOptions
+        self.isTimed = isTimed
     }
 
     func rollDice() {
         guard case .waitingToRoll = engine.gameState, !isRolling else {
             errorFeedback()
             return
+        }
+
+        // Start timer on the very first roll of a timed game
+        if isTimed && gameStartTime == nil {
+            startTimer()
         }
 
         highlightedHint = []
@@ -104,6 +112,9 @@ final class GameViewModel: ObservableObject {
             } else if case .gameOver = engine.gameState {
                 errorFeedback()
             }
+            if case .gameOver = engine.gameState {
+                stopTimer()
+            }
             isRolling = false
             rollTask = nil
         }
@@ -119,10 +130,6 @@ final class GameViewModel: ObservableObject {
         highlightedHint = []
         engine.toggleTile(number)
         lightFeedback()
-
-        if confirmBehavior == .automatic, engine.canConfirm {
-            confirmSelection()
-        }
     }
 
     func confirmSelection() {
@@ -138,6 +145,9 @@ final class GameViewModel: ObservableObject {
 
         if case .gameOver(let won) = engine.gameState, won {
             successFeedback()
+        }
+        if case .gameOver = engine.gameState {
+            stopTimer()
         }
     }
 
@@ -163,29 +173,54 @@ final class GameViewModel: ObservableObject {
         lightFeedback()
     }
 
-    func newGame(settings: GameSettings? = nil, seed: UInt64? = nil) {
+    func newGame(settings: GameSettings? = nil, seed: UInt64? = nil, isTimed: Bool? = nil) {
         rollTask?.cancel()
         rollTask = nil
+        stopTimer()
+        gameStartTime = nil
+        elapsedSeconds = 0
+        if let isTimed { self.isTimed = isTimed }
         engine.reset(settings: settings, seed: seed)
-        animationDice = (0, 0)
+        animationDice = [0, 0, 0]
         rollingDieCount = engine.currentDieCount
         highlightedHint = []
         isRolling = false
     }
 
-    private func nextAnimationDice(avoiding current: (Int, Int), dieCount: Int) -> (Int, Int) {
-        var next = randomDice(dieCount: dieCount)
+    // MARK: - Timer
+
+    private func startTimer() {
+        gameStartTime = Date()
+        timerTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                guard !Task.isCancelled, let start = gameStartTime else { break }
+                elapsedSeconds = Int(Date().timeIntervalSince(start))
+            }
+        }
+    }
+
+    private func stopTimer() {
+        timerTask?.cancel()
+        timerTask = nil
+    }
+
+    // MARK: - Private helpers
+
+    private func nextAnimationDice(avoiding current: [Int], dieCount: Int) -> [Int] {
+        var next = randomDiceValues(dieCount: dieCount)
         while next == current {
-            next = randomDice(dieCount: dieCount)
+            next = randomDiceValues(dieCount: dieCount)
         }
         return next
     }
 
-    private func randomDice(dieCount: Int) -> (Int, Int) {
-        if dieCount == 1 {
-            return (Int.random(in: 1...6), 0)
+    private func randomDiceValues(dieCount: Int) -> [Int] {
+        var result = [0, 0, 0]
+        for i in 0..<dieCount {
+            result[i] = Int.random(in: 1...6)
         }
-        return (Int.random(in: 1...6), Int.random(in: 1...6))
+        return result
     }
 
     private func lightFeedback() {

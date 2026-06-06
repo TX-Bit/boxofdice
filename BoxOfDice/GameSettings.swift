@@ -14,9 +14,9 @@ enum DiceMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .alwaysTwoDice:
-            return "Always use two dice"
+            return "Always use all dice"
         case .oneDieWhenLowTilesRemain:
-            return "Use one die when only tiles 1-6 remain open"
+            return "Use one die when only tiles 1–6 remain open"
         }
     }
 }
@@ -33,22 +33,6 @@ enum MoveRule: String, CaseIterable, Identifiable {
             return "Any combination of open tiles"
         case .oneOrTwoTiles:
             return "Only one or two tiles"
-        }
-    }
-}
-
-enum ConfirmBehavior: String, CaseIterable, Identifiable {
-    case manual
-    case automatic
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .manual:
-            return "Use Confirm button"
-        case .automatic:
-            return "Auto-confirm matching selection"
         }
     }
 }
@@ -102,6 +86,7 @@ enum GameThemeName: String, CaseIterable, Identifiable {
     case midnight
     case highContrast
     case minimalLight
+    case darkWalnut
 
     var id: String { rawValue }
 
@@ -112,33 +97,38 @@ enum GameThemeName: String, CaseIterable, Identifiable {
         case .midnight: return "Midnight"
         case .highContrast: return "High Contrast"
         case .minimalLight: return "Minimal Light"
+        case .darkWalnut: return "Dark Walnut"
         }
     }
 }
 
 struct GameSettings: Equatable {
     var tileCount: Int
+    var baseDiceCount: Int
     var diceMode: DiceMode
     var moveRule: MoveRule
 
     static let `default` = GameSettings(
         tileCount: 12,
+        baseDiceCount: 2,
         diceMode: .alwaysTwoDice,
         moveRule: .anyCombination
     )
 
-    init(tileCount: Int, diceMode: DiceMode, moveRule: MoveRule) {
-        self.tileCount = [9, 10, 12].contains(tileCount) ? tileCount : 12
-        self.diceMode = diceMode
-        self.moveRule = moveRule
+    static func from(mode: GameMode, diceMode: DiceMode, moveRule: MoveRule) -> GameSettings {
+        GameSettings(
+            tileCount: mode.tileCount,
+            baseDiceCount: mode.baseDiceCount,
+            diceMode: diceMode,
+            moveRule: moveRule
+        )
     }
 
-    init(tileCount: Int, diceModeRawValue: String, moveRuleRawValue: String) {
-        self.init(
-            tileCount: tileCount,
-            diceMode: DiceMode(rawValue: diceModeRawValue) ?? .alwaysTwoDice,
-            moveRule: MoveRule(rawValue: moveRuleRawValue) ?? .anyCombination
-        )
+    init(tileCount: Int, baseDiceCount: Int, diceMode: DiceMode, moveRule: MoveRule) {
+        self.tileCount = tileCount
+        self.baseDiceCount = max(1, min(3, baseDiceCount))
+        self.diceMode = diceMode
+        self.moveRule = moveRule
     }
 }
 
@@ -150,10 +140,11 @@ enum SettingsStorageKey {
     static let hapticsEnabled = "settings.hapticsEnabled"
     static let soundsEnabled = "settings.soundsEnabled"
     static let diceAnimationSpeed = "settings.diceAnimationSpeed"
-    static let confirmBehavior = "settings.confirmBehavior"
     static let showHints = "settings.showHints"
     static let undoEnabled = "settings.undoEnabled"
     static let leftHandedLayout = "settings.leftHandedLayout"
     static let challengeMode = "settings.challengeMode"
     static let challengeSeed = "settings.challengeSeed"
+    static let gameMode = "settings.gameMode"
+    static let passAndPlayPlayerCount = "settings.passAndPlayPlayerCount"
 }

@@ -18,12 +18,15 @@ struct StatsView: View {
     @AppStorage(StatisticsStorageKey.winningScoreTotal) private var winningScoreTotal = 0
     @AppStorage(StatisticsStorageKey.losingScoreTotal) private var losingScoreTotal = 0
     @AppStorage(StatisticsStorageKey.losses) private var losses = 0
-    @AppStorage(StatisticsStorageKey.bestScore9) private var bestScore9 = 0
-    @AppStorage(StatisticsStorageKey.bestScore10) private var bestScore10 = 0
-    @AppStorage(StatisticsStorageKey.bestScore12) private var bestScore12 = 0
     @AppStorage(StatisticsStorageKey.longestGameTurns) private var longestGameTurns = 0
     @AppStorage(StatisticsStorageKey.shortestClearTurns) private var shortestClearTurns = 0
     @AppStorage(StatisticsStorageKey.remainingTileCounts) private var remainingTileCounts = ""
+
+    @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = 0
+    @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = 0
+    @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = 0
+    @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = 0
+
     @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.classicWood.rawValue
 
     private var theme: GameTheme {
@@ -32,57 +35,35 @@ struct StatsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    HStack(spacing: 14) {
-                        StatCard(title: "Played", value: "\(gamesPlayed)", theme: theme)
-                        StatCard(title: "Won", value: "\(gamesWon)", theme: theme)
-                    }
-                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
-                    .listRowBackground(Color.clear)
-                }
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 22) {
+                    summaryGrid
 
-                Section("Scores") {
-                    StatRow(title: "Win rate", value: winRateText)
-                    StatRow(title: "Best score", value: bestScoreText)
-                    StatRow(title: "Average score", value: averageScoreText)
-                    StatRow(title: "Average winning score", value: averageWinningScoreText)
-                    StatRow(title: "Average losing score", value: averageLosingScoreText)
-                    StatRow(title: "Perfect clears", value: "\(perfectClears)")
-                }
-                .themedListRow(theme)
+                    statsSection(title: "Scores", rows: [
+                        ("Average score",         averageScoreText),
+                        ("Average winning score", averageWinningScoreText),
+                        ("Average losing score",  averageLosingScoreText),
+                        ("Perfect clears",        "\(perfectClears)"),
+                    ])
 
-                Section("Best by Tile Count") {
-                    StatRow(title: "9 tiles", value: bestScoreText(bestScore9))
-                    StatRow(title: "10 tiles", value: bestScoreText(bestScore10))
-                    StatRow(title: "12 tiles", value: bestScoreText(bestScore12))
-                }
-                .themedListRow(theme)
+                    bestScoresByModeSection
 
-                Section("Streaks and Length") {
-                    StatRow(title: "Current win streak", value: "\(currentWinStreak)")
-                    StatRow(title: "Best win streak", value: "\(bestWinStreak)")
-                    StatRow(title: "Longest game", value: turnsText(longestGameTurns))
-                    StatRow(title: "Shortest clear", value: turnsText(shortestClearTurns))
-                }
-                .themedListRow(theme)
+                    statsSection(title: "Streaks & Length", rows: [
+                        ("Current win streak", "\(currentWinStreak)"),
+                        ("Best win streak",    "\(bestWinStreak)"),
+                        ("Longest game",       turnsText(longestGameTurns)),
+                        ("Shortest clear",     turnsText(shortestClearTurns)),
+                    ])
 
-                Section("Most Common Remaining Tiles") {
-                    if commonRemainingTiles.isEmpty {
-                        Text("No remaining tile data yet")
-                            .foregroundStyle(theme.text.opacity(0.7))
-                    } else {
-                        ForEach(commonRemainingTiles, id: \.tile) { entry in
-                            StatRow(title: "Tile \(entry.tile)", value: "\(entry.count)x")
-                        }
-                    }
+                    remainingTilesSection
                 }
-                .themedListRow(theme)
+                .padding(.horizontal, 18)
+                .padding(.top, 16)
+                .padding(.bottom, 32)
             }
             .scrollContentBackground(.hidden)
             .background(ThemedSheetBackground(theme: theme))
             .tint(theme.accent)
-            .foregroundStyle(theme.text)
             .navigationTitle("Statistics")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -94,7 +75,118 @@ struct StatsView: View {
         }
     }
 
-    private var bestScoreText: String { bestScoreText(bestScore, requiresGames: true) }
+    // MARK: - Summary grid (4 cards)
+
+    private var summaryGrid: some View {
+        LazyVGrid(
+            columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())],
+            spacing: 12
+        ) {
+            StatCard(title: "Played",     value: "\(gamesPlayed)", theme: theme)
+            StatCard(title: "Won",        value: "\(gamesWon)",    theme: theme)
+            StatCard(title: "Best Score", value: bestScoreText,    theme: theme)
+            StatCard(title: "Win Rate",   value: winRateText,      theme: theme)
+        }
+    }
+
+    // MARK: - Best scores by mode
+
+    private var bestScoresByModeSection: some View {
+        statsSection(title: "Best Score by Mode", rows: [
+            (GameMode.classic.title,     bestText(bestScoreClassic)),
+            (GameMode.speedRun.title,    bestText(bestScoreSpeedRun)),
+            (GameMode.bigBox.title,      bestText(bestScoreBigBox)),
+            (GameMode.bigBoxSpeed.title, bestText(bestScoreBigBoxSpeed)),
+        ])
+    }
+
+    // MARK: - Generic section
+
+    private func statsSection(title: String, rows: [(String, String)]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader(title)
+
+            VStack(spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    rowItem(label: row.0, value: row.1)
+                    if index < rows.count - 1 {
+                        rowDivider
+                    }
+                }
+            }
+            .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+            )
+        }
+    }
+
+    // MARK: - Remaining tiles bar chart section
+
+    private var remainingTilesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("Most Common Remaining Tiles")
+
+            VStack(spacing: 0) {
+                if commonRemainingTiles.isEmpty {
+                    Text("No data yet — play a few games first")
+                        .font(GameTypography.label(size: 16))
+                        .foregroundStyle(theme.text.opacity(0.52))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                } else {
+                    let maxCount = commonRemainingTiles.first?.count ?? 1
+                    ForEach(Array(commonRemainingTiles.enumerated()), id: \.element.tile) { index, entry in
+                        TileBarRow(tile: entry.tile, count: entry.count, maxCount: maxCount, theme: theme)
+                        if index < commonRemainingTiles.count - 1 {
+                            rowDivider
+                        }
+                    }
+                }
+            }
+            .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+            )
+        }
+    }
+
+    // MARK: - Reusable sub-views
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(GameTypography.section(size: 12))
+            .tracking(1.3)
+            .foregroundStyle(theme.text.opacity(0.58))
+            .padding(.horizontal, 4)
+    }
+
+    private func rowItem(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(GameTypography.label(size: 16))
+                .foregroundStyle(theme.text.opacity(0.82))
+            Spacer()
+            Text(value)
+                .font(GameTypography.value(size: 16))
+                .foregroundStyle(theme.text)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private var rowDivider: some View {
+        Divider()
+            .overlay(Color.white.opacity(0.08))
+            .padding(.horizontal, 16)
+    }
+
+    // MARK: - Computed values
+
+    private var bestScoreText: String { bestText(bestScore, requiresGames: true) }
 
     private var averageScoreText: String {
         guard gamesPlayed > 0 else { return "-" }
@@ -133,7 +225,7 @@ struct StatsView: View {
             .map { (tile: $0.0, count: $0.1) }
     }
 
-    private func bestScoreText(_ score: Int, requiresGames: Bool = false) -> String {
+    private func bestText(_ score: Int, requiresGames: Bool = false) -> String {
         if requiresGames && gamesPlayed == 0 { return "-" }
         return score == 0 ? "-" : "\(score)"
     }
@@ -148,54 +240,88 @@ struct StatsView: View {
     }
 }
 
+// MARK: - Stat card (summary)
+
 private struct StatCard: View {
     let title: String
     let value: String
     let theme: GameTheme
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 5) {
             Text(value)
-                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .font(GameTypography.display(size: 31))
                 .foregroundStyle(Color(red: 0.18, green: 0.09, blue: 0.03))
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.65)
+                .lineLimit(1)
             Text(title.uppercased())
-                .font(.caption.weight(.bold))
-                .tracking(1.2)
-                .foregroundStyle(.secondary)
+                .font(GameTypography.section(size: 10))
+                .tracking(1.1)
+                .foregroundStyle(Color(red: 0.30, green: 0.14, blue: 0.04).opacity(0.75))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
+        .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(
-                    LinearGradient(
-                        colors: theme.button,
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+            LinearGradient(colors: theme.button, startPoint: .top, endPoint: .bottom),
+            in: RoundedRectangle(cornerRadius: 14)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(Color.white.opacity(0.42), lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.40), lineWidth: 1)
         )
     }
 }
 
-private struct StatRow: View {
-    let title: String
-    let value: String
+// MARK: - Tile bar row
+
+private struct TileBarRow: View {
+    let tile: Int
+    let count: Int
+    let maxCount: Int
+    let theme: GameTheme
 
     var body: some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Text(value)
-                .font(.system(.headline, design: .rounded).weight(.bold))
-                .foregroundStyle(.primary)
+        HStack(spacing: 12) {
+            Text("\(tile)")
+                .font(GameTypography.tileNumber(size: 15))
+                .foregroundStyle(Color(red: 0.16, green: 0.07, blue: 0.02))
+                .frame(width: 30, height: 26)
+                .background(
+                    LinearGradient(colors: theme.button, startPoint: .top, endPoint: .bottom),
+                    in: RoundedRectangle(cornerRadius: 7)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.75)
+                )
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.08))
+
+                    let fraction = CGFloat(count) / CGFloat(max(maxCount, 1))
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(LinearGradient(
+                            colors: [
+                                Color(red: 1.0, green: 0.82, blue: 0.38),
+                                Color(red: 0.88, green: 0.50, blue: 0.12)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ))
+                        .frame(width: max(8, geo.size.width * fraction))
+                }
+            }
+            .frame(height: 10)
+
+            Text("\(count)×")
+                .font(GameTypography.value(size: 13))
+                .foregroundStyle(theme.text.opacity(0.72))
+                .frame(width: 32, alignment: .trailing)
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }
 

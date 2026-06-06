@@ -7,12 +7,20 @@ import SwiftUI
 
 struct GameOverView: View {
     let won: Bool
-    let score: Int
+    let tileScore: Int
+    let elapsedSeconds: Int
+    let isTimed: Bool
     let remainingOpenTiles: [Int]
+    let theme: GameTheme
     let onNewGame: () -> Void
+    let onSettings: () -> Void
+    let onStats: () -> Void
+
+    var finalScore: Int { isTimed ? tileScore + elapsedSeconds : tileScore }
 
     var body: some View {
         VStack(spacing: 22) {
+            iconBar
             header
             scorePanel
             remainingTilesSection
@@ -28,17 +36,45 @@ struct GameOverView: View {
         .accessibilityElement(children: .contain)
     }
 
+    private var iconBar: some View {
+        HStack {
+            Button(action: onStats) {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(theme.text.opacity(0.70))
+                    .frame(width: 36, height: 36)
+                    .background(Color.black.opacity(0.20), in: Circle())
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Statistics")
+
+            Spacer()
+
+            Button(action: onSettings) {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(theme.text.opacity(0.70))
+                    .frame(width: 36, height: 36)
+                    .background(Color.black.opacity(0.20), in: Circle())
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+        }
+    }
+
     private var header: some View {
         VStack(spacing: 8) {
             Text(won ? "You cleared the box!" : "Game Over")
-                .font(.system(size: won ? 31 : 34, weight: .heavy, design: .rounded))
+                .font(GameTypography.title(size: won ? 31 : 34))
                 .foregroundStyle(titleGradient)
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.78)
 
             Text(won ? "Every tile is closed." : "No valid move remains.")
-                .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                .foregroundStyle(Color(red: 1.0, green: 0.86, blue: 0.62).opacity(0.82))
+                .font(GameTypography.label(size: 16))
+                .foregroundStyle(theme.text.opacity(0.72))
                 .multilineTextAlignment(.center)
         }
     }
@@ -46,18 +82,27 @@ struct GameOverView: View {
     private var scorePanel: some View {
         VStack(spacing: 6) {
             Text("FINAL SCORE")
-                .font(.caption.weight(.bold))
+                .font(GameTypography.section(size: 12))
                 .tracking(1.8)
-                .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.52).opacity(0.74))
+                .foregroundStyle(theme.accent.opacity(0.82))
 
-            Text("\(score)")
-                .font(.system(size: 62, weight: .heavy, design: .rounded))
-                .foregroundStyle(Color(red: 1.0, green: 0.92, blue: 0.70))
-                .contentTransition(.numericText())
+            Text("\(finalScore)")
+                .font(GameTypography.display(size: 64))
+                .foregroundStyle(theme.text)
 
-            Text("Lower is better")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.52).opacity(0.66))
+            if isTimed && elapsedSeconds > 0 {
+                HStack(spacing: 6) {
+                    Text("Tiles \(tileScore)")
+                    Text("+")
+                    Label("\(elapsedSeconds)s", systemImage: "timer")
+                }
+                .font(GameTypography.caption(size: 13))
+                .foregroundStyle(theme.accent.opacity(0.76))
+            } else {
+                Text("Lower is better")
+                    .font(GameTypography.caption(size: 12))
+                    .foregroundStyle(theme.text.opacity(0.52))
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
@@ -74,27 +119,27 @@ struct GameOverView: View {
     private var remainingTilesSection: some View {
         VStack(spacing: 10) {
             Text("REMAINING OPEN TILES")
-                .font(.caption.weight(.bold))
+                .font(GameTypography.section(size: 12))
                 .tracking(1.4)
-                .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.52).opacity(0.76))
+                .foregroundStyle(theme.accent.opacity(0.78))
 
             if remainingOpenTiles.isEmpty {
                 Text("None")
-                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .font(GameTypography.button(size: 18))
                     .foregroundStyle(Color(red: 0.58, green: 1.0, blue: 0.50))
                     .padding(.vertical, 4)
             } else {
                 LazyVGrid(columns: tileColumns, spacing: 8) {
                     ForEach(remainingOpenTiles, id: \.self) { tile in
                         Text("\(tile)")
-                            .font(.system(.subheadline, design: .rounded).weight(.heavy))
+                            .font(GameTypography.tileNumber(size: 18))
                             .foregroundStyle(Color(red: 0.16, green: 0.08, blue: 0.03))
                             .frame(width: 36, height: 34)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(
                                         LinearGradient(
-                                            colors: [Color(red: 1.0, green: 0.88, blue: 0.56), Color(red: 0.79, green: 0.50, blue: 0.22)],
+                                            colors: theme.button,
                                             startPoint: .top,
                                             endPoint: .bottom
                                         )
@@ -114,11 +159,11 @@ struct GameOverView: View {
     private var newGameButton: some View {
         Button(action: onNewGame) {
             Text("New Game")
-                .font(.system(.headline, design: .rounded).weight(.bold))
+                .font(GameTypography.button(size: 18))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 15)
         }
-        .buttonStyle(ModalButtonStyle())
+        .buttonStyle(ModalButtonStyle(theme: theme))
         .padding(.top, 2)
     }
 
@@ -143,10 +188,7 @@ struct GameOverView: View {
                 RoundedRectangle(cornerRadius: 26)
                     .fill(
                         LinearGradient(
-                            colors: [
-                                Color(red: 0.40, green: 0.19, blue: 0.08).opacity(0.94),
-                                Color(red: 0.16, green: 0.07, blue: 0.03).opacity(0.96)
-                            ],
+                            colors: theme.background.map { $0.opacity(0.96) },
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -158,7 +200,11 @@ struct GameOverView: View {
         RoundedRectangle(cornerRadius: 26)
             .strokeBorder(
                 LinearGradient(
-                    colors: [Color.white.opacity(0.28), Color(red: 1.0, green: 0.68, blue: 0.30).opacity(0.30), Color.black.opacity(0.30)],
+                    colors: [
+                        Color.white.opacity(0.28),
+                        theme.accent.opacity(0.25),
+                        Color.black.opacity(0.30)
+                    ],
                     startPoint: .top,
                     endPoint: .bottom
                 ),
@@ -168,15 +214,13 @@ struct GameOverView: View {
 }
 
 private struct ModalButtonStyle: ButtonStyle {
+    let theme: GameTheme
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(Color(red: 0.16, green: 0.08, blue: 0.03))
             .background(
-                LinearGradient(
-                    colors: [Color(red: 1.0, green: 0.82, blue: 0.37), Color(red: 0.88, green: 0.50, blue: 0.12)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                LinearGradient(colors: theme.button, startPoint: .top, endPoint: .bottom)
             )
             .clipShape(RoundedRectangle(cornerRadius: 15))
             .overlay(
@@ -189,15 +233,28 @@ private struct ModalButtonStyle: ButtonStyle {
 }
 
 #Preview("Game Over") {
+    let theme = GameTheme.palette(for: .classicWood)
     ZStack {
-        Color(red: 0.30, green: 0.14, blue: 0.06).ignoresSafeArea()
-        GameOverView(won: false, score: 24, remainingOpenTiles: [2, 4, 5, 6, 7], onNewGame: {})
+        LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing)
+            .ignoresSafeArea()
+        GameOverView(won: false, tileScore: 24, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [2, 4, 5, 6, 7], theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
+    }
+}
+
+#Preview("Game Over — Timed") {
+    let theme = GameTheme.palette(for: .classicWood)
+    ZStack {
+        LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing)
+            .ignoresSafeArea()
+        GameOverView(won: false, tileScore: 14, elapsedSeconds: 47, isTimed: true, remainingOpenTiles: [5, 9], theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
     }
 }
 
 #Preview("Cleared") {
+    let theme = GameTheme.palette(for: .classicWood)
     ZStack {
-        Color(red: 0.30, green: 0.14, blue: 0.06).ignoresSafeArea()
-        GameOverView(won: true, score: 0, remainingOpenTiles: [], onNewGame: {})
+        LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing)
+            .ignoresSafeArea()
+        GameOverView(won: true, tileScore: 0, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [], theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
     }
 }

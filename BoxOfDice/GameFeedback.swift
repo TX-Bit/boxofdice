@@ -39,29 +39,44 @@ final class GameFeedback: GameFeedbackProviding {
 
     private var players: [Sound: AVAudioPlayer] = [:]
 
-    private init() {}
+    #if canImport(UIKit)
+    private let lightImpact = UIImpactFeedbackGenerator(style: .light)
+    private let mediumImpact = UIImpactFeedbackGenerator(style: .medium)
+    private let notificationFeedback = UINotificationFeedbackGenerator()
+    #endif
+
+    private init() {
+        // Configure session once so sounds play consistently regardless of device state.
+        // .ambient mixes with background audio and respects the silent switch.
+        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
+        try? AVAudioSession.sharedInstance().setActive(true)
+    }
 
     func tileSelected() {
         #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        lightImpact.prepare()
+        lightImpact.impactOccurred()
         #endif
     }
 
     func validMoveConfirmed() {
         #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        mediumImpact.prepare()
+        mediumImpact.impactOccurred()
         #endif
     }
 
     func invalidAction() {
         #if canImport(UIKit)
-        UINotificationFeedbackGenerator().notificationOccurred(.error)
+        notificationFeedback.prepare()
+        notificationFeedback.notificationOccurred(.error)
         #endif
     }
 
     func boardCleared() {
         #if canImport(UIKit)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        notificationFeedback.prepare()
+        notificationFeedback.notificationOccurred(.success)
         #endif
     }
 
@@ -99,13 +114,18 @@ private enum Sound: Hashable {
     var resourceName: String {
         switch self {
         case .diceRoll:
-            return "dice-roll"
+            return "dicesound1"
         case .tileFlip:
             return "tile-flip"
         }
     }
 
-    var fileExtension: String { "wav" }
+    var fileExtension: String {
+        switch self {
+        case .diceRoll: return "aiff"
+        case .tileFlip: return "wav"
+        }
+    }
 
     var fileName: String { "\(resourceName).\(fileExtension)" }
 

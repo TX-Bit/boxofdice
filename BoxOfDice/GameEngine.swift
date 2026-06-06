@@ -15,11 +15,11 @@ struct Tile: Identifiable, Equatable {
 
 struct MoveRecord: Identifiable {
     let id = UUID()
-    let dice: (Int, Int)
+    let dice: [Int]
     let closedTiles: [Int]
     let scoreAfterMove: Int
 
-    var diceTotal: Int { dice.0 + dice.1 }
+    var diceTotal: Int { dice.reduce(0, +) }
 }
 
 enum GameState: Equatable {
@@ -50,7 +50,8 @@ struct GameEngine {
 
     private(set) var settings: GameSettings
     private(set) var tiles: [Tile]
-    private(set) var dice: (Int, Int) = (0, 0)
+    // Dice stored as array of up to 3 values; 0 = inactive die slot.
+    private(set) var dice: [Int] = [0, 0, 0]
     private(set) var selectedTiles: Set<Int> = []
     private(set) var gameState: GameState = .waitingToRoll
     private(set) var moveHistory: [MoveRecord] = []
@@ -66,7 +67,7 @@ struct GameEngine {
 
     // MARK: - Computed Properties
 
-    var diceTotal: Int { dice.0 + dice.1 }
+    var diceTotal: Int { dice.reduce(0, +) }
 
     var score: Int {
         tiles.filter { $0.isOpen }.reduce(0) { $0 + $1.id }
@@ -86,7 +87,7 @@ struct GameEngine {
         gameState == .waitingToRoll && !moveHistory.isEmpty
     }
 
-    var hasRolled: Bool { dice.0 > 0 }
+    var hasRolled: Bool { dice.contains(where: { $0 > 0 }) }
 
     var openTiles: [Int] {
         tiles.filter { $0.isOpen }.map { $0.id }
@@ -95,9 +96,9 @@ struct GameEngine {
     var currentDieCount: Int {
         switch settings.diceMode {
         case .alwaysTwoDice:
-            return 2
+            return settings.baseDiceCount
         case .oneDieWhenLowTilesRemain:
-            return openTiles.allSatisfy { $0 <= 6 } ? 1 : 2
+            return openTiles.allSatisfy { $0 <= 6 } ? 1 : settings.baseDiceCount
         }
     }
 
@@ -115,7 +116,7 @@ struct GameEngine {
 
     /// Rolls the dice, clears any pending selection, then transitions to .selecting
     /// or .gameOver depending on whether a valid move exists.
-    mutating func roll(dice rolledDice: (Int, Int)? = nil) {
+    mutating func roll(dice rolledDice: [Int]? = nil) {
         guard case .waitingToRoll = gameState else { return }
         selectedTiles = []
         dice = rolledDice ?? randomDice()
@@ -152,7 +153,7 @@ struct GameEngine {
         for i in tiles.indices where lastMove.closedTiles.contains(tiles[i].id) {
             tiles[i].isOpen = true
         }
-        dice = (0, 0)
+        dice = [0, 0, 0]
         selectedTiles = []
         gameState = .waitingToRoll
     }
@@ -168,17 +169,19 @@ struct GameEngine {
             randomGenerator = nil
         }
         tiles = (1...settings.tileCount).map { Tile(id: $0) }
-        dice = (0, 0)
+        dice = [0, 0, 0]
         selectedTiles = []
         moveHistory = []
         gameState = .waitingToRoll
     }
 
-    mutating func randomDice() -> (Int, Int) {
-        if currentDieCount == 1 {
-            return (randomDie(), 0)
+    mutating func randomDice() -> [Int] {
+        let count = currentDieCount
+        var result = [0, 0, 0]
+        for i in 0..<count {
+            result[i] = randomDie()
         }
-        return (randomDie(), randomDie())
+        return result
     }
 
     // MARK: - Move Validation

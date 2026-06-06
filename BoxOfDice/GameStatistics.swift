@@ -16,10 +16,13 @@ enum StatisticsStorageKey {
     static let winningScoreTotal = "statistics.winningScoreTotal"
     static let losingScoreTotal = "statistics.losingScoreTotal"
     static let losses = "statistics.losses"
-    static let bestScore9 = "statistics.bestScore9"
-    static let bestScore10 = "statistics.bestScore10"
-    static let bestScore12 = "statistics.bestScore12"
     static let longestGameTurns = "statistics.longestGameTurns"
     static let shortestClearTurns = "statistics.shortestClearTurns"
     static let remainingTileCounts = "statistics.remainingTileCounts"
+
+    // Per-mode best scores (final score including any time penalty)
+    static let bestScoreClassic = "statistics.bestScore.classic"
+    static let bestScoreSpeedRun = "statistics.bestScore.speedRun"
+    static let bestScoreBigBox = "statistics.bestScore.bigBox"
+    static let bestScoreBigBoxSpeed = "statistics.bestScore.bigBoxSpeed"
 }

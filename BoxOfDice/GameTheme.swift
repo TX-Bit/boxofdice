@@ -66,6 +66,30 @@ struct GameTheme {
                 accent: Color(red: 0.68, green: 0.42, blue: 0.14),
                 button: [Color(red: 0.95, green: 0.70, blue: 0.32), Color(red: 0.72, green: 0.42, blue: 0.12)]
             )
+        case .darkWalnut:
+            return GameTheme(
+                name: name,
+                background: [
+                    Color(red: 0.04, green: 0.05, blue: 0.10),
+                    Color(red: 0.08, green: 0.10, blue: 0.18),
+                    Color(red: 0.03, green: 0.04, blue: 0.07)
+                ],
+                board: [
+                    Color(red: 0.36, green: 0.18, blue: 0.08),
+                    Color(red: 0.54, green: 0.30, blue: 0.13),
+                    Color(red: 0.28, green: 0.13, blue: 0.05)
+                ],
+                title: [
+                    Color(red: 0.96, green: 0.92, blue: 0.84),
+                    Color(red: 0.90, green: 0.70, blue: 0.38)
+                ],
+                text: Color(red: 0.92, green: 0.88, blue: 0.80),
+                accent: Color(red: 0.42, green: 0.68, blue: 0.94),
+                button: [
+                    Color(red: 0.94, green: 0.68, blue: 0.22),
+                    Color(red: 0.76, green: 0.40, blue: 0.10)
+                ]
+            )
         }
     }
 }
