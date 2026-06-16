@@ -7,11 +7,32 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C097FC4A2FD4797C00471A18 /* GameTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = C097FC492FD4797C00471A18 /* GameTypography.swift */; };
+		C049680A2FD91E6700D93BFF /* WatchConnectivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C04968092FD91E6700D93BFF /* WatchConnectivity.swift */; };
+		C097FD302FD7B4A800471A18 /* WatchBoxOfDiceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C097FD292FD7A03F00471A18 /* WatchBoxOfDiceApp.swift */; };
+		C097FD312FD7B4A800471A18 /* WatchContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C097FD2A2FD7A0A900471A18 /* WatchContentView.swift */; };
+		C097FD322FD7B4A800471A18 /* WatchSupportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C097FD2B2FD7A0F500471A18 /* WatchSupportViews.swift */; };
+		C097FD842FD7B30900471A18 /* WatchGameCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C097FD832FD7B30900471A18 /* WatchGameCore.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		C097FDB42FD7C84400471A18 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 7;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		C097FC492FD4797C00471A18 /* GameTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTypography.swift; sourceTree = "<group>"; };
+		C04968092FD91E6700D93BFF /* WatchConnectivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivity.swift; sourceTree = "<group>"; };
+		C097FD292FD7A03F00471A18 /* WatchBoxOfDiceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchBoxOfDiceApp.swift; sourceTree = "<group>"; };
+		C097FD2A2FD7A0A900471A18 /* WatchContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchContentView.swift; sourceTree = "<group>"; };
+		C097FD2B2FD7A0F500471A18 /* WatchSupportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSupportViews.swift; sourceTree = "<group>"; };
+		C097FD3B2FD7B4A800471A18 /* BoxOfDice Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BoxOfDice Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C097FD832FD7B30900471A18 /* WatchGameCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchGameCore.swift; sourceTree = "<group>"; };
 		C0B4C6EB2FD33B2C009A322C /* BoxOfDice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BoxOfDice.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -24,6 +45,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		C097FD3C2FD7B4A800471A18 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C0B4C6E82FD33B2C009A322C /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -34,12 +62,32 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		C097FD282FD7A03B00471A18 /* WatchApp */ = {
+			isa = PBXGroup;
+			children = (
+				C097FD292FD7A03F00471A18 /* WatchBoxOfDiceApp.swift */,
+				C097FD2A2FD7A0A900471A18 /* WatchContentView.swift */,
+				C097FD2B2FD7A0F500471A18 /* WatchSupportViews.swift */,
+				C097FD832FD7B30900471A18 /* WatchGameCore.swift */,
+				C04968092FD91E6700D93BFF /* WatchConnectivity.swift */,
+			);
+			path = WatchApp;
+			sourceTree = "<group>";
+		};
+		C097FD502FD7C00000471A18 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Shared;
+			sourceTree = "<group>";
+		};
 		C0B4C6E22FD33B2C009A322C = {
 			isa = PBXGroup;
 			children = (
 				C0B4C6ED2FD33B2C009A322C /* BoxOfDice */,
 				C0B4C6EC2FD33B2C009A322C /* Products */,
-				C097FC492FD4797C00471A18 /* GameTypography.swift */,
+				C097FD282FD7A03B00471A18 /* WatchApp */,
+				C097FD502FD7C00000471A18 /* Shared */,
 			);
 			sourceTree = "<group>";
 		};
@@ -47,6 +95,7 @@
 			isa = PBXGroup;
 			children = (
 				C0B4C6EB2FD33B2C009A322C /* BoxOfDice.app */,
+				C097FD3B2FD7B4A800471A18 /* BoxOfDice Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -54,6 +103,25 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		C097FD3D2FD7B4A800471A18 /* BoxOfDice Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C097FD412FD7B4A800471A18 /* Build configuration list for PBXNativeTarget "BoxOfDice Watch App" */;
+			buildPhases = (
+				C097FD3F2FD7B4A800471A18 /* Sources */,
+				C097FD3C2FD7B4A800471A18 /* Frameworks */,
+				C097FD3E2FD7B4A800471A18 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "BoxOfDice Watch App";
+			packageProductDependencies = (
+			);
+			productName = "BoxOfDice Watch App";
+			productReference = C097FD3B2FD7B4A800471A18 /* BoxOfDice Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
 		C0B4C6EA2FD33B2C009A322C /* BoxOfDice */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = C0B4C6FB2FD33B2E009A322C /* Build configuration list for PBXNativeTarget "BoxOfDice" */;
@@ -61,6 +129,7 @@
 				C0B4C6E72FD33B2C009A322C /* Sources */,
 				C0B4C6E82FD33B2C009A322C /* Frameworks */,
 				C0B4C6E92FD33B2C009A322C /* Resources */,
+				C097FDB42FD7C84400471A18 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -86,6 +155,9 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					C097FD3D2FD7B4A800471A18 = {
+						CreatedOnToolsVersion = 26.4;
+					};
 					C0B4C6EA2FD33B2C009A322C = {
 						CreatedOnToolsVersion = 26.4;
 					};
@@ -106,11 +178,19 @@
 			projectRoot = "";
 			targets = (
 				C0B4C6EA2FD33B2C009A322C /* BoxOfDice */,
+				C097FD3D2FD7B4A800471A18 /* BoxOfDice Watch App */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		C097FD3E2FD7B4A800471A18 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C0B4C6E92FD33B2C009A322C /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -121,17 +201,94 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		C097FD3F2FD7B4A800471A18 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C049680A2FD91E6700D93BFF /* WatchConnectivity.swift in Sources */,
+				C097FD302FD7B4A800471A18 /* WatchBoxOfDiceApp.swift in Sources */,
+				C097FD312FD7B4A800471A18 /* WatchContentView.swift in Sources */,
+				C097FD322FD7B4A800471A18 /* WatchSupportViews.swift in Sources */,
+				C097FD842FD7B30900471A18 /* WatchGameCore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C0B4C6E72FD33B2C009A322C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C097FC4A2FD4797C00471A18 /* GameTypography.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		C097FD402FD7B4A800471A18 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CXCUP4DV54;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Box of Dice";
+				INFOPLIST_KEY_WKApplication = YES;
+				"INFOPLIST_KEY_WKCompanionAppBundleIdentifier[sdk=*]" = com.mm.BoxOfDice;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = NO;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 9.0;
+				name = value;
+			};
+			name = Debug;
+		};
+		C097FD492FD7B4A800471A18 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CXCUP4DV54;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Box of Dice";
+				INFOPLIST_KEY_WKApplication = YES;
+				"INFOPLIST_KEY_WKCompanionAppBundleIdentifier[sdk=*]" = com.mm.BoxOfDice;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = NO;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 9.0;
+				name = value;
+			};
+			name = Release;
+		};
 		C0B4C6F92FD33B2E009A322C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -320,6 +477,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		C097FD412FD7B4A800471A18 /* Build configuration list for PBXNativeTarget "BoxOfDice Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C097FD402FD7B4A800471A18 /* Debug */,
+				C097FD492FD7B4A800471A18 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		C0B4C6E62FD33B2C009A322C /* Build configuration list for PBXProject "BoxOfDice" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

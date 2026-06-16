@@ -27,6 +27,7 @@ struct ContentView: View {
     @AppStorage(SettingsStorageKey.showHints) private var showHints = true
     @AppStorage(SettingsStorageKey.undoEnabled) private var undoEnabled = true
     @AppStorage(SettingsStorageKey.leftHandedLayout) private var leftHandedLayout = false
+    @AppStorage("hasSeenScoreOnboardingHint") private var hasSeenScoreOnboardingHint = false
 
     // Global stats
     @AppStorage(StatisticsStorageKey.gamesPlayed) private var gamesPlayed = 0
@@ -49,7 +50,7 @@ struct ContentView: View {
     @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = 0
     @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = 0
 
-    private let horizontalPadding: CGFloat = 18
+    private let horizontalPadding: CGFloat = 12
 
     var body: some View {
         GeometryReader { proxy in
@@ -66,10 +67,10 @@ struct ContentView: View {
 
                         diceSection
 
-                        VStack(spacing: 10) {
+                        VStack(spacing: 6) {
                             actionButton
-                            secondaryToolBar
                             moveHistorySummary
+                            secondaryToolBar
                         }
                         .padding(.bottom, max(24, proxy.safeAreaInsets.bottom + 12))
                     }
@@ -140,6 +141,11 @@ struct ContentView: View {
                 isGameOverVisible = false
             }
         }
+        .onChange(of: viewModel.hasRolled) { hasRolled in
+            if hasRolled {
+                hasSeenScoreOnboardingHint = true
+            }
+        }
         .onChange(of: diceAnimationSpeedRawValue) { _ in configureViewModel() }
         .onChange(of: hapticsEnabled) { _ in configureViewModel() }
         .onChange(of: soundsEnabled) { _ in configureViewModel() }
@@ -195,14 +201,6 @@ struct ContentView: View {
     private var headerView: some View {
         ZStack(alignment: .top) {
             VStack(spacing: 5) {
-                Text("Box of Dice")
-                    .font(GameTypography.title(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(colors: theme.title, startPoint: .top, endPoint: .bottom)
-                    )
-                    .shadow(color: .black.opacity(0.45), radius: 2, x: 0, y: 2)
-                    .minimumScaleFactor(0.8)
-
                 headerScoreRow
                 modePill
             }
@@ -212,13 +210,11 @@ struct ContentView: View {
             HStack {
                 if leftHandedLayout {
                     headerIconButton(systemName: "gearshape.fill", label: "Settings") { isShowingSettings = true }
-                    soundToggleButton
                     Spacer()
                     headerIconButton(systemName: "chart.bar.fill", label: "Statistics") { isShowingStats = true }
                 } else {
                     headerIconButton(systemName: "chart.bar.fill", label: "Statistics") { isShowingStats = true }
                     Spacer()
-                    soundToggleButton
                     headerIconButton(systemName: "gearshape.fill", label: "Settings") { isShowingSettings = true }
                 }
             }
@@ -246,10 +242,20 @@ struct ContentView: View {
             .foregroundStyle(theme.text)
             .animation(.easeInOut(duration: 0.2), value: viewModel.hasRolled)
         } else {
-            Text("Score: \(viewModel.score)")
-                .font(GameTypography.value(size: 23))
-                .foregroundStyle(theme.text)
-                .animation(.spring(), value: viewModel.score)
+            VStack(spacing: 3) {
+                Text("Score: \(viewModel.score)")
+                    .font(GameTypography.value(size: 23))
+                    .foregroundStyle(theme.text)
+                    .animation(.spring(), value: viewModel.score)
+
+                if !hasSeenScoreOnboardingHint && !viewModel.hasRolled && gamesPlayed == 0 {
+                    Text("Close tiles to lower your score. Lowest score wins.")
+                        .font(GameTypography.caption(size: 12))
+                        .foregroundStyle(theme.text.opacity(0.66))
+                        .multilineTextAlignment(.center)
+                        .transition(.opacity)
+                }
+            }
         }
     }
 
@@ -283,36 +289,18 @@ struct ContentView: View {
         .accessibilityLabel(label)
     }
 
-    private var soundToggleButton: some View {
-        Button {
-            soundsEnabled.toggle()
-            configureViewModel()
-        } label: {
-            Image(systemName: soundsEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(soundsEnabled
-                    ? Color(red: 1.0, green: 0.86, blue: 0.58)
-                    : Color(red: 1.0, green: 0.86, blue: 0.58).opacity(0.38))
-                .frame(width: 40, height: 40)
-                .background(Color.black.opacity(0.18), in: Circle())
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(soundsEnabled ? "Mute sounds" : "Unmute sounds")
-    }
-
     // MARK: - Board
 
     private func boardView(width: CGFloat) -> some View {
         let availableWidth = min(width, 430)
         let columnsCount = viewModel.tiles.count > 10 ? 6 : 5
         let tileSpacing: CGFloat = 8
-        let frameThickness: CGFloat = 22
-        let surfaceHorizontalPadding: CGFloat = 14
+        let frameThickness: CGFloat = 16
+        let surfaceHorizontalPadding: CGFloat = 10
         let surfaceVerticalPadding: CGFloat = 16
         let fixedHorizontalSpace = frameThickness * 2 + surfaceHorizontalPadding * 2 + tileSpacing * CGFloat(columnsCount - 1)
-        let tileWidth = min(54, (availableWidth - fixedHorizontalSpace) / CGFloat(columnsCount))
-        let tileHeight = tileWidth * 1.22
+        let tileWidth = min(68, (availableWidth - fixedHorizontalSpace) / CGFloat(columnsCount))
+        let tileHeight = tileWidth * 1.5
         let gridWidth = tileWidth * CGFloat(columnsCount) + tileSpacing * CGFloat(columnsCount - 1)
         let trayWidth = gridWidth + surfaceHorizontalPadding * 2 + frameThickness * 2
         let columns = Array(repeating: GridItem(.fixed(tileWidth), spacing: tileSpacing), count: columnsCount)
@@ -350,26 +338,30 @@ struct ContentView: View {
     // MARK: - Dice
 
     private var diceSection: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 26) {
-                ForEach(0..<viewModel.dieCount, id: \.self) { index in
-                    DiceView(value: viewModel.dice[index], isRolling: viewModel.isRolling)
-                        .transition(.scale.combined(with: .opacity))
-                }
+        HStack(alignment: .center, spacing: 22) {
+            ForEach(0..<viewModel.dieCount, id: \.self) { index in
+                Dice3DView(
+                    value: viewModel.dice[index],
+                    isRolling: viewModel.isRolling,
+                    dieIndex: index,
+                    onSettled: index == 0 ? { viewModel.diceSettledFeedback() } : nil
+                )
+                .frame(width: 108, height: 108)
+                .transition(.scale.combined(with: .opacity))
             }
-            .animation(.spring(response: 0.25, dampingFraction: 0.78), value: viewModel.dieCount)
 
             if viewModel.hasRolled {
-                Text("Total: \(viewModel.diceTotal)")
-                    .font(GameTypography.value(size: 25))
+                Text("= \(viewModel.diceTotal)")
+                    .font(GameTypography.value(size: 30))
                     .foregroundStyle(theme.text)
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 10)
-                    .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 14))
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                    .animation(.easeInOut(duration: 0.25), value: viewModel.hasRolled)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 14))
+                    .transition(.opacity.combined(with: .scale(scale: 0.85)))
             }
         }
+        .animation(.spring(response: 0.25, dampingFraction: 0.78), value: viewModel.dieCount)
+        .animation(.easeInOut(duration: 0.25), value: viewModel.hasRolled)
     }
 
     private var formattedElapsedTime: String {
@@ -400,26 +392,31 @@ struct ContentView: View {
 
             Spacer()
 
-            // Undo: plain text, low visual weight
-            if undoEnabled {
+            // Undo: hidden when unavailable, clear secondary button when available
+            if undoEnabled && viewModel.canUndo {
                 Button(action: viewModel.undoLastMove) {
                     HStack(spacing: 5) {
                         Image(systemName: "arrow.uturn.backward")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                         Text("Undo")
                             .font(GameTypography.caption(size: 13))
                     }
-                    .foregroundStyle(viewModel.canUndo
-                        ? theme.text.opacity(0.50)
-                        : theme.text.opacity(0.18))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .foregroundStyle(theme.text.opacity(0.82))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
-                .disabled(!viewModel.canUndo)
+                .transition(.opacity.combined(with: .scale(scale: 0.90)))
             }
         }
-        .frame(height: (showHints || undoEnabled) ? 30 : 0)
+        .padding(.horizontal, 8)
+        .frame(height: (showHints || undoEnabled) ? 38 : 0)
+        .animation(.easeInOut(duration: 0.18), value: viewModel.canUndo)
     }
 
     // MARK: - Move history
@@ -427,9 +424,9 @@ struct ContentView: View {
     @ViewBuilder
     private var moveHistorySummary: some View {
         if let lastMove = viewModel.moveHistory.last {
-            Text("rolled \(lastMove.diceTotal)  ·  closed \(lastMove.closedTiles.map(String.init).joined(separator: ", "))")
-                .font(GameTypography.caption(size: 11))
-                .foregroundStyle(theme.text.opacity(0.30))
+            Text("Last: rolled \(lastMove.diceTotal) · closed \(lastMove.closedTiles.map(String.init).joined(separator: ", "))")
+                .font(GameTypography.caption(size: 13))
+                .foregroundStyle(theme.text.opacity(0.72))
                 .multilineTextAlignment(.center)
         }
     }
@@ -472,7 +469,7 @@ struct ContentView: View {
         let isMatch = viewModel.canConfirm
         let isEmpty = viewModel.selectedTiles.isEmpty
 
-        return VStack(spacing: 8) {
+        return VStack(spacing: 6) {
             selectionStatusLabel(total: total, target: target, isMatch: isMatch, isEmpty: isEmpty)
 
             Button(action: viewModel.confirmSelection) {
@@ -487,7 +484,7 @@ struct ContentView: View {
                 .frame(maxWidth: 260)
                 .frame(height: 58)
             }
-            .buttonStyle(BoardGameButtonStyle(isEnabled: isMatch, tint: .green))
+            .buttonStyle(BoardGameButtonStyle(isEnabled: isMatch, tint: .amber))
             .disabled(!isMatch)
             .animation(.spring(response: 0.28, dampingFraction: 0.72), value: isMatch)
         }
@@ -625,7 +622,7 @@ struct ContentView: View {
     }
 
     private func spacing(for height: CGFloat) -> CGFloat {
-        height < 700 ? 16 : 24
+        height < 700 ? 10 : 15
     }
 }
 
@@ -926,21 +923,28 @@ private struct BoardGameButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(Color(red: 0.16, green: 0.08, blue: 0.03))
+            .foregroundStyle(isEnabled ? Color(red: 0.16, green: 0.08, blue: 0.03) : Color(red: 0.88, green: 0.94, blue: 0.86).opacity(0.76))
             .background(backgroundGradient)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.white.opacity(isEnabled ? 0.32 : 0.12), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(isEnabled ? 0.32 : 0.18), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(isEnabled ? 0.28 : 0.10), radius: 8, x: 0, y: configuration.isPressed ? 2 : 5)
+            .shadow(color: .black.opacity(isEnabled ? 0.28 : 0.16), radius: 8, x: 0, y: configuration.isPressed ? 2 : 5)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .opacity(isEnabled ? 1 : 0.78)
+            .opacity(1)
     }
 
     private var backgroundGradient: LinearGradient {
         guard isEnabled else {
-            return LinearGradient(colors: [Color.gray.opacity(0.58), Color.gray.opacity(0.40)], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.34, green: 0.43, blue: 0.35),
+                    Color(red: 0.22, green: 0.31, blue: 0.25)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
         switch tint {
         case .amber:

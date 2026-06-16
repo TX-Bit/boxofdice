@@ -83,28 +83,12 @@ final class GameViewModel: ObservableObject {
         rollTask?.cancel()
         isRolling = true
         rollingDieCount = engine.currentDieCount
-        soundDiceRoll()
 
         let finalDice = engine.randomDice()
-        animationDice = nextAnimationDice(avoiding: engine.dice, dieCount: rollingDieCount)
+        animationDice = finalDice
 
         rollTask = Task { @MainActor in
-            let frameDelays = diceAnimationSpeed.frameDelays
-
-            for delay in frameDelays {
-                guard !Task.isCancelled else { return }
-                withAnimation(.linear(duration: Double(delay) / 1_000)) {
-                    animationDice = nextAnimationDice(avoiding: animationDice, dieCount: rollingDieCount)
-                }
-                try? await Task.sleep(nanoseconds: delay * 1_000_000)
-            }
-
-            guard !Task.isCancelled else { return }
-            withAnimation(.interpolatingSpring(stiffness: 260, damping: 18)) {
-                animationDice = finalDice
-            }
-            try? await Task.sleep(nanoseconds: 170_000_000)
-
+            try? await Task.sleep(nanoseconds: 820_000_000)
             guard !Task.isCancelled else { return }
             engine.roll(dice: finalDice)
             if case .gameOver(let won) = engine.gameState, won {
@@ -171,6 +155,11 @@ final class GameViewModel: ObservableObject {
         engine.undoLastMove()
         highlightedHint = []
         lightFeedback()
+    }
+
+    func diceSettledFeedback() {
+        soundDiceRoll()
+        mediumFeedback()
     }
 
     func newGame(settings: GameSettings? = nil, seed: UInt64? = nil, isTimed: Bool? = nil) {

@@ -5,6 +5,9 @@
 
 import AVFoundation
 import Foundation
+#if os(watchOS)
+import WatchKit
+#endif
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -46,35 +49,45 @@ final class GameFeedback: GameFeedbackProviding {
     #endif
 
     private init() {
+        #if !os(watchOS)
         // Configure session once so sounds play consistently regardless of device state.
         // .ambient mixes with background audio and respects the silent switch.
         try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
         try? AVAudioSession.sharedInstance().setActive(true)
+        #endif
     }
 
     func tileSelected() {
-        #if canImport(UIKit)
+        #if os(watchOS)
+        WKInterfaceDevice.current().play(.click)
+        #elseif canImport(UIKit)
         lightImpact.prepare()
         lightImpact.impactOccurred()
         #endif
     }
 
     func validMoveConfirmed() {
-        #if canImport(UIKit)
+        #if os(watchOS)
+        WKInterfaceDevice.current().play(.directionUp)
+        #elseif canImport(UIKit)
         mediumImpact.prepare()
         mediumImpact.impactOccurred()
         #endif
     }
 
     func invalidAction() {
-        #if canImport(UIKit)
+        #if os(watchOS)
+        WKInterfaceDevice.current().play(.failure)
+        #elseif canImport(UIKit)
         notificationFeedback.prepare()
         notificationFeedback.notificationOccurred(.error)
         #endif
     }
 
     func boardCleared() {
-        #if canImport(UIKit)
+        #if os(watchOS)
+        WKInterfaceDevice.current().play(.success)
+        #elseif canImport(UIKit)
         notificationFeedback.prepare()
         notificationFeedback.notificationOccurred(.success)
         #endif
@@ -89,6 +102,9 @@ final class GameFeedback: GameFeedbackProviding {
     }
 
     private func play(_ sound: Sound) {
+        #if os(watchOS)
+        return
+        #else
         do {
             let player: AVAudioPlayer
             if let url = Bundle.main.url(forResource: sound.resourceName, withExtension: sound.fileExtension) {
@@ -104,6 +120,7 @@ final class GameFeedback: GameFeedbackProviding {
         } catch {
             assertionFailure("Unable to play sound: \(sound.fileName)")
         }
+        #endif
     }
 }
 

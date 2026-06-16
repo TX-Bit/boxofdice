@@ -29,6 +29,8 @@ struct StatsView: View {
 
     @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.classicWood.rawValue
 
+    @State private var showResetConfirm = false
+
     private var theme: GameTheme {
         GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .classicWood)
     }
@@ -67,10 +69,18 @@ struct StatsView: View {
             .navigationTitle("Statistics")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Reset", role: .destructive) { showResetConfirm = true }
+                        .foregroundStyle(.red)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                         .fontWeight(.semibold)
                 }
+            }
+            .confirmationDialog("Reset all statistics?", isPresented: $showResetConfirm, titleVisibility: .visible) {
+                Button("Reset", role: .destructive) { resetStats() }
+                Button("Cancel", role: .cancel) {}
             }
         }
     }
@@ -84,8 +94,8 @@ struct StatsView: View {
         ) {
             StatCard(title: "Played",     value: "\(gamesPlayed)", theme: theme)
             StatCard(title: "Won",        value: "\(gamesWon)",    theme: theme)
+            StatCard(title: "Lost",       value: "\(losses)",      theme: theme)
             StatCard(title: "Best Score", value: bestScoreText,    theme: theme)
-            StatCard(title: "Win Rate",   value: winRateText,      theme: theme)
         }
     }
 
@@ -203,10 +213,12 @@ struct StatsView: View {
         return formattedAverage(losingScoreTotal, count: losses)
     }
 
-    private var winRateText: String {
-        guard gamesPlayed > 0 else { return "-" }
-        let rate = Double(gamesWon) / Double(gamesPlayed) * 100
-        return rate.formatted(.number.precision(.fractionLength(1))) + "%"
+    private func resetStats() {
+        gamesPlayed = 0; gamesWon = 0; bestScore = 0; totalScore = 0
+        perfectClears = 0; currentWinStreak = 0; bestWinStreak = 0
+        winningScoreTotal = 0; losingScoreTotal = 0; losses = 0
+        longestGameTurns = 0; shortestClearTurns = 0; remainingTileCounts = ""
+        bestScoreClassic = 0; bestScoreSpeedRun = 0; bestScoreBigBox = 0; bestScoreBigBoxSpeed = 0
     }
 
     private var commonRemainingTiles: [(tile: Int, count: Int)] {

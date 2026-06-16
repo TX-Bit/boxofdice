@@ -25,11 +25,16 @@ struct DiceView: View {
             ZStack {
                 diceBody
 
-                if value > 0 {
-                    DotsView(value: value)
-                        .frame(width: 66, height: 66)
-                        .opacity(dotsOpacity)
+                Group {
+                    if value > 0 {
+                        DotsView(value: value)
+                            .frame(width: 66, height: 66)
+                    } else {
+                        InactiveDieMarkView()
+                            .frame(width: 66, height: 66)
+                    }
                 }
+                .opacity(dotsOpacity)
             }
             .frame(width: 96, height: 96)
             .rotation3DEffect(.degrees(rotX), axis: (x: 1, y: 0.3, z: 0), perspective: 0.42)
@@ -55,53 +60,54 @@ struct DiceView: View {
     // MARK: - Animation phases
 
     private func beginRolling() {
-        withAnimation(.spring(response: 0.18, dampingFraction: 0.66)) {
-            dieScaleX = 1.04
-            dieScaleY = 1.08
-            lift = -16
-            drift = Double.random(in: -7...7)
-            dotsOpacity = 0.58
+        withAnimation(.spring(response: 0.16, dampingFraction: 0.68)) {
+            dieScaleX = 1.02
+            dieScaleY = 1.04
+            lift = -10
+            drift = Double.random(in: -4...4)
+            dotsOpacity = 0.52
         }
         tumbleFrame()
     }
 
     private func tumbleFrame() {
         withAnimation(.timingCurve(0.22, 0.74, 0.34, 1.0, duration: 0.10)) {
-            rotX = Double.random(in: -72...72)
-            rotY = Double.random(in: -72...72)
-            spin += Double.random(in: -105...105)
-            lift = Double.random(in: -22 ... -8)
-            drift = Double.random(in: -10...10)
-            dieScaleX = Double.random(in: 0.98...1.08)
-            dieScaleY = Double.random(in: 0.98...1.08)
+            rotX = Double.random(in: -22...22)
+            rotY = Double.random(in: -22...22)
+            spin += Double.random(in: -18...18)
+            lift = Double.random(in: -14 ... -5)
+            drift = Double.random(in: -5...5)
+            dieScaleX = Double.random(in: 0.99...1.01)
+            dieScaleY = Double.random(in: 0.99...1.01)
         }
     }
 
     private func settle() {
-        // Normalize accumulated spin to [-180, 180] so spring doesn't unwind multiple turns.
+        // Normalize accumulated spin so spring doesn't unwind multiple turns.
         var normalized = spin.truncatingRemainder(dividingBy: 360)
         if normalized > 180 { normalized -= 360 }
         if normalized < -180 { normalized += 360 }
         spin = normalized
 
-        withAnimation(.easeOut(duration: 0.10)) {
-            lift = 3
+        // Brief landing squish: die hits the surface with a small rebound.
+        withAnimation(.easeOut(duration: 0.08)) {
+            lift = 4
             drift *= 0.25
-            dieScaleX = 1.08
-            dieScaleY = 0.92
+            dieScaleX = 1.06
+            dieScaleY = 0.94
             dotsOpacity = 0.82
         }
 
-        withAnimation(.interpolatingSpring(stiffness: 280, damping: 18).delay(0.08)) {
-            rotX = Double.random(in: -7...7)
-            rotY = Double.random(in: -7...7)
-            spin = Double.random(in: -10...10)
+        withAnimation(.interpolatingSpring(stiffness: 300, damping: 20).delay(0.07)) {
+            rotX = Double.random(in: -5...5)
+            rotY = Double.random(in: -5...5)
+            spin = Double.random(in: -8...8)
             dieScaleX = 1.0
             dieScaleY = 1.0
             lift = 0
             drift = 0
         }
-        withAnimation(.easeIn(duration: 0.16).delay(0.12)) {
+        withAnimation(.easeIn(duration: 0.14).delay(0.10)) {
             dotsOpacity = 1.0
         }
     }
@@ -180,6 +186,36 @@ struct DiceView: View {
             .opacity(max(0.28, 0.72 - airborne * 0.020))
             .offset(x: drift * 0.25, y: 40)
             .blur(radius: 2 + airborne * 0.08)
+    }
+}
+
+// MARK: - Inactive die mark (engraved question mark shown before first roll)
+
+private struct InactiveDieMarkView: View {
+    var body: some View {
+        ZStack {
+            // Cast shadow into die face (same technique as pip shadow)
+            Text("?")
+                .font(.system(size: 36, weight: .medium, design: .rounded))
+                .foregroundStyle(Color.black.opacity(0.16))
+                .offset(x: 0, y: 1.5)
+                .blur(radius: 1.2)
+
+            // Engraved mark — warm amber gradient matching die material
+            Text("?")
+                .font(.system(size: 36, weight: .medium, design: .rounded))
+                .foregroundStyle(LinearGradient(
+                    colors: [
+                        Color(red: 0.54, green: 0.40, blue: 0.20),
+                        Color(red: 0.38, green: 0.26, blue: 0.11)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ))
+                .shadow(color: Color.white.opacity(0.38), radius: 0, x: 0, y: 1)
+                .shadow(color: Color.black.opacity(0.28), radius: 1, x: 0, y: -1)
+        }
+        .opacity(0.60)
     }
 }
 
