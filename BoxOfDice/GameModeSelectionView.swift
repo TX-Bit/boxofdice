@@ -61,7 +61,7 @@ struct GameModeSelectionView: View {
 
     private func modeGroup(_ title: String, modes: [GameMode]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
+            Text(L10n.string(title).uppercased())
                 .font(GameTypography.section(size: 12))
                 .tracking(1.3)
                 .foregroundStyle(theme.text.opacity(0.58))

@@ -9,14 +9,11 @@ import SwiftUI
 struct BoxOfDiceApp: App {
     @AppStorage("settings.theme") private var themeRaw = "classicWood"
 
-    init() {
-        _ = PhoneConnectivityManager.shared
-    }
-
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .onAppear {
+                .task {
+                    _ = PhoneConnectivityManager.shared
                     PhoneConnectivityManager.shared.sendTheme(themeRaw)
                 }
                 .onChange(of: themeRaw) { newValue in

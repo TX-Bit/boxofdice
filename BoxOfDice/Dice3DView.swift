@@ -45,32 +45,36 @@ final class DiceSceneCoordinator: NSObject {
     private var finalYaw: Float = 0
 
     private let dieSize: CGFloat = 1.0
-    private let pipRadius: CGFloat = 0.045
-    private let pipDepth: CGFloat = 0.014
+    private let pipRadius: CGFloat = 0.082
+    private let pipDepth: CGFloat = 0.016
 
     private static let contactShadowImage: UIImage = {
-        let size = CGSize(width: 256, height: 128)
+        let size = CGSize(width: 256, height: 256)
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { context in
             let cgContext = context.cgContext
             cgContext.clear(CGRect(origin: .zero, size: size))
+            // Centred soft radial gradient: dense, dark core that feathers out
+            // smoothly to nothing. The plane's aspect ratio stretches it into the
+            // grounded ellipse, so the bitmap itself stays a clean circle.
             let colors = [
-                UIColor.black.withAlphaComponent(0.30).cgColor,
-                UIColor.black.withAlphaComponent(0.10).cgColor,
+                UIColor.black.withAlphaComponent(0.46).cgColor,
+                UIColor.black.withAlphaComponent(0.22).cgColor,
+                UIColor.black.withAlphaComponent(0.06).cgColor,
                 UIColor.clear.cgColor
             ] as CFArray
-            let locations: [CGFloat] = [0.0, 0.42, 1.0]
+            let locations: [CGFloat] = [0.0, 0.34, 0.66, 1.0]
             guard let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: locations) else {
                 return
             }
-            cgContext.scaleBy(x: 1.0, y: 0.42)
+            let center = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
             cgContext.drawRadialGradient(
                 gradient,
-                startCenter: CGPoint(x: size.width * 0.48, y: size.height * 1.18),
-                startRadius: 5,
-                endCenter: CGPoint(x: size.width * 0.48, y: size.height * 1.18),
-                endRadius: size.width * 0.48,
-                options: [.drawsAfterEndLocation]
+                startCenter: center,
+                startRadius: 0,
+                endCenter: center,
+                endRadius: size.width * 0.5,
+                options: []
             )
         }
     }()
@@ -88,7 +92,7 @@ final class DiceSceneCoordinator: NSObject {
         view.isOpaque = false
         view.allowsCameraControl = false
         view.autoenablesDefaultLighting = false
-        view.antialiasingMode = .multisampling4X
+        view.antialiasingMode = .multisampling2X
         view.preferredFramesPerSecond = 60
         return view
     }
@@ -146,7 +150,7 @@ final class DiceSceneCoordinator: NSObject {
         box.materials = Array(repeating: material, count: 6)
 
         dieNode.geometry = box
-        dieNode.castsShadow = true
+        dieNode.castsShadow = false
         addPips()
     }
 
@@ -165,7 +169,7 @@ final class DiceSceneCoordinator: NSObject {
 
         let half = Float(dieSize / 2)
         let inset = Float(pipDepth * 0.20)
-        let offset = Float(dieSize * 0.225)
+        let offset = Float(dieSize * 0.205)
 
         for face in diceFaces {
             for point in pipLayout(for: face.value) {
@@ -200,27 +204,14 @@ final class DiceSceneCoordinator: NSObject {
     }
 
     private func addShadowPlane() {
-        let receiverPlane = SCNPlane(width: 12, height: 12)
-        let receiverMaterial = SCNMaterial()
-        receiverMaterial.lightingModel = .shadowOnly
-        receiverMaterial.diffuse.contents = UIColor.black
-        receiverMaterial.writesToDepthBuffer = true
-        receiverMaterial.readsFromDepthBuffer = true
-        receiverPlane.materials = [receiverMaterial]
-
-        let receiverNode = SCNNode(geometry: receiverPlane)
-        receiverNode.eulerAngles.x = -.pi / 2
-        receiverNode.position = SCNVector3(0, -0.522, 0)
-        receiverNode.castsShadow = false
-        receiverNode.renderingOrder = -2
-        scene.rootNode.addChildNode(receiverNode)
-
-        let contactPlane = SCNPlane(width: 1.08, height: 0.40)
+        // A single soft elliptical contact shadow on the ground plane — no
+        // projected light shadow, so there's never a second offset smear.
+        let contactPlane = SCNPlane(width: 1.18, height: 0.58)
         let contactMaterial = SCNMaterial()
         contactMaterial.lightingModel = .constant
         contactMaterial.diffuse.contents = Self.contactShadowImage
-        contactMaterial.transparency = 0.78
-        contactMaterial.blendMode = .multiply
+        contactMaterial.transparency = 0.88
+        contactMaterial.blendMode = .alpha
         contactMaterial.writesToDepthBuffer = false
         contactMaterial.readsFromDepthBuffer = false
         contactPlane.materials = [contactMaterial]
@@ -235,17 +226,16 @@ final class DiceSceneCoordinator: NSObject {
 
     private func addCamera() {
         let camera = SCNCamera()
-        camera.fieldOfView = 40
-        camera.wantsHDR = true
-        camera.bloomIntensity = 0.01
-        camera.bloomThreshold = 0.98
-        camera.contrast = 1.02
-        camera.saturation = 0.98
+        camera.fieldOfView = 38
+        camera.wantsDepthOfField = false
 
         let cameraNode = SCNNode()
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(0.95, 1.42, 2.08)
-        cameraNode.look(at: SCNVector3(0, 0.04, 0))
+        // Raised, more top-down vantage (~46° above horizontal) so the upward
+        // face — the rolled value — reads clearly, while a slight offset keeps
+        // two side faces visible for depth.
+        cameraNode.position = SCNVector3(0.78, 1.96, 1.72)
+        cameraNode.look(at: SCNVector3(0, -0.02, 0))
         scene.rootNode.addChildNode(cameraNode)
     }
 
@@ -262,17 +252,29 @@ final class DiceSceneCoordinator: NSObject {
         let key = SCNLight()
         key.type = .directional
         key.color = UIColor(white: 0.98, alpha: 1.0)
-        key.intensity = 740
-        key.castsShadow = true
-        key.shadowMode = .deferred
-        key.shadowRadius = 7
-        key.shadowSampleCount = 24
+        key.intensity = 760
+        // No cast shadow — a single hand-drawn contact shadow under the die reads
+        // far cleaner than SceneKit's projected shadow in this tiny transparent view.
+        key.castsShadow = false
 
         let keyNode = SCNNode()
         keyNode.light = key
         keyNode.position = SCNVector3(-1.9, 2.35, 1.45)
         keyNode.look(at: SCNVector3(0.02, -0.04, 0))
         scene.rootNode.addChildNode(keyNode)
+
+        // Soft warm fill from the opposite side lifts the shadowed faces so the
+        // die reads as a solid object rather than a flat silhouette.
+        let fill = SCNLight()
+        fill.type = .directional
+        fill.color = UIColor(red: 1.0, green: 0.97, blue: 0.90, alpha: 1.0)
+        fill.intensity = 230
+
+        let fillNode = SCNNode()
+        fillNode.light = fill
+        fillNode.position = SCNVector3(2.1, 1.1, 1.6)
+        fillNode.look(at: SCNVector3(0, 0, 0))
+        scene.rootNode.addChildNode(fillNode)
     }
 
     private func startRoll(to value: Int) {
@@ -280,35 +282,47 @@ final class DiceSceneCoordinator: NSObject {
         isAnimating = true
         targetValue = value
         finalYaw = randomFinalYaw()
+        let target = orientation(for: value)
 
-        let wait = SCNAction.wait(duration: Double(dieIndex) * 0.05)
-        let tumble = SCNAction.customAction(duration: 0.70) { [weak self] node, elapsed in
+        let wait = SCNAction.wait(duration: Double(dieIndex) * 0.06)
+
+        let tumbleDuration = 0.86
+        let tumble = SCNAction.customAction(duration: tumbleDuration) { [weak self] node, elapsed in
             guard let self else { return }
-            let progress = Float(elapsed / 0.70)
-            let eased = self.smoothstep(progress)
-            let spinX = (Float.pi * (4.0 + Float(self.dieIndex) * 0.42)) * eased
-            let spinY = (Float.pi * (3.1 + Float(self.dieIndex) * 0.35)) * eased
-            let spinZ = (Float.pi * (2.4 - Float(self.dieIndex) * 0.18)) * eased
-            let spin = simd_quatf(angle: spinX, axis: SIMD3<Float>(1, 0.22, 0.12).normalized)
-                * simd_quatf(angle: spinY, axis: SIMD3<Float>(0.18, 1, 0.25).normalized)
-                * simd_quatf(angle: spinZ, axis: SIMD3<Float>(0.14, 0.26, 1).normalized)
-            node.simdOrientation = self.orientation(for: value) * spin
+            let progress = Float(elapsed / tumbleDuration)
 
-            let hop = sin(Float.pi * progress) * 0.22
-            let bounce = progress > 0.82 ? sin((progress - 0.82) / 0.18 * Float.pi) * 0.035 : 0
-            let sideways = sin(Float.pi * progress) * (self.dieIndex == 0 ? -0.055 : 0.055)
-            let position = SIMD3<Float>(sideways, hop + bounce, 0)
-            node.simdPosition = position
-            self.updateContactShadow(for: position)
-        }
+            // Angular velocity is high at the throw and eases to rest — a real
+            // tumble decelerates, it doesn't spin fastest at the moment it lands.
+            let spinPhase = self.easeOutQuart(progress)
+            let spinX = (Float.pi * (3.4 + Float(self.dieIndex) * 0.34)) * spinPhase
+            let spinY = (Float.pi * (2.6 + Float(self.dieIndex) * 0.28)) * spinPhase
+            let spinZ = (Float.pi * (1.9 - Float(self.dieIndex) * 0.14)) * spinPhase
+            let spin = simd_quatf(angle: spinX, axis: SIMD3<Float>(1, 0.20, 0.10).normalized)
+                * simd_quatf(angle: spinY, axis: SIMD3<Float>(0.16, 1, 0.22).normalized)
+                * simd_quatf(angle: spinZ, axis: SIMD3<Float>(0.12, 0.24, 1).normalized)
 
-        let settle = SCNAction.customAction(duration: 0.12) { [weak self] node, elapsed in
-            guard let self else { return }
-            let progress = Float(elapsed / 0.12)
-            let eased = self.smoothstep(progress)
-            let position = simd_mix(node.simdPosition, self.basePosition, SIMD3<Float>(repeating: eased))
+            // Over the final stretch, blend the tumble onto the exact resting face
+            // so the die comes to rest cleanly instead of snapping into place.
+            let align = self.smoothstep(max(0, (progress - 0.60) / 0.40))
+            node.simdOrientation = simd_slerp(target * spin, target, align)
+
+            // A confident main arc, then a small secondary bounce as it settles —
+            // the difference between a thrown die and one that just floats down.
+            let mainArc = sin(Float.pi * min(1, progress / 0.82)) * 0.28
+            let secondBounce = progress > 0.82 ? sin((progress - 0.82) / 0.18 * Float.pi) * 0.055 : 0
+            let hop = mainArc + secondBounce
+            let sideways = sin(Float.pi * progress) * (self.dieIndex == 0 ? -0.06 : 0.06)
+            let position = SIMD3<Float>(sideways, hop, 0)
             node.simdPosition = position
-            node.simdOrientation = simd_slerp(node.simdOrientation, self.orientation(for: value), eased)
+
+            // Squash & stretch on each touchdown, recovering to rest — plus a brief
+            // anticipatory crouch at the throw for extra snap.
+            let crouch = progress < 0.10 ? sin(progress / 0.10 * Float.pi) * 0.05 : 0
+            let land1 = (progress >= 0.78 && progress <= 0.88) ? sin((progress - 0.78) / 0.10 * Float.pi) * 0.13 : 0
+            let land2 = progress > 0.90 ? sin((progress - 0.90) / 0.10 * Float.pi) * 0.06 : 0
+            let squash = crouch + land1 + land2
+            node.simdScale = SIMD3<Float>(1 + squash * 0.55, 1 - squash, 1 + squash * 0.55)
+
             self.updateContactShadow(for: position)
         }
 
@@ -316,13 +330,14 @@ final class DiceSceneCoordinator: NSObject {
             guard let self else { return }
             self.displayedValue = value
             self.dieNode.simdPosition = self.basePosition
-            self.dieNode.simdOrientation = self.orientation(for: value)
+            self.dieNode.simdOrientation = target
+            self.dieNode.simdScale = SIMD3<Float>(repeating: 1)
             self.updateContactShadow(for: self.basePosition)
             self.isAnimating = false
             self.onSettled?()
         }
 
-        dieNode.runAction(.sequence([wait, tumble, settle, finish]), forKey: "roll")
+        dieNode.runAction(.sequence([wait, tumble, finish]), forKey: "roll")
     }
 
     private func setValue(_ value: Int, animated: Bool) {
@@ -379,10 +394,12 @@ final class DiceSceneCoordinator: NSObject {
 
     private func updateContactShadow(for diePosition: SIMD3<Float>) {
         let lift = max(0, diePosition.y)
-        let spread = 1.0 + CGFloat(lift) * 1.45
-        contactShadowNode.position = SCNVector3(diePosition.x - 0.025, -0.518, diePosition.z + 0.035)
+        // As the die lifts, the contact shadow grows and fades — a grounded die
+        // casts a tight dark pool; an airborne one a wide faint smudge.
+        let spread = 1.0 + CGFloat(lift) * 1.55
+        contactShadowNode.position = SCNVector3(diePosition.x - 0.02, -0.518, diePosition.z + 0.03)
         contactShadowNode.scale = SCNVector3(spread, spread, 1)
-        contactShadowNode.opacity = max(0.28, 0.88 - CGFloat(lift) * 1.9)
+        contactShadowNode.opacity = max(0.18, 0.74 - CGFloat(lift) * 1.7)
     }
 
     private func randomFinalYaw() -> Float {
@@ -401,6 +418,12 @@ final class DiceSceneCoordinator: NSObject {
     private func smoothstep(_ value: Float) -> Float {
         let x = min(1, max(0, value))
         return x * x * (3 - 2 * x)
+    }
+
+    private func easeOutQuart(_ value: Float) -> Float {
+        let x = min(1, max(0, value))
+        let inverse = 1 - x
+        return 1 - inverse * inverse * inverse * inverse
     }
 }
 

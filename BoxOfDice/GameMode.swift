@@ -16,21 +16,21 @@ enum GameMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .classic:     return "Classic"
-        case .speedRun:    return "Speed Run"
-        case .bigBox:      return "Big Box"
-        case .bigBoxSpeed: return "Big Box Speed"
-        case .passAndPlay: return "Pass & Play"
+        case .classic:     return L10n.string("Classic")
+        case .speedRun:    return L10n.string("Speed Run")
+        case .bigBox:      return L10n.string("Big Box")
+        case .bigBoxSpeed: return L10n.string("Big Box Speed")
+        case .passAndPlay: return L10n.string("Pass & Play")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .classic:     return "12 tiles · 2 dice · lowest score wins"
-        case .speedRun:    return "12 tiles · 2 dice · score + elapsed seconds"
-        case .bigBox:      return "18 tiles · 3 dice · lowest score wins"
-        case .bigBoxSpeed: return "18 tiles · 3 dice · score + elapsed seconds"
-        case .passAndPlay: return "2–4 players · each plays one Classic round"
+        case .classic:     return L10n.string("12 tiles · 2 dice · lowest score wins")
+        case .speedRun:    return L10n.string("12 tiles · 2 dice · score + elapsed seconds")
+        case .bigBox:      return L10n.string("18 tiles · 3 dice · lowest score wins")
+        case .bigBoxSpeed: return L10n.string("18 tiles · 3 dice · score + elapsed seconds")
+        case .passAndPlay: return L10n.string("2–4 players · each plays one Classic round")
         }
     }
 

@@ -15,7 +15,9 @@ enum GameTypography {
     }
 
     static func tileNumber(size: CGFloat) -> Font {
-        .custom("Georgia-Bold", size: size, relativeTo: .title)
+        // SF Rounded reads cleanly as an engraved numeral on the ivory tiles —
+        // even weight, generous counters, no thin serifs that muddy at small sizes.
+        .system(size: size, weight: .heavy, design: .rounded)
     }
 
     static func button(size: CGFloat = 18) -> Font {

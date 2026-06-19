@@ -167,7 +167,7 @@ struct StatsView: View {
     // MARK: - Reusable sub-views
 
     private func sectionHeader(_ title: String) -> some View {
-        Text(title.uppercased())
+        Text(L10n.string(title).uppercased())
             .font(GameTypography.section(size: 12))
             .tracking(1.3)
             .foregroundStyle(theme.text.opacity(0.58))
@@ -176,7 +176,7 @@ struct StatsView: View {
 
     private func rowItem(label: String, value: String) -> some View {
         HStack {
-            Text(label)
+            Text(L10n.string(label))
                 .font(GameTypography.label(size: 16))
                 .foregroundStyle(theme.text.opacity(0.82))
             Spacer()
@@ -248,7 +248,7 @@ struct StatsView: View {
     }
 
     private func turnsText(_ turns: Int) -> String {
-        turns == 0 ? "-" : "\(turns) turns"
+        turns == 0 ? "-" : L10n.format("%d turns", turns)
     }
 }
 
@@ -266,7 +266,7 @@ private struct StatCard: View {
                 .foregroundStyle(Color(red: 0.18, green: 0.09, blue: 0.03))
                 .minimumScaleFactor(0.65)
                 .lineLimit(1)
-            Text(title.uppercased())
+            Text(L10n.string(title).uppercased())
                 .font(GameTypography.section(size: 10))
                 .tracking(1.1)
                 .foregroundStyle(Color(red: 0.30, green: 0.14, blue: 0.04).opacity(0.75))

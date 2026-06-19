@@ -53,12 +53,25 @@ final class GameViewModel: ObservableObject {
     var turnCount: Int { engine.turnCount }
     var possibleMoveCount: Int { engine.validMoves().count }
 
+    // MARK: - End-of-game result flags (read by the celebration layer)
+
+    /// Every tile is closed.
+    var didClearBoard: Bool { engine.isWinner }
+
+    /// The board is cleared with no open tiles left (tile score 0). Combined with
+    /// the mode (Classic) by the caller to decide a Perfect Clear.
+    var isPerfectClear: Bool { engine.isWinner && engine.score == 0 }
+
+    /// The score that counts for stats and best-score comparisons, including the
+    /// elapsed-seconds penalty in timed modes.
+    var finalScore: Int { engine.score + (isTimed ? elapsedSeconds : 0) }
+
     private var rollingDieCount = 2
 
     // During rolling, display the animation frames; afterwards show the real dice.
     var dice: [Int] { isRolling ? animationDice : engine.dice }
     var diceTotal: Int { dice.reduce(0, +) }
-    var hasRolled: Bool { isRolling || engine.hasRolled }
+    var hasRolled: Bool { engine.hasRolled }
 
     // MARK: - Actions
 

@@ -6,25 +6,32 @@
 import SwiftUI
 
 struct GameOverView: View {
-    let won: Bool
+    let kind: GameResultKind
     let tileScore: Int
     let elapsedSeconds: Int
     let isTimed: Bool
     let remainingOpenTiles: [Int]
+    let modeName: String
+    let isNewBest: Bool
+    let isFirstScore: Bool
+    let previousBest: Int?
+    let shareMessage: String
     let theme: GameTheme
     let onNewGame: () -> Void
     let onSettings: () -> Void
     let onStats: () -> Void
 
+    var won: Bool { kind == .boardCleared || kind == .perfectClear }
     var finalScore: Int { isTimed ? tileScore + elapsedSeconds : tileScore }
 
     var body: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 20) {
             iconBar
             header
             scorePanel
+            bestPanel
             remainingTilesSection
-            newGameButton
+            actionButtons
         }
         .padding(.horizontal, 26)
         .padding(.vertical, 28)
@@ -66,17 +73,33 @@ struct GameOverView: View {
 
     private var header: some View {
         VStack(spacing: 8) {
-            Text(won ? "You cleared the box!" : "Game Over")
-                .font(GameTypography.title(size: won ? 31 : 34))
+            Text(L10n.string(titleText))
+                .font(GameTypography.title(size: kind == .gameOver ? 34 : 31))
                 .foregroundStyle(titleGradient)
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.78)
 
-            Text(won ? "Every tile is closed." : "No valid move remains.")
+            Text(L10n.string(subtitleText))
                 .font(GameTypography.label(size: 16))
                 .foregroundStyle(theme.text.opacity(0.72))
                 .multilineTextAlignment(.center)
+
+            if !modeName.isEmpty {
+                modePill
+            }
         }
+    }
+
+    private var modePill: some View {
+        Text(modeName)
+            .font(GameTypography.caption(size: 12))
+            .tracking(0.4)
+            .foregroundStyle(theme.text.opacity(0.78))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Color.black.opacity(0.22)))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+            .padding(.top, 2)
     }
 
     private var scorePanel: some View {
@@ -114,6 +137,42 @@ struct GameOverView: View {
                         .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
                 )
         )
+    }
+
+    // A gold "New Best!" / "First Score!" strip with the previous best, shown
+    // when the score earned a record. When the whole result is a New Best the
+    // header already carries the title, so only the previous best is repeated.
+    @ViewBuilder
+    private var bestPanel: some View {
+        if isNewBest {
+            VStack(spacing: 4) {
+                if kind != .newBest {
+                    HStack(spacing: 6) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 13, weight: .bold))
+                        Text(L10n.string(isFirstScore ? "First Score!" : "New Best!"))
+                            .font(GameTypography.button(size: 16))
+                    }
+                    .foregroundStyle(goldGradient)
+                }
+
+                if let previousBest {
+                    Text(L10n.format("Previous best %lld", previousBest))
+                        .font(GameTypography.caption(size: 13))
+                        .foregroundStyle(theme.text.opacity(0.62))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color(red: 1.0, green: 0.82, blue: 0.37).opacity(0.10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(Color(red: 1.0, green: 0.82, blue: 0.37).opacity(0.45), lineWidth: 1)
+                    )
+            )
+        }
     }
 
     private var remainingTilesSection: some View {
@@ -156,15 +215,56 @@ struct GameOverView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var newGameButton: some View {
-        Button(action: onNewGame) {
-            Text("New Game")
-                .font(GameTypography.button(size: 18))
+    private var actionButtons: some View {
+        VStack(spacing: 10) {
+            Button(action: onNewGame) {
+                Text("New Game")
+                    .font(GameTypography.button(size: 18))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+            }
+            .buttonStyle(ModalButtonStyle(theme: theme))
+
+            ShareLink(item: shareMessage) {
+                HStack(spacing: 7) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Share")
+                        .font(GameTypography.button(size: 16))
+                }
+                .foregroundStyle(theme.text.opacity(0.82))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
+                .padding(.vertical, 12)
+                .background(Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 13))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 13)
+                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Share")
         }
-        .buttonStyle(ModalButtonStyle(theme: theme))
         .padding(.top, 2)
+    }
+
+    // MARK: - Result-specific copy & colour
+
+    private var titleText: String {
+        switch kind {
+        case .perfectClear: return "Perfect Clear!"
+        case .boardCleared: return "Board Cleared!"
+        case .newBest:      return isFirstScore ? "First Score!" : "New Best!"
+        case .gameOver:     return "Game Over"
+        }
+    }
+
+    private var subtitleText: String {
+        switch kind {
+        case .perfectClear: return "Flawless — every tile closed."
+        case .boardCleared: return "Every tile is closed."
+        case .newBest:      return isFirstScore ? "Your first score for this mode." : "A new personal best for this mode."
+        case .gameOver:     return "No valid move remains."
+        }
     }
 
     private var tileColumns: [GridItem] {
@@ -172,12 +272,26 @@ struct GameOverView: View {
     }
 
     private var titleGradient: LinearGradient {
+        switch kind {
+        case .boardCleared:
+            return LinearGradient(
+                colors: [Color(red: 0.72, green: 1.0, blue: 0.50), Color(red: 0.35, green: 0.82, blue: 0.30)],
+                startPoint: .top, endPoint: .bottom
+            )
+        case .perfectClear, .newBest:
+            return goldGradient
+        case .gameOver:
+            return LinearGradient(
+                colors: [Color(red: 1.0, green: 0.88, blue: 0.60), Color(red: 0.96, green: 0.56, blue: 0.22)],
+                startPoint: .top, endPoint: .bottom
+            )
+        }
+    }
+
+    private var goldGradient: LinearGradient {
         LinearGradient(
-            colors: won
-                ? [Color(red: 0.72, green: 1.0, blue: 0.50), Color(red: 0.35, green: 0.82, blue: 0.30)]
-                : [Color(red: 1.0, green: 0.88, blue: 0.60), Color(red: 0.96, green: 0.56, blue: 0.22)],
-            startPoint: .top,
-            endPoint: .bottom
+            colors: [Color(red: 1.0, green: 0.91, blue: 0.68), Color(red: 0.86, green: 0.56, blue: 0.24)],
+            startPoint: .top, endPoint: .bottom
         )
     }
 
@@ -237,24 +351,24 @@ private struct ModalButtonStyle: ButtonStyle {
     ZStack {
         LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing)
             .ignoresSafeArea()
-        GameOverView(won: false, tileScore: 24, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [2, 4, 5, 6, 7], theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
+        GameOverView(kind: .gameOver, tileScore: 24, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [2, 4, 5, 6, 7], modeName: "Classic", isNewBest: false, isFirstScore: false, previousBest: 18, shareMessage: "", theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
     }
 }
 
-#Preview("Game Over — Timed") {
+#Preview("New Best") {
     let theme = GameTheme.palette(for: .classicWood)
     ZStack {
         LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing)
             .ignoresSafeArea()
-        GameOverView(won: false, tileScore: 14, elapsedSeconds: 47, isTimed: true, remainingOpenTiles: [5, 9], theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
+        GameOverView(kind: .newBest, tileScore: 14, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [5, 9], modeName: "Classic", isNewBest: true, isFirstScore: false, previousBest: 31, shareMessage: "", theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
     }
 }
 
-#Preview("Cleared") {
+#Preview("Perfect Clear") {
     let theme = GameTheme.palette(for: .classicWood)
     ZStack {
         LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing)
             .ignoresSafeArea()
-        GameOverView(won: true, tileScore: 0, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [], theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
+        GameOverView(kind: .perfectClear, tileScore: 0, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [], modeName: "Classic", isNewBest: true, isFirstScore: false, previousBest: 6, shareMessage: "", theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
     }
 }

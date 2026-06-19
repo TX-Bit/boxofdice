@@ -23,20 +23,16 @@ private struct WatchGameplayLayoutMetrics {
     var headerHeight: CGFloat   { min(max(20, size.height * 0.12), 28) }
     var diceSize: CGFloat       { min(max(21, size.height * 0.108), 26) }
     var diceRowHeight: CGFloat  { diceSize + 1 }
-    var totalHeight: CGFloat    { min(max(14, size.height * 0.074), 19) }
     var primaryHeight: CGFloat  { min(max(26, size.height * 0.138), 34) }
     var utilityHeight: CGFloat  { min(max(18, size.height * 0.092), 24) }
 
     var titleFontSize: CGFloat  { min(max(10, size.height * 0.058), 12) }
     var scoreFontSize: CGFloat  { min(max(9,  size.height * 0.052), 11) }
     var captionFontSize: CGFloat { min(max(8, size.height * 0.046), 9.5) }
-    var badgeFontSize: CGFloat  { min(max(11, size.height * 0.062), 15) }
     var buttonFontSize: CGFloat { min(max(11, size.height * 0.060), 13) }
     var utilityFontSize: CGFloat { min(max(9, size.height * 0.048), 10.5) }
 
     var primaryButtonWidth: CGFloat    { min(contentWidth * 0.62, 104) }
-    // More horizontal padding so badge text breathes
-    var badgeHorizontalPadding: CGFloat { max(8, 10 * scale) }
     var diceSpacing: CGFloat            { max(5, 7 * scale) }
     var utilitySpacing: CGFloat         { max(3, 5 * scale) }
 
@@ -96,8 +92,7 @@ struct WatchContentView: View {
     @AppStorage(SettingsStorageKey.soundsEnabled)       private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed)  private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
     @AppStorage(SettingsStorageKey.showHints)           private var showHints = true
-    @AppStorage(SettingsStorageKey.undoEnabled)         private var undoEnabled = true
-    @AppStorage(SettingsStorageKey.leftHandedLayout)    private var leftHandedLayout = false
+    @AppStorage("hasSelectedInitialGameMode") private var hasSelectedInitialGameMode = false
 
     @AppStorage(StatisticsStorageKey.gamesPlayed)       private var gamesPlayed = 0
     @AppStorage(StatisticsStorageKey.gamesWon)          private var gamesWon = 0
@@ -134,11 +129,11 @@ struct WatchContentView: View {
     private var rowCount: Int { max(1, Int(ceil(Double(viewModel.tiles.count) / Double(colCount)))) }
 
     private var showUtility: Bool {
-        (viewModel.canSelectTiles && showHints) || (viewModel.canUndo && undoEnabled)
+        (viewModel.canSelectTiles && showHints) || viewModel.canUndo
     }
 
     private var reserveUtilitySpace: Bool {
-        showHints || undoEnabled
+        showHints || viewModel.canUndo
     }
 
     // MARK: - Body
@@ -210,6 +205,9 @@ struct WatchContentView: View {
             didApplyInitialSettings = true
             configureViewModel()
             viewModel.newGame(settings: currentSettings, isTimed: currentGameMode.isTimed)
+            if !hasSelectedInitialGameMode {
+                activeSheet = .mode
+            }
         }
         .onChange(of: viewModel.gameState, perform: handleGameStateChange)
         .onChange(of: diceAnimationSpeedRawValue) { _ in configureViewModel() }
@@ -237,7 +235,7 @@ struct WatchContentView: View {
                     isTimed: currentGameMode.isTimed,
                     remainingOpenTiles: viewModel.remainingOpenTiles,
                     theme: theme,
-                    onNewGame: { activeSheet = .mode },
+                    onNewGame: restartCurrentGame,
                     onStats: { activeSheet = .stats }
                 )
             case .roundEnd:
@@ -251,7 +249,7 @@ struct WatchContentView: View {
                 )
             case .results:
                 WatchPassAndPlayResultsView(scores: passAndPlayScores, theme: theme) {
-                    activeSheet = .mode
+                    restartCurrentGame()
                 }
             }
         }
@@ -287,7 +285,7 @@ struct WatchContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 5) {
-                Button { activeSheet = .mode } label: {
+                Button(action: restartCurrentGame) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: metrics.titleFontSize + 2, weight: .semibold))
                         .foregroundStyle(theme.text.opacity(0.80))
@@ -428,40 +426,14 @@ struct WatchContentView: View {
                     restingAngle: dieRestingAngle(i)
                 )
                 .shadow(color: .black.opacity(0.32), radius: 2, x: 0.5, y: 1.5)
-                .opacity(viewModel.hasRolled ? 1.0 : 0.34)
+                .opacity((viewModel.isRolling || viewModel.hasRolled) ? 1.0 : 0.34)
             }
 
-            totalBadge(metrics: metrics)
+
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(viewModel.hasRolled ? "Dice total \(viewModel.diceTotal)" : "Dice, not rolled yet")
-    }
-
-    // MARK: - Total / Target Badge
-
-    private func totalBadge(metrics: WatchGameplayLayoutMetrics) -> some View {
-        let isRolled = viewModel.hasRolled
-        let isSelecting = viewModel.canSelectTiles
-        let label: String
-        let opacity: Double
-        if !isRolled {
-            label = "Total –"; opacity = 0.40
-        } else if isSelecting {
-            // Show as target during selection so the player knows what to match
-            label = "Target \(viewModel.diceTotal)"; opacity = 0.90
-        } else {
-            label = "Total \(viewModel.diceTotal)"; opacity = 0.88
-        }
-        // frame(height:) pins the capsule to exactly totalHeight — no overflow into dice or primary action
-        return Text(label)
-            .font(.system(size: metrics.badgeFontSize, weight: .semibold, design: .rounded))
-            .foregroundStyle(theme.text.opacity(opacity))
-            .lineLimit(1)
-            .padding(.horizontal, metrics.badgeHorizontalPadding)
-            .frame(height: metrics.totalHeight)
-            .background(theme.accent.opacity(isRolled ? 0.20 : 0.07), in: Capsule())
-            .overlay(Capsule().strokeBorder(theme.accent.opacity(isRolled ? 0.38 : 0.12), lineWidth: 0.6))
+        .accessibilityLabel(viewModel.hasRolled ? L10n.string("Dice rolled") : L10n.string("Dice, not rolled yet"))
     }
 
     private func dieRestingAngle(_ index: Int) -> CGFloat {
@@ -487,7 +459,7 @@ struct WatchContentView: View {
         switch viewModel.gameState {
         case .waitingToRoll:
             Button(action: viewModel.rollDice) {
-                Label(viewModel.isRolling ? "Rolling" : "Roll", systemImage: "dice.fill")
+                Label(L10n.string(viewModel.isRolling ? "Rolling" : "Roll"), systemImage: "dice.fill")
                     .font(.system(size: metrics.buttonFontSize, weight: .bold))
                     .lineLimit(1)
                     .frame(width: metrics.primaryButtonWidth, height: metrics.primaryHeight)
@@ -499,7 +471,7 @@ struct WatchContentView: View {
             if viewModel.canConfirm {
                 // Active: tiles sum to the target — show prominent confirm button
                 Button(action: viewModel.confirmSelection) {
-                    Text("✓ Confirm \(viewModel.diceTotal)")
+                    Text("✓ Confirm")
                         .font(.system(size: metrics.buttonFontSize, weight: .bold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.82)
@@ -508,7 +480,7 @@ struct WatchContentView: View {
                 .buttonStyle(WatchPrimaryButtonStyle(theme: theme, enabled: true))
             } else {
                 // Inactive: show selection progress instead of a disabled button
-                Text("Selected \(viewModel.selectionTotal) / \(viewModel.diceTotal)")
+                Text("Selected \(viewModel.selectionTotal)")
                     .font(.system(size: max(9, metrics.buttonFontSize - 1.5), weight: .medium, design: .rounded))
                     .foregroundStyle(theme.text.opacity(0.60))
                     .lineLimit(1)
@@ -543,7 +515,7 @@ struct WatchContentView: View {
                 .buttonStyle(WatchUtilityButtonStyle(theme: theme))
                 .accessibilityLabel("Show hint")
             }
-            if viewModel.canUndo && undoEnabled {
+            if viewModel.canUndo {
                 Button(action: viewModel.undoLastMove) {
                     Label("Undo", systemImage: "arrow.uturn.backward")
                         .font(.system(size: metrics.utilityFontSize, weight: .semibold))
@@ -575,6 +547,7 @@ struct WatchContentView: View {
     }
 
     private func startNewGame(mode: GameMode, playerCount: Int = 2) {
+        hasSelectedInitialGameMode = true
         gameModeRaw = mode.rawValue
         if mode.isMultiplayer {
             passAndPlayPlayerCount = playerCount
@@ -584,6 +557,11 @@ struct WatchContentView: View {
         }
         configureViewModel()
         viewModel.newGame(settings: currentSettings, isTimed: mode.isTimed)
+    }
+
+    private func restartCurrentGame() {
+        activeSheet = nil
+        startNewGame(mode: currentGameMode, playerCount: passAndPlayPlayerCount)
     }
 
     private func advanceToNextPlayer() {
@@ -885,7 +863,7 @@ private struct WatchTileButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!tile.isOpen || !isEnabled)
-        .accessibilityLabel(tile.isOpen ? "Tile \(tile.id), open" : "Tile \(tile.id), closed")
+        .accessibilityLabel(tile.isOpen ? L10n.format("Tile %d, open", tile.id) : L10n.format("Tile %d, closed", tile.id))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 

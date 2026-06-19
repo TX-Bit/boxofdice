@@ -13,8 +13,7 @@ struct SettingsView: View {
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
     @AppStorage(SettingsStorageKey.showHints) private var showHints = true
-    @AppStorage(SettingsStorageKey.undoEnabled) private var undoEnabled = true
-    @AppStorage(SettingsStorageKey.leftHandedLayout) private var leftHandedLayout = false
+    @AppStorage(SettingsStorageKey.language) private var languageRawValue = AppLanguage.system.rawValue
 
     private var theme: GameTheme {
         GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .classicWood)
@@ -44,12 +43,38 @@ struct SettingsView: View {
                 }
             }
         }
+        // Menu pickers don't refresh their displayed label from a plain state
+        // change when the selection tag is unchanged — rebuild the whole sheet so
+        // the Theme / Dice Animation values switch language immediately.
+        .id(languageRawValue)
+        .environment(\.locale, languageLocale)
+    }
+
+    private var languageLocale: Locale {
+        let language = AppLanguage(rawValue: languageRawValue) ?? .system
+        return language == .system ? .current : Locale(identifier: language.rawValue)
     }
 
     // MARK: - Sections
 
     private var lookAndFeelSection: some View {
         settingsCard(title: "Look & Feel") {
+            HStack {
+                rowLabel("Language")
+                Spacer()
+                Picker("", selection: $languageRawValue) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.title).tag(lang.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(theme.accent)
+                .font(GameTypography.label(size: 16))
+            }
+            .rowPadding()
+
+            cardDivider
+
             HStack {
                 rowLabel("Theme")
                 Spacer()
@@ -90,10 +115,6 @@ struct SettingsView: View {
     private var gameFlowSection: some View {
         settingsCard(title: "Game Flow") {
             toggleRow("Show Hints", isOn: $showHints)
-            cardDivider
-            toggleRow("Allow Undo", isOn: $undoEnabled)
-            cardDivider
-            toggleRow("Left-Handed Layout", isOn: $leftHandedLayout)
         }
     }
 
@@ -104,7 +125,7 @@ struct SettingsView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
+            Text(L10n.string(title).uppercased())
                 .font(GameTypography.section(size: 12))
                 .tracking(1.3)
                 .foregroundStyle(theme.text.opacity(0.58))
@@ -135,7 +156,7 @@ struct SettingsView: View {
     }
 
     private func rowLabel(_ text: String) -> some View {
-        Text(text)
+        Text(L10n.string(text))
             .font(GameTypography.label(size: 16))
             .foregroundStyle(theme.text.opacity(0.85))
     }

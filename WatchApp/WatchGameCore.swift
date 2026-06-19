@@ -8,6 +8,16 @@ import Foundation
 import SwiftUI
 import WatchKit
 
+enum L10n {
+    static func string(_ key: String) -> String {
+        NSLocalizedString(key, comment: "")
+    }
+
+    static func format(_ key: String, _ arguments: CVarArg...) -> String {
+        String(format: string(key), locale: Locale.current, arguments: arguments)
+    }
+}
+
 enum GameTypography {
     static func title(size: CGFloat) -> Font {
         .custom("AmericanTypewriter-Bold", size: size, relativeTo: .largeTitle)
@@ -66,21 +76,21 @@ enum GameMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .classic:      return "Classic"
-        case .speedRun:     return "Speed Run"
-        case .bigBox:       return "Big Box"
-        case .bigBoxSpeed:  return "Big Box Speed"
-        case .passAndPlay:  return "Pass & Play"
+        case .classic:      return L10n.string("Classic")
+        case .speedRun:     return L10n.string("Speed Run")
+        case .bigBox:       return L10n.string("Big Box")
+        case .bigBoxSpeed:  return L10n.string("Big Box Speed")
+        case .passAndPlay:  return L10n.string("Pass & Play")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .classic:      return "12 tiles, 2 dice"
-        case .speedRun:     return "Score plus time"
-        case .bigBox:       return "18 tiles, 3 dice"
-        case .bigBoxSpeed:  return "Big box plus time"
-        case .passAndPlay:  return "2-4 players"
+        case .classic:      return L10n.string("12 tiles, 2 dice")
+        case .speedRun:     return L10n.string("Score plus time")
+        case .bigBox:       return L10n.string("18 tiles, 3 dice")
+        case .bigBoxSpeed:  return L10n.string("Big box plus time")
+        case .passAndPlay:  return L10n.string("2-4 players")
         }
     }
 
@@ -113,9 +123,9 @@ enum DiceAnimationSpeed: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .short:  return "Short"
-        case .normal: return "Normal"
-        case .long:   return "Long"
+        case .short:  return L10n.string("Short")
+        case .normal: return L10n.string("Normal")
+        case .long:   return L10n.string("Long")
         }
     }
 }
@@ -132,12 +142,12 @@ enum GameThemeName: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .classicWood:  return "Classic Wood"
-        case .greenFelt:    return "Green Felt"
-        case .midnight:     return "Midnight"
-        case .highContrast: return "High Contrast"
-        case .minimalLight: return "Minimal Light"
-        case .darkWalnut:   return "Dark Walnut"
+        case .classicWood:  return L10n.string("Classic Wood")
+        case .greenFelt:    return L10n.string("Green Felt")
+        case .midnight:     return L10n.string("Midnight")
+        case .highContrast: return L10n.string("High Contrast")
+        case .minimalLight: return L10n.string("Minimal Light")
+        case .darkWalnut:   return L10n.string("Dark Walnut")
         }
     }
 }
@@ -161,8 +171,6 @@ enum SettingsStorageKey {
     static let soundsEnabled        = "settings.soundsEnabled"
     static let diceAnimationSpeed   = "settings.diceAnimationSpeed"
     static let showHints            = "settings.showHints"
-    static let undoEnabled          = "settings.undoEnabled"
-    static let leftHandedLayout     = "settings.leftHandedLayout"
     static let gameMode             = "settings.gameMode"
     static let passAndPlayPlayerCount = "settings.passAndPlayPlayerCount"
 }
@@ -329,7 +337,7 @@ final class GameViewModel: ObservableObject {
     var selectionTotal: Int    { selectedTiles.reduce(0, +) }
     var dieCount: Int          { settings.baseDiceCount }
     var diceTotal: Int         { dice.reduce(0, +) }
-    var hasRolled: Bool        { isRolling || dice.contains { $0 > 0 } }
+    var hasRolled: Bool        { !isRolling && dice.contains { $0 > 0 } }
     var canRoll: Bool          { !isRolling && gameState == .waitingToRoll }
     var canSelectTiles: Bool   { !isRolling && gameState == .selecting }
     var canConfirm: Bool       { canSelectTiles && !selectedTiles.isEmpty && selectionTotal == diceTotal }
@@ -364,9 +372,10 @@ final class GameViewModel: ObservableObject {
         if isTimed && gameStartTime == nil { startTimer() }
         highlightedHint = []
         isRolling = true
-        dice = randomDice()
+        let finalDice = randomDice()
         rollTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 450_000_000)
+            dice = finalDice
             isRolling = false
             gameState = hasValidMoves() ? .selecting : .gameOver(won: false)
             if case .gameOver = gameState { stopTimer() }

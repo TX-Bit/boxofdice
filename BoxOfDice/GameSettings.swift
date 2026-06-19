@@ -5,6 +5,54 @@
 
 import Foundation
 
+enum L10n {
+    // An optional in-app language override (independent of the device language).
+    // nil means "follow the system".
+    private static var overrideCode: String? {
+        let code = UserDefaults.standard.string(forKey: SettingsStorageKey.language)
+        guard let code, code != AppLanguage.system.rawValue else { return nil }
+        return code
+    }
+
+    /// The locale to use for number/date formatting, honouring the override.
+    static var locale: Locale {
+        if let overrideCode { return Locale(identifier: overrideCode) }
+        return .current
+    }
+
+    static func string(_ key: String) -> String {
+        guard let overrideCode else { return NSLocalizedString(key, comment: "") }
+        // English is the development language — the keys themselves are the text.
+        if overrideCode == AppLanguage.en.rawValue { return key }
+        if let path = Bundle.main.path(forResource: overrideCode, ofType: "lproj"),
+           let bundle = Bundle(path: path) {
+            return bundle.localizedString(forKey: key, value: key, table: nil)
+        }
+        return NSLocalizedString(key, comment: "")
+    }
+
+    static func format(_ key: String, _ arguments: CVarArg...) -> String {
+        String(format: string(key), locale: locale, arguments: arguments)
+    }
+}
+
+/// Selectable in-app language. `system` follows the device setting.
+enum AppLanguage: String, CaseIterable, Identifiable {
+    case system
+    case en
+    case fi
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: return L10n.string("System")
+        case .en:     return "English"
+        case .fi:     return "Suomi"
+        }
+    }
+}
+
 enum DiceMode: String, CaseIterable, Identifiable {
     case alwaysTwoDice
     case oneDieWhenLowTilesRemain
@@ -14,9 +62,9 @@ enum DiceMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .alwaysTwoDice:
-            return "Always use all dice"
+            return L10n.string("Always use all dice")
         case .oneDieWhenLowTilesRemain:
-            return "Use one die when only tiles 1–6 remain open"
+            return L10n.string("Use one die when only tiles 1–6 remain open")
         }
     }
 }
@@ -30,9 +78,9 @@ enum MoveRule: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .anyCombination:
-            return "Any combination of open tiles"
+            return L10n.string("Any combination of open tiles")
         case .oneOrTwoTiles:
-            return "Only one or two tiles"
+            return L10n.string("Only one or two tiles")
         }
     }
 }
@@ -46,9 +94,9 @@ enum DiceAnimationSpeed: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .short: return "Short"
-        case .normal: return "Normal"
-        case .long: return "Long"
+        case .short: return L10n.string("Short")
+        case .normal: return L10n.string("Normal")
+        case .long: return L10n.string("Long")
         }
     }
 
@@ -73,9 +121,9 @@ enum ChallengeMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .normal: return "Normal random game"
-        case .daily: return "Daily Challenge"
-        case .customSeed: return "Challenge seed"
+        case .normal: return L10n.string("Normal random game")
+        case .daily: return L10n.string("Daily Challenge")
+        case .customSeed: return L10n.string("Challenge seed")
         }
     }
 }
@@ -92,12 +140,12 @@ enum GameThemeName: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .classicWood: return "Classic Wood"
-        case .greenFelt: return "Green Felt"
-        case .midnight: return "Midnight"
-        case .highContrast: return "High Contrast"
-        case .minimalLight: return "Minimal Light"
-        case .darkWalnut: return "Dark Walnut"
+        case .classicWood: return L10n.string("Classic Wood")
+        case .greenFelt: return L10n.string("Green Felt")
+        case .midnight: return L10n.string("Midnight")
+        case .highContrast: return L10n.string("High Contrast")
+        case .minimalLight: return L10n.string("Minimal Light")
+        case .darkWalnut: return L10n.string("Dark Walnut")
         }
     }
 }
@@ -141,10 +189,10 @@ enum SettingsStorageKey {
     static let soundsEnabled = "settings.soundsEnabled"
     static let diceAnimationSpeed = "settings.diceAnimationSpeed"
     static let showHints = "settings.showHints"
-    static let undoEnabled = "settings.undoEnabled"
-    static let leftHandedLayout = "settings.leftHandedLayout"
     static let challengeMode = "settings.challengeMode"
     static let challengeSeed = "settings.challengeSeed"
     static let gameMode = "settings.gameMode"
     static let passAndPlayPlayerCount = "settings.passAndPlayPlayerCount"
+    static let celebrations = "settings.celebrations"
+    static let language = "settings.language"
 }

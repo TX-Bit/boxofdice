@@ -38,7 +38,7 @@ struct PassAndPlayRoundEndView: View {
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.78)
 
-            Text(isLastPlayer ? "All players have finished." : "Hand the device to the next player.")
+            Text(L10n.string(isLastPlayer ? "All players have finished." : "Hand the device to the next player."))
                 .font(GameTypography.label(size: 16))
                 .foregroundStyle(Color(red: 1.0, green: 0.86, blue: 0.62).opacity(0.82))
                 .multilineTextAlignment(.center)
@@ -74,7 +74,7 @@ struct PassAndPlayRoundEndView: View {
 
     private var primaryButton: some View {
         Button(action: isLastPlayer ? onResults : onNext) {
-            Text(isLastPlayer ? "See Results" : "Next Player")
+            Text(L10n.string(isLastPlayer ? "See Results" : "Next Player"))
                 .font(GameTypography.button(size: 18))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 15)
@@ -204,7 +204,7 @@ struct PassAndPlayResultsView: View {
 
             Spacer()
 
-            Text("\(score) pts")
+            Text(L10n.format("%d pts", score))
                 .font(GameTypography.value(size: 17))
                 .foregroundStyle(isWinner ? Color(red: 1.0, green: 0.92, blue: 0.70) : Color(red: 1.0, green: 0.82, blue: 0.52).opacity(0.80))
 

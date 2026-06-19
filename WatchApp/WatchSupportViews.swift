@@ -104,8 +104,6 @@ struct WatchSettingsView: View {
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
     @AppStorage(SettingsStorageKey.showHints) private var showHints = true
-    @AppStorage(SettingsStorageKey.undoEnabled) private var undoEnabled = true
-    @AppStorage(SettingsStorageKey.leftHandedLayout) private var leftHandedLayout = false
 
     private var theme: GameTheme {
         GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .classicWood)
@@ -127,8 +125,6 @@ struct WatchSettingsView: View {
                         toggleRow("Haptics & Sound", isOn: $hapticsEnabled)
                         dicePickerRow
                         toggleRow("Hints", isOn: $showHints)
-                        toggleRow("Undo", isOn: $undoEnabled)
-                        toggleRow("Left hand", isOn: $leftHandedLayout)
                         statsRow
                     }
                     .padding(.bottom, 10)
@@ -198,14 +194,14 @@ struct WatchSettingsView: View {
     private func navPickerRow<Content: View>(title: String, valueLabel: String, @ViewBuilder options: () -> Content) -> some View {
         NavigationLink {
             List { options() }
-                .navigationTitle(title)
+                .navigationTitle(L10n.string(title))
         } label: {
             HStack {
-                Text(title)
+                Text(L10n.string(title))
                     .font(GameTypography.label(size: 14))
                     .foregroundStyle(theme.text)
                 Spacer()
-                Text(valueLabel)
+                Text(L10n.string(valueLabel))
                     .font(GameTypography.label(size: 13))
                     .foregroundStyle(theme.accent)
                     .lineLimit(1)
@@ -221,7 +217,7 @@ struct WatchSettingsView: View {
     private func selectionButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
-                Text(label)
+                Text(L10n.string(label))
                     .font(GameTypography.label(size: 15))
                     .foregroundStyle(isSelected ? theme.accent : theme.text)
                 Spacer()
@@ -237,7 +233,7 @@ struct WatchSettingsView: View {
 
     private func toggleRow(_ title: String, isOn: Binding<Bool>) -> some View {
         Toggle(isOn: isOn) {
-            Text(title)
+            Text(L10n.string(title))
                 .font(GameTypography.label(size: 14))
                 .foregroundStyle(theme.text)
         }
@@ -313,7 +309,7 @@ struct WatchStatsView: View {
 
     private func statRow(_ title: String, _ value: String) -> some View {
         HStack {
-            Text(title)
+            Text(L10n.string(title))
                 .font(GameTypography.label(size: 13))
                 .foregroundStyle(theme.text.opacity(0.76))
             Spacer(minLength: 4)
@@ -388,11 +384,11 @@ struct WatchGameOverView: View {
                                 .minimumScaleFactor(0.7)
 
                             if remainingOpenTiles.isEmpty {
-                                Text(won ? "Perfect clear!" : "All tiles closed")
+                                Text(L10n.string(won ? "Perfect clear!" : "All tiles closed"))
                                     .font(.system(size: captionSize, weight: .medium))
                                     .foregroundStyle(Color.green.opacity(0.85))
                             } else {
-                                Text("Open: \(openTilesText)")
+                                Text(L10n.format("Open: %@", openTilesText))
                                     .font(.system(size: captionSize, weight: .medium, design: .rounded))
                                     .foregroundStyle(theme.text.opacity(0.65))
                                     .lineLimit(1)
@@ -449,11 +445,11 @@ struct WatchPassAndPlayRoundEndView: View {
                 Text("\(tileScore)")
                     .font(GameTypography.display(size: 40))
                     .foregroundStyle(theme.accent)
-                Text(isLastPlayer ? "All players done" : "Pass to next player")
+                Text(L10n.string(isLastPlayer ? "All players done" : "Pass to next player"))
                     .font(GameTypography.caption(size: 12))
                     .foregroundStyle(theme.text.opacity(0.65))
                     .multilineTextAlignment(.center)
-                Button(isLastPlayer ? "Results" : "Next", action: isLastPlayer ? onResults : onNext)
+                Button(L10n.string(isLastPlayer ? "Results" : "Next"), action: isLastPlayer ? onResults : onNext)
                     .buttonStyle(WatchSheetPrimaryButtonStyle(theme: theme))
             }
             .padding(.horizontal, 4)

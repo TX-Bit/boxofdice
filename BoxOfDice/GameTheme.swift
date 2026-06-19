@@ -19,7 +19,7 @@ struct GameTheme {
         case .classicWood:
             return GameTheme(
                 name: name,
-                background: [Color(red: 0.28, green: 0.12, blue: 0.05), Color(red: 0.55, green: 0.30, blue: 0.12), Color(red: 0.32, green: 0.14, blue: 0.05)],
+                background: [Color(red: 0.17, green: 0.075, blue: 0.03), Color(red: 0.36, green: 0.18, blue: 0.07), Color(red: 0.12, green: 0.05, blue: 0.02)],
                 board: [Color(red: 0.47, green: 0.25, blue: 0.10), Color(red: 0.72, green: 0.43, blue: 0.20), Color(red: 0.42, green: 0.20, blue: 0.08)],
                 title: [Color(red: 1.0, green: 0.91, blue: 0.68), Color(red: 0.86, green: 0.56, blue: 0.24)],
                 text: Color(red: 1.0, green: 0.88, blue: 0.62),

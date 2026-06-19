@@ -10,6 +10,9 @@ struct TileView: View {
     let isOpen: Bool
     let isSelected: Bool
     let isEnabled: Bool
+    // Open-tile numeral size; the closed-tile numeral derives from it. Defaults to
+    // the iPhone size so larger layouts (iPad) can pass a scaled-up value.
+    var numberFontSize: CGFloat = 27
     let onTap: () -> Void
 
     @State private var visualIsOpen = true
@@ -158,15 +161,29 @@ struct TileView: View {
                     lineWidth: 2
                 )
 
-            // Number — dark brown, engraved; lineLimit(1) prevents two-digit wrap to "1\n1"
+            // Number — engraved, carved into the ivory. Uniform size for one- and
+            // two-digit tiles (monospaced digits + fixed cap height) so 10–12 read
+            // exactly as large as 1–9. scaledToFit only nudges down on the very
+            // narrowest big-box tiles, keeping every numeral visually balanced.
             Text("\(number)")
-                .font(GameTypography.tileNumber(size: number > 9 ? 22 : 28))
+                .font(GameTypography.tileNumber(size: numberFontSize))
+                .monospacedDigit()
                 .lineLimit(1)
-                .minimumScaleFactor(0.62)
+                .minimumScaleFactor(0.7)
                 .allowsTightening(true)
-                .foregroundStyle(Color(red: 0.14, green: 0.05, blue: 0.01))
-                .shadow(color: Color.white.opacity(0.48), radius: 0, x: 0, y: 1)
-                .shadow(color: Color.black.opacity(0.36), radius: 1.5, x: 0, y: -1)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.30, green: 0.13, blue: 0.035),
+                            Color(red: 0.12, green: 0.045, blue: 0.012)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: Color.white.opacity(0.55), radius: 0, x: 0, y: 1)
+                .shadow(color: Color.black.opacity(0.30), radius: 1, x: 0, y: -0.5)
+                .padding(.horizontal, 4)
                 .opacity(showsNumber ? 1 : 0)
                 .scaleEffect(showsNumber ? 1 : 0.86)
 
@@ -229,12 +246,15 @@ struct TileView: View {
                     }
 
                     Text("\(number)")
-                        .font(GameTypography.tileNumber(size: number > 9 ? 17 : 21))
+                        .font(GameTypography.tileNumber(size: numberFontSize * 0.74))
+                        .monospacedDigit()
                         .lineLimit(1)
-                        .minimumScaleFactor(0.62)
+                        .minimumScaleFactor(0.7)
                         .allowsTightening(true)
-                        .foregroundStyle(Color(red: 0.82, green: 0.64, blue: 0.42).opacity(0.18))
-                        .shadow(color: Color.black.opacity(0.35), radius: 0.5, x: 0, y: 1)
+                        // Faintly legible engraving on the dark walnut back — readable
+                        // enough to track which tiles are down, without ever looking lit.
+                        .foregroundStyle(Color(red: 0.86, green: 0.68, blue: 0.46).opacity(0.45))
+                        .shadow(color: Color.black.opacity(0.55), radius: 0.5, x: 0, y: 1)
 
                     VStack(spacing: 0) {
                         Spacer()

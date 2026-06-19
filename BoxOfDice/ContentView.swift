@@ -13,6 +13,15 @@ struct ContentView: View {
     @State private var didApplyInitialSettings = false
     @State private var isGameOverVisible = false
 
+    // Celebration state
+    @State private var isShowingCelebration = false
+    @State private var celebrationOutcome: CelebrationOutcome?
+
+    #if targetEnvironment(simulator)
+    // Simulator-only: lets the debug menu preview an animation without ending a game.
+    @State private var debugCelebration: CelebrationOutcome?
+    #endif
+
     // Pass & Play state
     @State private var currentPassAndPlayPlayer = 0
     @State private var passAndPlayScores: [Int] = []
@@ -25,8 +34,9 @@ struct ContentView: View {
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
     @AppStorage(SettingsStorageKey.showHints) private var showHints = true
-    @AppStorage(SettingsStorageKey.undoEnabled) private var undoEnabled = true
-    @AppStorage(SettingsStorageKey.leftHandedLayout) private var leftHandedLayout = false
+    @AppStorage(SettingsStorageKey.celebrations) private var celebrationsRaw = CelebrationLevel.on.rawValue
+    @AppStorage(SettingsStorageKey.language) private var languageRaw = AppLanguage.system.rawValue
+    @AppStorage("hasSelectedInitialGameMode") private var hasSelectedInitialGameMode = false
     @AppStorage("hasSeenScoreOnboardingHint") private var hasSeenScoreOnboardingHint = false
 
     // Global stats
@@ -52,34 +62,29 @@ struct ContentView: View {
 
     private let horizontalPadding: CGFloat = 12
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         GeometryReader { proxy in
+            let isLandscape = proxy.size.width > proxy.size.height
+            let layout = layoutKind(isLandscape: isLandscape)
+
             ZStack {
                 WoodBackground(colors: theme.background)
                     .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: spacing(for: proxy.size.height)) {
-                        headerView
-                            .padding(.top, max(18, proxy.safeAreaInsets.top + 10))
-
-                        boardView(width: proxy.size.width - horizontalPadding * 2)
-
-                        diceSection
-
-                        VStack(spacing: 6) {
-                            actionButton
-                            moveHistorySummary
-                            secondaryToolBar
-                        }
-                        .padding(.bottom, max(24, proxy.safeAreaInsets.bottom + 12))
-                    }
-                    .frame(maxWidth: 430)
-                    .padding(.horizontal, horizontalPadding)
-                    .frame(maxWidth: .infinity)
+                switch layout {
+                case .phonePortrait:
+                    iPhonePortraitGameView(proxy: proxy)
+                case .phoneLandscape:
+                    iPhoneLandscapeGameView(proxy: proxy)
+                case .pad:
+                    iPadGameView(proxy: proxy, isLandscape: isLandscape)
                 }
 
-                if isGameOverVisible, case .gameOver(let won) = viewModel.gameState {
+                if isGameOverVisible, case .gameOver = viewModel.gameState {
                     Color.black.opacity(0.56)
                         .ignoresSafeArea()
                         .transition(.opacity)
@@ -88,19 +93,69 @@ struct ContentView: View {
                         multiplayerOverlay
                     } else {
                         GameOverView(
-                            won: won,
+                            kind: celebrationOutcome?.resultKind ?? .gameOver,
                             tileScore: viewModel.score,
                             elapsedSeconds: viewModel.elapsedSeconds,
                             isTimed: currentGameMode.isTimed,
                             remainingOpenTiles: viewModel.remainingOpenTiles,
+                            modeName: currentGameMode.title,
+                            isNewBest: celebrationOutcome?.isNewBest ?? false,
+                            isFirstScore: celebrationOutcome?.isFirstScore ?? false,
+                            previousBest: celebrationOutcome?.previousBest,
+                            shareMessage: makeShareMessage(),
                             theme: theme,
-                            onNewGame: { isShowingModeSelection = true },
+                            onNewGame: restartCurrentGame,
                             onSettings: { isShowingSettings = true },
                             onStats: { isShowingStats = true }
                         )
                         .transition(.scale(scale: 0.9).combined(with: .opacity))
                     }
                 }
+
+                if isShowingCelebration, let outcome = celebrationOutcome {
+                    CelebrationView(
+                        outcome: outcome,
+                        theme: theme,
+                        level: celebrationLevel,
+                        reduceMotion: reduceMotion,
+                        onComplete: celebrationDidComplete
+                    )
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(2)
+                }
+
+                #if targetEnvironment(simulator)
+                VStack {
+                    Spacer()
+                    HStack {
+                        CelebrationDebugMenu(
+                            modeName: currentGameMode.title,
+                            tileCount: currentGameMode.tileCount
+                        ) { outcome in
+                            withAnimation(.easeOut(duration: 0.3)) { debugCelebration = outcome }
+                        }
+                        Spacer()
+                    }
+                }
+                .padding(.leading, 16)
+                .padding(.bottom, 44)
+                .zIndex(4)
+
+                if let debugCelebration {
+                    CelebrationView(
+                        outcome: debugCelebration,
+                        theme: theme,
+                        level: celebrationLevel,
+                        reduceMotion: reduceMotion
+                    ) {
+                        self.debugCelebration = nil
+                    }
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(5)
+                }
+                #endif
             }
         }
         .onAppear {
@@ -108,6 +163,9 @@ struct ContentView: View {
             didApplyInitialSettings = true
             configureViewModel()
             viewModel.newGame(settings: currentSettings, isTimed: currentGameMode.isTimed)
+            if !hasSelectedInitialGameMode {
+                isShowingModeSelection = true
+            }
         }
         .sheet(isPresented: $isShowingModeSelection) {
             GameModeSelectionView { mode, playerCount in
@@ -123,22 +181,17 @@ struct ContentView: View {
         .onChange(of: viewModel.gameState) { newState in
             if case .gameOver(let won) = newState {
                 handleGameOver(won: won)
-                let delay: UInt64 = won ? 700_000_000 : 1_500_000_000
                 if currentGameMode.isMultiplayer {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                         isGameOverVisible = true
                     }
                 } else {
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: delay)
-                        guard case .gameOver = viewModel.gameState else { return }
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            isGameOverVisible = true
-                        }
-                    }
+                    presentEndOfGame(won: won)
                 }
             } else {
                 isGameOverVisible = false
+                isShowingCelebration = false
+                celebrationOutcome = nil
             }
         }
         .onChange(of: viewModel.hasRolled) { hasRolled in
@@ -150,6 +203,216 @@ struct ContentView: View {
         .onChange(of: hapticsEnabled) { _ in configureViewModel() }
         .onChange(of: soundsEnabled) { _ in configureViewModel() }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.gameState)
+        // Reading languageRaw here re-renders the whole UI (and every L10n string)
+        // the instant the in-app language changes, and applies the matching locale.
+        .environment(\.locale, appLocale)
+        .id(languageRaw)
+    }
+
+    private var appLocale: Locale {
+        let language = AppLanguage(rawValue: languageRaw) ?? .system
+        return language == .system ? .current : Locale(identifier: language.rawValue)
+    }
+
+    // MARK: - Adaptive layout selection
+
+    private enum LayoutKind { case phonePortrait, phoneLandscape, pad }
+
+    // iPad full-screen is regular width AND regular height. iPhone landscape is always
+    // compact height (even on a Max), so it can never be mistaken for an iPad here.
+    private func layoutKind(isLandscape: Bool) -> LayoutKind {
+        if horizontalSizeClass == .regular && verticalSizeClass == .regular {
+            return .pad
+        }
+        return isLandscape ? .phoneLandscape : .phonePortrait
+    }
+
+    // A single scale knob drives every font, control and spacing so the same themed
+    // views render larger on iPad without any per-device colours or duplicated UI.
+    private func layoutScale(_ kind: LayoutKind) -> CGFloat {
+        switch kind {
+        case .phonePortrait: return 1.0
+        case .phoneLandscape: return 0.9
+        case .pad: return 1.5
+        }
+    }
+
+    // MARK: - iPhone portrait (unchanged single-column design)
+
+    @ViewBuilder
+    private func iPhonePortraitGameView(proxy: GeometryProxy) -> some View {
+        let scale = layoutScale(.phonePortrait)
+        let columnWidth = min(430, proxy.size.width)
+
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: spacing(for: proxy.size.height)) {
+                portraitHeader(scale: scale)
+                    .padding(.top, max(18, proxy.safeAreaInsets.top + 10))
+
+                boardView(width: columnWidth - horizontalPadding * 2, maxTileWidth: 68, numberFontSize: 27 * scale)
+
+                diceSection()
+
+                VStack(spacing: 6) {
+                    actionButton(scale: scale)
+                    moveHistorySummary(scale: scale)
+                    secondaryToolBar(scale: scale)
+                }
+                .padding(.bottom, max(24, proxy.safeAreaInsets.bottom + 12))
+            }
+            .frame(maxWidth: 430)
+            .padding(.horizontal, horizontalPadding)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    // MARK: - iPhone landscape (true two-column layout)
+
+    @ViewBuilder
+    private func iPhoneLandscapeGameView(proxy: GeometryProxy) -> some View {
+        let scale = layoutScale(.phoneLandscape)
+        let insets = proxy.safeAreaInsets
+        let leading = max(horizontalPadding, insets.leading + 6)
+        let trailing = max(horizontalPadding, insets.trailing + 6)
+        let topPad = max(8, insets.top)
+        let bottomPad = max(8, insets.bottom)
+
+        let usableHeight = proxy.size.height - topPad - bottomPad
+        let usableWidth = proxy.size.width - leading - trailing
+        let board = boardSizing(forHeight: usableHeight, width: usableWidth * 0.60, maxTile: 66)
+        let panelWidth = min(340, usableWidth * 0.40)
+
+        ZStack(alignment: .top) {
+            HStack(alignment: .center, spacing: 16) {
+                // Left: the tray, centred vertically in the available height.
+                boardView(width: board.width, maxTileWidth: board.maxTile, numberFontSize: 27 * scale)
+                    .frame(maxWidth: .infinity)
+
+                // Right: compact title/score, dice + target, action, secondary row.
+                VStack(spacing: 8) {
+                    scoreModeBlock(scale: scale)
+                    diceSection(dieSize: fittingDieSize(desired: 88, count: viewModel.dieCount, available: panelWidth - 6), scale: scale)
+                    actionButton(scale: scale)
+                    secondaryToolBar(scale: scale)
+                }
+                .frame(width: panelWidth)
+            }
+            .padding(.leading, leading)
+            .padding(.trailing, trailing)
+            .padding(.top, topPad)
+            .padding(.bottom, bottomPad)
+
+            // Stats / settings stay compact in the safe top corners, clear of content.
+            cornerIcons(scale: scale)
+                .padding(.leading, max(8, insets.leading + 4))
+                .padding(.trailing, max(8, insets.trailing + 4))
+                .padding(.top, max(6, insets.top))
+        }
+    }
+
+    // MARK: - iPad (dedicated large-tabletop layouts)
+
+    @ViewBuilder
+    private func iPadGameView(proxy: GeometryProxy, isLandscape: Bool) -> some View {
+        if isLandscape {
+            iPadLandscapeGameView(proxy: proxy)
+        } else {
+            iPadPortraitGameView(proxy: proxy)
+        }
+    }
+
+    @ViewBuilder
+    private func iPadPortraitGameView(proxy: GeometryProxy) -> some View {
+        let scale = layoutScale(.pad)
+        let contentWidth = min(900, proxy.size.width - 64)
+
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 26) {
+                portraitHeader(scale: scale)
+                    .padding(.top, max(24, proxy.safeAreaInsets.top + 12))
+
+                boardView(width: contentWidth, maxTileWidth: 104, numberFontSize: 27 * scale)
+
+                diceSection(dieSize: 156, scale: scale)
+
+                VStack(spacing: 14) {
+                    actionButton(scale: scale)
+                    moveHistorySummary(scale: scale)
+                    secondaryToolBar(scale: scale)
+                }
+                .padding(.bottom, max(28, proxy.safeAreaInsets.bottom + 16))
+            }
+            .frame(maxWidth: contentWidth)
+            .padding(.horizontal, 24)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: max(0, proxy.size.height - proxy.safeAreaInsets.top - proxy.safeAreaInsets.bottom),
+                alignment: .center
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func iPadLandscapeGameView(proxy: GeometryProxy) -> some View {
+        let scale = layoutScale(.pad)
+        let insets = proxy.safeAreaInsets
+        let sidePad = max(28, insets.leading)
+        let topPad = max(18, insets.top)
+        let bottomPad = max(18, insets.bottom)
+
+        let usableWidth = proxy.size.width - sidePad * 2 - 32
+        let usableHeight = proxy.size.height - topPad - bottomPad
+        let board = boardSizing(forHeight: usableHeight, width: usableWidth * 0.65, maxTile: 116)
+        let panelWidth = min(440, usableWidth * 0.35)
+
+        ZStack(alignment: .top) {
+            HStack(alignment: .center, spacing: 32) {
+                boardView(width: board.width, maxTileWidth: board.maxTile, numberFontSize: 27 * scale)
+                    .frame(maxWidth: .infinity)
+
+                VStack(spacing: 18) {
+                    scoreModeBlock(scale: scale)
+                    diceSection(dieSize: fittingDieSize(desired: 150, count: viewModel.dieCount, available: panelWidth - 8), scale: scale)
+                    actionButton(scale: scale)
+                    moveHistorySummary(scale: scale)
+                    secondaryToolBar(scale: scale)
+                }
+                .frame(width: panelWidth)
+            }
+            .padding(.horizontal, sidePad)
+            .padding(.top, topPad)
+            .padding(.bottom, bottomPad)
+            .frame(maxHeight: .infinity, alignment: .center)
+
+            cornerIcons(scale: scale)
+                .padding(.horizontal, max(16, insets.leading + 6))
+                .padding(.top, max(14, insets.top))
+        }
+    }
+
+    // MARK: - Board sizing
+
+    private struct BoardSizing {
+        let width: CGFloat
+        let maxTile: CGFloat
+    }
+
+    // Computes a tile size (and the matching tray width) so the board — including the
+    // 3-row Big Box variant — fits both the available height and the target width.
+    private func boardSizing(forHeight availableHeight: CGFloat, width availableWidth: CGFloat, maxTile: CGFloat) -> BoardSizing {
+        let cols = viewModel.tiles.count > 10 ? 6 : 5
+        let rows = max(1, Int(ceil(Double(viewModel.tiles.count) / Double(cols))))
+        let tileSpacing: CGFloat = 8
+        let frameThickness: CGFloat = 16
+        let surfaceHorizontalPadding: CGFloat = 10
+        let surfaceVerticalPadding: CGFloat = 16
+        let gridSpacing: CGFloat = 11
+        let fixedHorizontalSpace = frameThickness * 2 + surfaceHorizontalPadding * 2 + tileSpacing * CGFloat(cols - 1)
+        let fixedVerticalSpace = frameThickness * 2 + surfaceVerticalPadding * 2 + gridSpacing * CGFloat(rows - 1) + 10
+        let tileByHeight = (availableHeight - fixedVerticalSpace) / (CGFloat(rows) * 1.5)
+        let tileByWidth = (availableWidth - fixedHorizontalSpace) / CGFloat(cols)
+        let tile = max(28, min(maxTile, tileByHeight, tileByWidth))
+        return BoardSizing(width: tile * CGFloat(cols) + fixedHorizontalSpace, maxTile: tile)
     }
 
     // MARK: - Multiplayer overlay
@@ -159,7 +422,7 @@ struct ContentView: View {
         if isShowingPassAndPlayResults {
             PassAndPlayResultsView(
                 scores: passAndPlayScores,
-                onNewGame: { isShowingModeSelection = true }
+                onNewGame: restartCurrentGame
             )
             .transition(.scale(scale: 0.9).combined(with: .opacity))
         } else {
@@ -198,59 +461,69 @@ struct ContentView: View {
 
     // MARK: - Header
 
-    private var headerView: some View {
+    // Portrait header: the centred title/score/mode block with the stats & settings
+    // buttons pinned in the top corners (same composition the iPhone always had).
+    private func portraitHeader(scale: CGFloat) -> some View {
         ZStack(alignment: .top) {
-            VStack(spacing: 5) {
-                headerScoreRow
-                modePill
-            }
-            .frame(maxWidth: .infinity)
-            .accessibilityElement(children: .combine)
+            scoreModeBlock(scale: scale)
+            cornerIcons(scale: scale)
+        }
+    }
 
-            HStack {
-                if leftHandedLayout {
-                    headerIconButton(systemName: "gearshape.fill", label: "Settings") { isShowingSettings = true }
-                    Spacer()
-                    headerIconButton(systemName: "chart.bar.fill", label: "Statistics") { isShowingStats = true }
-                } else {
-                    headerIconButton(systemName: "chart.bar.fill", label: "Statistics") { isShowingStats = true }
-                    Spacer()
-                    headerIconButton(systemName: "gearshape.fill", label: "Settings") { isShowingSettings = true }
-                }
-            }
+    // Title / score / mode pill — reused by every layout (in the corners on phone
+    // portrait/iPad, and at the top of the right column in landscape).
+    private func scoreModeBlock(scale: CGFloat) -> some View {
+        VStack(spacing: 4 * scale) {
+            Text("BOX OF DICE")
+                .font(GameTypography.section(size: 10 * scale))
+                .tracking(3 * scale)
+                .foregroundStyle(theme.text.opacity(0.42))
+            headerScoreRow(scale: scale)
+            modePill(scale: scale)
+                .padding(.top, 1)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func cornerIcons(scale: CGFloat) -> some View {
+        HStack {
+            headerIconButton(systemName: "chart.bar.fill", label: "Statistics", scale: scale) { isShowingStats = true }
+            Spacer()
+            headerIconButton(systemName: "gearshape.fill", label: "Settings", scale: scale) { isShowingSettings = true }
         }
     }
 
     @ViewBuilder
-    private var headerScoreRow: some View {
+    private func headerScoreRow(scale: CGFloat) -> some View {
         if currentGameMode.isTimed {
-            HStack(spacing: 10) {
+            HStack(spacing: 10 * scale) {
                 Text("Tiles: \(viewModel.score)")
                     .animation(.spring(), value: viewModel.score)
                 if viewModel.hasRolled {
                     Text("·")
                         .opacity(0.35)
-                    HStack(spacing: 4) {
+                    HStack(spacing: 4 * scale) {
                         Image(systemName: "timer")
-                            .font(.system(size: 14))
+                            .font(.system(size: 14 * scale))
                         Text(formattedElapsedTime)
                             .monospacedDigit()
                     }
                 }
             }
-            .font(GameTypography.value(size: 21))
+            .font(GameTypography.value(size: 21 * scale))
             .foregroundStyle(theme.text)
             .animation(.easeInOut(duration: 0.2), value: viewModel.hasRolled)
         } else {
-            VStack(spacing: 3) {
+            VStack(spacing: 3 * scale) {
                 Text("Score: \(viewModel.score)")
-                    .font(GameTypography.value(size: 23))
+                    .font(GameTypography.value(size: 23 * scale))
                     .foregroundStyle(theme.text)
                     .animation(.spring(), value: viewModel.score)
 
                 if !hasSeenScoreOnboardingHint && !viewModel.hasRolled && gamesPlayed == 0 {
                     Text("Close tiles to lower your score. Lowest score wins.")
-                        .font(GameTypography.caption(size: 12))
+                        .font(GameTypography.caption(size: 12 * scale))
                         .foregroundStyle(theme.text.opacity(0.66))
                         .multilineTextAlignment(.center)
                         .transition(.opacity)
@@ -259,29 +532,41 @@ struct ContentView: View {
         }
     }
 
-    private var modePill: some View {
+    private func modePill(scale: CGFloat) -> some View {
         Button { isShowingModeSelection = true } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 5 * scale) {
+                Image(systemName: "dice.fill")
+                    .font(.system(size: 10 * scale, weight: .semibold))
                 Text(currentGameMode.title)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 8 * scale, weight: .bold))
+                    .opacity(0.7)
             }
-            .font(GameTypography.caption(size: 12))
-            .foregroundStyle(theme.text.opacity(0.68))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(Color.black.opacity(0.22), in: Capsule())
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+            .font(GameTypography.caption(size: 12 * scale))
+            .foregroundStyle(theme.text.opacity(0.82))
+            .padding(.horizontal, 12 * scale)
+            .padding(.vertical, 5 * scale)
+            .background(
+                Capsule().fill(
+                    LinearGradient(
+                        colors: [Color.black.opacity(0.30), Color.black.opacity(0.16)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            )
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+            .shadow(color: .black.opacity(0.25), radius: 3, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }
 
-    private func headerIconButton(systemName: String, label: String, action: @escaping () -> Void) -> some View {
+    private func headerIconButton(systemName: String, label: String, scale: CGFloat, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 17, weight: .bold))
+                .font(.system(size: 17 * scale, weight: .bold))
                 .foregroundStyle(Color(red: 1.0, green: 0.86, blue: 0.58))
-                .frame(width: 40, height: 40)
+                .frame(width: 40 * scale, height: 40 * scale)
                 .background(Color.black.opacity(0.18), in: Circle())
                 .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
         }
@@ -291,15 +576,15 @@ struct ContentView: View {
 
     // MARK: - Board
 
-    private func boardView(width: CGFloat) -> some View {
-        let availableWidth = min(width, 430)
+    private func boardView(width: CGFloat, maxTileWidth: CGFloat = 68, numberFontSize: CGFloat = 27) -> some View {
+        let availableWidth = width
         let columnsCount = viewModel.tiles.count > 10 ? 6 : 5
         let tileSpacing: CGFloat = 8
         let frameThickness: CGFloat = 16
         let surfaceHorizontalPadding: CGFloat = 10
         let surfaceVerticalPadding: CGFloat = 16
         let fixedHorizontalSpace = frameThickness * 2 + surfaceHorizontalPadding * 2 + tileSpacing * CGFloat(columnsCount - 1)
-        let tileWidth = min(68, (availableWidth - fixedHorizontalSpace) / CGFloat(columnsCount))
+        let tileWidth = max(28, min(maxTileWidth, (availableWidth - fixedHorizontalSpace) / CGFloat(columnsCount)))
         let tileHeight = tileWidth * 1.5
         let gridWidth = tileWidth * CGFloat(columnsCount) + tileSpacing * CGFloat(columnsCount - 1)
         let trayWidth = gridWidth + surfaceHorizontalPadding * 2 + frameThickness * 2
@@ -307,7 +592,7 @@ struct ContentView: View {
 
         return LazyVGrid(columns: columns, spacing: 11) {
             ForEach(viewModel.tiles) { tile in
-                tileButton(for: tile)
+                tileButton(for: tile, numberFontSize: numberFontSize)
                     .frame(width: tileWidth, height: tileHeight)
             }
         }
@@ -325,43 +610,73 @@ struct ContentView: View {
         .shadow(color: .black.opacity(0.24), radius: 5, x: 2, y: 4)
     }
 
-    private func tileButton(for tile: Tile) -> some View {
+    private func tileButton(for tile: Tile, numberFontSize: CGFloat = 27) -> some View {
         TileView(
             number: tile.id,
             isOpen: tile.isOpen,
             isSelected: viewModel.selectedTiles.contains(tile.id) || viewModel.highlightedHint.contains(tile.id),
             isEnabled: viewModel.canSelectTiles,
+            numberFontSize: numberFontSize,
             onTap: { viewModel.toggleTile(tile.id) }
         )
     }
 
     // MARK: - Dice
 
-    private var diceSection: some View {
-        HStack(alignment: .center, spacing: 22) {
-            ForEach(0..<viewModel.dieCount, id: \.self) { index in
-                Dice3DView(
-                    value: viewModel.dice[index],
-                    isRolling: viewModel.isRolling,
-                    dieIndex: index,
-                    onSettled: index == 0 ? { viewModel.diceSettledFeedback() } : nil
-                )
-                .frame(width: 108, height: 108)
-                .transition(.scale.combined(with: .opacity))
+    // Gap between dice as a fraction of die size, kept tight so a 3-dice row reads
+    // as a compact group rather than a spread-out line.
+    private static let diceSpacingFactor: CGFloat = 13.0 / 108.0
+
+    // Largest die that lets `count` dice (plus the gaps between them) fit within
+    // `available` width — prevents the Big Box 3-dice row from spilling onto the board.
+    private func fittingDieSize(desired: CGFloat, count: Int, available: CGFloat) -> CGFloat {
+        guard count > 0 else { return desired }
+        let rowFactor = CGFloat(count) + CGFloat(count - 1) * Self.diceSpacingFactor
+        return max(40, min(desired, available / rowFactor))
+    }
+
+    private func diceSection(dieSize: CGFloat = 108, scale: CGFloat = 1.0) -> some View {
+        VStack(spacing: 8 * scale) {
+            HStack(alignment: .center, spacing: dieSize * Self.diceSpacingFactor) {
+                ForEach(0..<viewModel.dieCount, id: \.self) { index in
+                    Dice3DView(
+                        value: viewModel.dice[index],
+                        isRolling: viewModel.isRolling,
+                        dieIndex: index,
+                        onSettled: index == 0 ? { viewModel.diceSettledFeedback() } : nil
+                    )
+                    .frame(width: dieSize, height: dieSize)
+                    // Soft contact shadow rendered behind the die — a blurred,
+                    // edge-free ellipse that grounds it on the table without
+                    // touching any of the SceneKit content.
+                    .background(dieContactShadow(dieSize: dieSize))
+                    .transition(.scale.combined(with: .opacity))
+                }
             }
 
-            if viewModel.hasRolled {
-                Text("= \(viewModel.diceTotal)")
-                    .font(GameTypography.value(size: 30))
-                    .foregroundStyle(theme.text)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
-                    .background(Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 14))
-                    .transition(.opacity.combined(with: .scale(scale: 0.85)))
-            }
         }
         .animation(.spring(response: 0.25, dampingFraction: 0.78), value: viewModel.dieCount)
-        .animation(.easeInOut(duration: 0.25), value: viewModel.hasRolled)
+    }
+
+    // Subtle, edge-free contact shadow that sits under the die's resting base.
+    // Pushed low enough that its soft edge feathers out beneath the die instead of
+    // hiding behind the die body, and dark enough to read on the green felt.
+    private func dieContactShadow(dieSize: CGFloat) -> some View {
+        // Scale the shadow with the die so it stays tucked under the base at any size.
+        let scale = dieSize / 108
+        return Ellipse()
+            .fill(
+                RadialGradient(
+                    colors: [Color.black.opacity(0.42), Color.black.opacity(0.16), Color.clear],
+                    center: .center,
+                    startRadius: 1,
+                    endRadius: 34 * scale
+                )
+            )
+            .frame(width: 86 * scale, height: 22 * scale)
+            .blur(radius: 6 * scale)
+            .offset(y: 36 * scale)
+            .allowsHitTesting(false)
     }
 
     private var formattedElapsedTime: String {
@@ -375,57 +690,79 @@ struct ContentView: View {
 
     // MARK: - Secondary tool bar (hint + undo)
 
-    private var secondaryToolBar: some View {
-        HStack {
-            // Hint: only meaningful while selecting tiles
-            if showHints {
-                Button(action: viewModel.showHint) {
-                    Label("Hint", systemImage: "lightbulb.fill")
-                        .font(GameTypography.button(size: 14))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                }
-                .buttonStyle(ToolButtonStyle(isEnabled: viewModel.canSelectTiles, accent: theme.accent))
-                .disabled(!viewModel.canSelectTiles)
-                .opacity(viewModel.canSelectTiles ? 1 : 0)
+    private func secondaryToolBar(scale: CGFloat) -> some View {
+        // Hint is only meaningful while selecting tiles; Undo only when a move exists.
+        // Both are matching pills, centred as a group, so neither floats off to a
+        // corner — and the strip collapses to nothing when there's nothing to show.
+        let showHintButton = showHints && viewModel.canSelectTiles
+        let showUndoButton = viewModel.canUndo
+        let hasContent = showHintButton || showUndoButton
+
+        // Muted tone for both — secondary actions must not pull focus from the
+        // gold Confirm button.
+        let pillTint = theme.text.opacity(0.78)
+
+        // Hint is the more optional of the two — dial it back further so it reads as
+        // a quiet, almost text-only secondary action beside the (already muted) Undo.
+        let hintTint = theme.text.opacity(0.56)
+
+        return HStack(spacing: 10 * scale) {
+            if showHintButton {
+                toolPillButton(
+                    title: "Hint",
+                    systemImage: "lightbulb.fill",
+                    tint: hintTint,
+                    scale: scale,
+                    backgroundOpacity: 0.06,
+                    borderOpacity: 0.03,
+                    action: viewModel.showHint
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
-
-            Spacer()
-
-            // Undo: hidden when unavailable, clear secondary button when available
-            if undoEnabled && viewModel.canUndo {
-                Button(action: viewModel.undoLastMove) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.uturn.backward")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("Undo")
-                            .font(GameTypography.caption(size: 13))
-                    }
-                    .foregroundStyle(theme.text.opacity(0.82))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .transition(.opacity.combined(with: .scale(scale: 0.90)))
+            if showUndoButton {
+                toolPillButton(title: "Undo", systemImage: "arrow.uturn.backward", tint: pillTint, scale: scale, action: viewModel.undoLastMove)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
         }
-        .padding(.horizontal, 8)
-        .frame(height: (showHints || undoEnabled) ? 38 : 0)
-        .animation(.easeInOut(duration: 0.18), value: viewModel.canUndo)
+        .frame(maxWidth: .infinity)
+        .frame(height: hasContent ? 36 * scale : 0)
+        .opacity(hasContent ? 1 : 0)
+        .animation(.easeInOut(duration: 0.2), value: showHintButton)
+        .animation(.easeInOut(duration: 0.2), value: showUndoButton)
+    }
+
+    private func toolPillButton(
+        title: String,
+        systemImage: String,
+        tint: Color,
+        scale: CGFloat = 1.0,
+        backgroundOpacity: Double = 0.20,
+        borderOpacity: Double = 0.12,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5 * scale) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 12 * scale, weight: .semibold))
+                Text(L10n.string(title))
+                    .font(GameTypography.button(size: 14 * scale))
+            }
+            .foregroundStyle(tint)
+            .padding(.horizontal, 15 * scale)
+            .padding(.vertical, 7 * scale)
+            .background(Color.black.opacity(backgroundOpacity), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(borderOpacity), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Move history
 
     @ViewBuilder
-    private var moveHistorySummary: some View {
+    private func moveHistorySummary(scale: CGFloat) -> some View {
         if let lastMove = viewModel.moveHistory.last {
-            Text("Last: rolled \(lastMove.diceTotal) · closed \(lastMove.closedTiles.map(String.init).joined(separator: ", "))")
-                .font(GameTypography.caption(size: 13))
+            Text("Last: closed \(lastMove.closedTiles.map(String.init).joined(separator: ", "))")
+                .font(GameTypography.caption(size: 13 * scale))
                 .foregroundStyle(theme.text.opacity(0.72))
                 .multilineTextAlignment(.center)
         }
@@ -434,85 +771,98 @@ struct ContentView: View {
     // MARK: - Action button
 
     @ViewBuilder
-    private var actionButton: some View {
+    private func actionButton(scale: CGFloat) -> some View {
         switch viewModel.gameState {
         case .waitingToRoll:
-            rollButton
+            rollButton(scale: scale)
         case .selecting:
-            selectingActionZone
+            selectingActionZone(scale: scale)
         case .gameOver:
             EmptyView()
         }
     }
 
-    private var rollButton: some View {
+    private func rollButton(scale: CGFloat) -> some View {
         Button(action: viewModel.rollDice) {
-            HStack(spacing: 10) {
+            HStack(spacing: 10 * scale) {
                 if !viewModel.isRolling {
                     Image(systemName: "dice.fill")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 18 * scale, weight: .bold))
                 }
-                Text(viewModel.isRolling ? "Rolling..." : "Roll Dice")
-                    .font(GameTypography.button(size: 19))
+                Text(L10n.string(viewModel.isRolling ? "Rolling..." : "Roll Dice"))
+                    .font(GameTypography.button(size: 19 * scale))
             }
-            .frame(maxWidth: 260)
-            .frame(height: 58)
+            .frame(maxWidth: 260 * scale)
+            .frame(height: 58 * scale)
         }
         .buttonStyle(BoardGameButtonStyle(isEnabled: viewModel.canRoll, tint: .amber))
         .disabled(!viewModel.canRoll)
         .animation(.easeInOut(duration: 0.2), value: viewModel.isRolling)
     }
 
-    private var selectingActionZone: some View {
+    private func selectingActionZone(scale: CGFloat) -> some View {
         let total = viewModel.selectionTotal
-        let target = viewModel.diceTotal
         let isMatch = viewModel.canConfirm
         let isEmpty = viewModel.selectedTiles.isEmpty
 
-        return VStack(spacing: 6) {
-            selectionStatusLabel(total: total, target: target, isMatch: isMatch, isEmpty: isEmpty)
-
-            Button(action: viewModel.confirmSelection) {
-                HStack(spacing: 8) {
-                    if isMatch {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 15, weight: .bold))
-                    }
-                    Text("Confirm")
-                        .font(GameTypography.button(size: 19))
-                }
-                .frame(maxWidth: 260)
-                .frame(height: 58)
-            }
-            .buttonStyle(BoardGameButtonStyle(isEnabled: isMatch, tint: .amber))
-            .disabled(!isMatch)
-            .animation(.spring(response: 0.28, dampingFraction: 0.72), value: isMatch)
-        }
-    }
-
-    private func selectionStatusLabel(total: Int, target: Int, isMatch: Bool, isEmpty: Bool) -> some View {
-        Group {
+        return VStack(spacing: 7 * scale) {
+            // Instruction only while nothing is selected — once the player starts
+            // tapping, the button itself carries the selected total.
             if isEmpty {
-                Text("Select tiles that sum to \(target)")
-                    .foregroundStyle(Color(red: 1.0, green: 0.86, blue: 0.58).opacity(0.92))
-            } else if isMatch {
-                Label("\(total) of \(target) — Ready", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(Color(red: 0.40, green: 0.96, blue: 0.60))
+                Text("Select tiles matching the dice")
+                    .font(GameTypography.label(size: 15 * scale))
+                    .foregroundStyle(theme.text.opacity(0.80))
+                    .multilineTextAlignment(.center)
+                    .transition(.opacity)
+            }
+
+            if isMatch {
+                Button(action: viewModel.confirmSelection) {
+                    HStack(spacing: 8 * scale) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16 * scale, weight: .bold))
+                        Text("Confirm")
+                            .font(GameTypography.button(size: 20 * scale))
+                    }
+                    .frame(maxWidth: 280 * scale)
+                    .frame(height: 58 * scale)
+                }
+                .buttonStyle(BoardGameButtonStyle(isEnabled: true, tint: .amber))
+                // A warm gold halo radiates around the matched button so it clearly
+                // reads as the single most important action on screen.
+                .shadow(color: Color(red: 1.0, green: 0.74, blue: 0.24).opacity(0.55), radius: 18, x: 0, y: 0)
+                .shadow(color: Color(red: 1.0, green: 0.56, blue: 0.12).opacity(0.40), radius: 7, x: 0, y: 2)
+                .transition(.scale(scale: 0.94).combined(with: .opacity))
+                .animation(.spring(response: 0.30, dampingFraction: 0.7), value: isMatch)
             } else {
-                let diff = target - total
-                Text(diff > 0 ? "Need \(diff) more  ·  \(total) / \(target)" : "Over by \(-diff)  ·  \(total) / \(target)")
-                    .foregroundStyle(Color(red: 1.0, green: 0.78, blue: 0.32))
+                // Disabled state is a flat status card — ~15% shorter than the active
+                // button, no raised chrome or shadow, so it reads as information
+                // rather than something tappable. Held in the same slot so the
+                // Hint button and everything below it stay exactly in place.
+                Text("Selected \(total)")
+                    .font(GameTypography.label(size: 17 * scale))
+                    .foregroundStyle(theme.text.opacity(0.72))
+                    .frame(maxWidth: 280 * scale)
+                    .frame(height: 49 * scale)
+                    .background(
+                        RoundedRectangle(cornerRadius: 13 * scale)
+                            .fill(Color.black.opacity(0.18))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 13 * scale)
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                    )
+                    .frame(height: 58 * scale)
+                    .animation(.spring(response: 0.28, dampingFraction: 0.72), value: isMatch)
             }
         }
-        .font(GameTypography.label(size: 16))
-        .multilineTextAlignment(.center)
-        .animation(.easeInOut(duration: 0.15), value: isMatch)
         .animation(.easeInOut(duration: 0.15), value: isEmpty)
     }
 
     // MARK: - Game flow
 
     private func startNewGame(mode: GameMode, playerCount: Int = 2) {
+        hasSelectedInitialGameMode = true
         gameModeRaw = mode.rawValue
 
         if mode.isMultiplayer {
@@ -524,6 +874,10 @@ struct ContentView: View {
 
         configureViewModel()
         viewModel.newGame(settings: currentSettings, isTimed: mode.isTimed)
+    }
+
+    private func restartCurrentGame() {
+        startNewGame(mode: currentGameMode, playerCount: passAndPlayPlayerCount)
     }
 
     private func advanceToNextPlayer() {
@@ -551,7 +905,87 @@ struct ContentView: View {
     private func handleGameOver(won: Bool) {
         // Don't record stats for multiplayer — results screen handles that
         guard !currentGameMode.isMultiplayer else { return }
+        // Resolve the celebration BEFORE recording, so we still know the previous
+        // best for this mode (recordCompletedGame overwrites it).
+        celebrationOutcome = makeCelebrationOutcome(won: won)
         recordCompletedGame(won: won)
+    }
+
+    // MARK: - Celebration flow
+
+    private var celebrationLevel: CelebrationLevel {
+        CelebrationLevel(rawValue: celebrationsRaw) ?? .on
+    }
+
+    private var currentModeBestScore: Int {
+        switch currentGameMode {
+        case .classic:      return bestScoreClassic
+        case .speedRun:     return bestScoreSpeedRun
+        case .bigBox:       return bestScoreBigBox
+        case .bigBoxSpeed:  return bestScoreBigBoxSpeed
+        case .passAndPlay:  return 0
+        }
+    }
+
+    private func makeCelebrationOutcome(won: Bool) -> CelebrationOutcome {
+        let mode = currentGameMode
+        let finalScore = mode.finalScore(baseScore: viewModel.score, elapsedSeconds: viewModel.elapsedSeconds)
+        return CelebrationOutcome.resolve(
+            won: won,
+            isClassicMode: mode == .classic,
+            tileScore: viewModel.score,
+            finalScore: finalScore,
+            storedBest: currentModeBestScore,
+            tileCount: mode.tileCount,
+            modeName: mode.title
+        )
+    }
+
+    // Reveal the celebration (when enabled) and then the result card, or fall back
+    // to the plain delayed result card when celebrations are off / nothing happened.
+    private func presentEndOfGame(won: Bool) {
+        let outcome = celebrationOutcome
+        let shouldCelebrate = celebrationLevel != .off
+            && (outcome?.type ?? .none) != .none
+
+        if shouldCelebrate {
+            let delay: UInt64 = won ? 450_000_000 : 650_000_000
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: delay)
+                guard case .gameOver = viewModel.gameState else { return }
+                withAnimation(.easeOut(duration: 0.3)) {
+                    isShowingCelebration = true
+                }
+            }
+        } else {
+            let delay: UInt64 = won ? 700_000_000 : 1_500_000_000
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: delay)
+                guard case .gameOver = viewModel.gameState else { return }
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    isGameOverVisible = true
+                }
+            }
+        }
+    }
+
+    private func celebrationDidComplete() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            isShowingCelebration = false
+            isGameOverVisible = true
+        }
+    }
+
+    private func makeShareMessage() -> String {
+        let mode = currentGameMode
+        let score = currentGameMode.finalScore(baseScore: viewModel.score, elapsedSeconds: viewModel.elapsedSeconds)
+        if viewModel.isPerfectClear && mode == .classic {
+            return L10n.format("Perfect clear in Box of Dice! 🎲 — %@", mode.title)
+        }
+        if viewModel.didClearBoard {
+            return L10n.format("Cleared the board in Box of Dice 🎲 — %@", mode.title)
+        }
+        return L10n.format("I scored %lld in Box of Dice 🎲 — %@", score, mode.title)
     }
 
     // MARK: - Statistics
@@ -622,7 +1056,7 @@ struct ContentView: View {
     }
 
     private func spacing(for height: CGFloat) -> CGFloat {
-        height < 700 ? 10 : 15
+        height < 700 ? 8 : 12
     }
 }
 
@@ -633,13 +1067,23 @@ private struct WoodBackground: View {
 
     var body: some View {
         LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-            .overlay(WoodGrain().opacity(0.35))
+            .overlay(WoodGrain().opacity(0.30))
             .overlay(
+                // Soft warm pool of light up top where the tray sits, falling off to
+                // deep shadow at the edges — a vignette that keeps the screen from
+                // reading as one flat monochrome wash.
                 RadialGradient(
-                    colors: [Color.white.opacity(0.16), Color.black.opacity(0.22)],
-                    center: .top,
-                    startRadius: 80,
-                    endRadius: 620
+                    colors: [Color.white.opacity(0.12), Color.clear, Color.black.opacity(0.48)],
+                    center: UnitPoint(x: 0.5, y: 0.32),
+                    startRadius: 40,
+                    endRadius: 660
+                )
+            )
+            .overlay(
+                LinearGradient(
+                    colors: [Color.clear, Color.black.opacity(0.30)],
+                    startPoint: .center,
+                    endPoint: .bottom
                 )
             )
     }
@@ -898,23 +1342,6 @@ private struct RecessSurfaceGrain: View {
 
 // MARK: - Button styles
 
-private struct ToolButtonStyle: ButtonStyle {
-    let isEnabled: Bool
-    let accent: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(isEnabled ? accent : Color.gray.opacity(0.8))
-            .background(Color.black.opacity(isEnabled ? 0.18 : 0.10), in: RoundedRectangle(cornerRadius: 13))
-            .overlay(
-                RoundedRectangle(cornerRadius: 13)
-                    .strokeBorder(Color.white.opacity(isEnabled ? 0.18 : 0.08), lineWidth: 1)
-            )
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .opacity(isEnabled ? 1 : 0.5)
-    }
-}
-
 private struct BoardGameButtonStyle: ButtonStyle {
     enum Tint { case amber, green }
 
@@ -923,24 +1350,26 @@ private struct BoardGameButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(isEnabled ? Color(red: 0.16, green: 0.08, blue: 0.03) : Color(red: 0.88, green: 0.94, blue: 0.86).opacity(0.76))
+            .foregroundStyle(isEnabled ? Color(red: 0.16, green: 0.08, blue: 0.03) : Color(red: 0.92, green: 0.86, blue: 0.74).opacity(0.78))
             .background(backgroundGradient)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.white.opacity(isEnabled ? 0.32 : 0.18), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(isEnabled ? 0.34 : 0.10), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(isEnabled ? 0.28 : 0.16), radius: 8, x: 0, y: configuration.isPressed ? 2 : 5)
+            // Active button casts a strong, lifted shadow so it clearly reads as the
+            // primary action; the muted disabled state sits nearly flat.
+            .shadow(color: .black.opacity(isEnabled ? 0.34 : 0.12), radius: isEnabled ? 11 : 4, x: 0, y: configuration.isPressed ? 2 : (isEnabled ? 6 : 2))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .opacity(1)
     }
 
     private var backgroundGradient: LinearGradient {
         guard isEnabled else {
+            // Muted dark walnut — readable but plainly inactive, never green/"go".
             return LinearGradient(
                 colors: [
-                    Color(red: 0.34, green: 0.43, blue: 0.35),
-                    Color(red: 0.22, green: 0.31, blue: 0.25)
+                    Color(red: 0.30, green: 0.23, blue: 0.16),
+                    Color(red: 0.19, green: 0.14, blue: 0.09)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
