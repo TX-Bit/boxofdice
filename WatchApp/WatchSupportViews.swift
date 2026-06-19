@@ -9,7 +9,7 @@ struct WatchModeSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(SettingsStorageKey.gameMode) private var gameModeRaw = GameMode.classic.rawValue
     @AppStorage(SettingsStorageKey.passAndPlayPlayerCount) private var playerCount = 2
-    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.classicWood.rawValue
+    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.greenFelt.rawValue
 
     let onStart: (GameMode, Int) -> Void
 
@@ -99,7 +99,7 @@ struct WatchSettingsView: View {
     var onModeChanged: ((GameMode) -> Void)? = nil
 
     @AppStorage(SettingsStorageKey.gameMode) private var gameModeRaw = GameMode.classic.rawValue
-    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.classicWood.rawValue
+    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.greenFelt.rawValue
     @AppStorage(SettingsStorageKey.hapticsEnabled) private var hapticsEnabled = true
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
@@ -260,7 +260,7 @@ struct WatchStatsView: View {
     @AppStorage(StatisticsStorageKey.losingScoreTotal) private var losingScoreTotal = 0
     @AppStorage(StatisticsStorageKey.losses) private var losses = 0
     @AppStorage(StatisticsStorageKey.remainingTileCounts) private var remainingTileCounts = ""
-    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.classicWood.rawValue
+    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.greenFelt.rawValue
 
     @State private var showResetConfirm = false
 

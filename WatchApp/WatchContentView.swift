@@ -85,7 +85,7 @@ struct WatchContentView: View {
     @State private var passAndPlayPlayerCount = 2
     @State private var isShowingPassAndPlayResults = false
 
-    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRaw = GameThemeName.classicWood.rawValue
+    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRaw = GameThemeName.greenFelt.rawValue
 
     @AppStorage(SettingsStorageKey.gameMode)            private var gameModeRaw = GameMode.classic.rawValue
     @AppStorage(SettingsStorageKey.hapticsEnabled)      private var hapticsEnabled = true

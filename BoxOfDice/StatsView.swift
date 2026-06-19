@@ -27,7 +27,7 @@ struct StatsView: View {
     @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = 0
     @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = 0
 
-    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.classicWood.rawValue
+    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
 
     @State private var showResetConfirm = false
 

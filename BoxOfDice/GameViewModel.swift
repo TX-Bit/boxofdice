@@ -18,6 +18,7 @@ final class GameViewModel: ObservableObject {
 
     private let feedback: GameFeedbackProviding
     private var rollTask: Task<Void, Never>?
+    private var autoRollTask: Task<Void, Never>?
     private var timerTask: Task<Void, Never>?
     private var gameStartTime: Date?
     private var diceAnimationSpeed: DiceAnimationSpeed = .normal
@@ -93,9 +94,14 @@ final class GameViewModel: ObservableObject {
         }
 
         highlightedHint = []
+        autoRollTask?.cancel()
         rollTask?.cancel()
         isRolling = true
         rollingDieCount = engine.currentDieCount
+
+        // Play the rattle as the dice are thrown so it tracks the tumble, rather
+        // than firing when they settle (~0.86s later, which read as a lag).
+        soundDiceRoll()
 
         let finalDice = engine.randomDice()
         animationDice = finalDice
@@ -146,6 +152,22 @@ final class GameViewModel: ObservableObject {
         if case .gameOver = engine.gameState {
             stopTimer()
         }
+
+        // If the game continues, throw the next dice automatically after a short
+        // beat so the player doesn't have to tap Roll every turn.
+        if case .waitingToRoll = engine.gameState {
+            scheduleAutoRoll()
+        }
+    }
+
+    private func scheduleAutoRoll(delay: UInt64 = 450_000_000) {
+        autoRollTask?.cancel()
+        autoRollTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+            guard case .waitingToRoll = engine.gameState, !isRolling else { return }
+            rollDice()
+        }
     }
 
     func showHint() {
@@ -171,13 +193,16 @@ final class GameViewModel: ObservableObject {
     }
 
     func diceSettledFeedback() {
-        soundDiceRoll()
+        // The rattle already played at the throw; the settle just gets a soft
+        // landing tap.
         mediumFeedback()
     }
 
     func newGame(settings: GameSettings? = nil, seed: UInt64? = nil, isTimed: Bool? = nil) {
         rollTask?.cancel()
         rollTask = nil
+        autoRollTask?.cancel()
+        autoRollTask = nil
         stopTimer()
         gameStartTime = nil
         elapsedSeconds = 0
@@ -187,6 +212,8 @@ final class GameViewModel: ObservableObject {
         rollingDieCount = engine.currentDieCount
         highlightedHint = []
         isRolling = false
+        // The opening throw stays manual (the Roll button); only the throws after a
+        // confirmed move are automatic.
     }
 
     // MARK: - Timer

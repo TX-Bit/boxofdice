@@ -7,7 +7,7 @@ import SwiftUI
 
 @main
 struct BoxOfDiceApp: App {
-    @AppStorage("settings.theme") private var themeRaw = "classicWood"
+    @AppStorage("settings.theme") private var themeRaw = "greenFelt"
 
     var body: some Scene {
         WindowGroup {

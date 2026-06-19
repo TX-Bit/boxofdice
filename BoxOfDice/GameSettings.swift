@@ -189,6 +189,7 @@ enum SettingsStorageKey {
     static let soundsEnabled = "settings.soundsEnabled"
     static let diceAnimationSpeed = "settings.diceAnimationSpeed"
     static let showHints = "settings.showHints"
+    static let showDiceTotal = "settings.showDiceTotal"
     static let challengeMode = "settings.challengeMode"
     static let challengeSeed = "settings.challengeSeed"
     static let gameMode = "settings.gameMode"

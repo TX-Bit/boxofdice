@@ -54,6 +54,11 @@ final class GameFeedback: GameFeedbackProviding {
         // .ambient mixes with background audio and respects the silent switch.
         try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default)
         try? AVAudioSession.sharedInstance().setActive(true)
+        // Preload + prepare every player up front so the first (and every) play is
+        // instant — creating an AVAudioPlayer and decoding the file on the play
+        // call is what made the dice sound lag behind the throw.
+        preload(.diceRoll)
+        preload(.tileFlip)
         #endif
     }
 
@@ -101,10 +106,12 @@ final class GameFeedback: GameFeedbackProviding {
         play(.tileFlip)
     }
 
-    private func play(_ sound: Sound) {
+    @discardableResult
+    private func preload(_ sound: Sound) -> AVAudioPlayer? {
         #if os(watchOS)
-        return
+        return nil
         #else
+        if let existing = players[sound] { return existing }
         do {
             let player: AVAudioPlayer
             if let url = Bundle.main.url(forResource: sound.resourceName, withExtension: sound.fileExtension) {
@@ -112,14 +119,25 @@ final class GameFeedback: GameFeedbackProviding {
             } else {
                 player = try AVAudioPlayer(data: sound.generatedWAVData())
             }
-
             player.volume = sound.volume
             player.prepareToPlay()
-            player.play()
             players[sound] = player
+            return player
         } catch {
-            assertionFailure("Unable to play sound: \(sound.fileName)")
+            assertionFailure("Unable to load sound: \(sound.fileName)")
+            return nil
         }
+        #endif
+    }
+
+    private func play(_ sound: Sound) {
+        #if os(watchOS)
+        return
+        #else
+        // Reuse the preloaded, already-decoded player; just rewind and fire.
+        guard let player = players[sound] ?? preload(sound) else { return }
+        player.currentTime = 0
+        player.play()
         #endif
     }
 }

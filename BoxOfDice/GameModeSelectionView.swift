@@ -10,7 +10,7 @@ struct GameModeSelectionView: View {
 
     @AppStorage(SettingsStorageKey.gameMode) private var gameModeRaw = GameMode.classic.rawValue
     @AppStorage(SettingsStorageKey.passAndPlayPlayerCount) private var playerCount = 2
-    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.classicWood.rawValue
+    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
 
     let onStart: (GameMode, Int) -> Void
 

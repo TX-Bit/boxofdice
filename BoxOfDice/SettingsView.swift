@@ -8,11 +8,12 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.classicWood.rawValue
+    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
     @AppStorage(SettingsStorageKey.hapticsEnabled) private var hapticsEnabled = true
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
     @AppStorage(SettingsStorageKey.showHints) private var showHints = true
+    @AppStorage(SettingsStorageKey.showDiceTotal) private var showDiceTotal = false
     @AppStorage(SettingsStorageKey.language) private var languageRawValue = AppLanguage.system.rawValue
 
     private var theme: GameTheme {
@@ -115,6 +116,8 @@ struct SettingsView: View {
     private var gameFlowSection: some View {
         settingsCard(title: "Game Flow") {
             toggleRow("Show Hints", isOn: $showHints)
+            cardDivider
+            toggleRow("Show Dice Total", isOn: $showDiceTotal)
         }
     }
 

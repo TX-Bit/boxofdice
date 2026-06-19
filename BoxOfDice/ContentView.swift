@@ -29,11 +29,12 @@ struct ContentView: View {
     @State private var isShowingPassAndPlayResults = false
 
     @AppStorage(SettingsStorageKey.gameMode) private var gameModeRaw = GameMode.classic.rawValue
-    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.classicWood.rawValue
+    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
     @AppStorage(SettingsStorageKey.hapticsEnabled) private var hapticsEnabled = true
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
     @AppStorage(SettingsStorageKey.showHints) private var showHints = true
+    @AppStorage(SettingsStorageKey.showDiceTotal) private var showDiceTotal = false
     @AppStorage(SettingsStorageKey.celebrations) private var celebrationsRaw = CelebrationLevel.on.rawValue
     @AppStorage(SettingsStorageKey.language) private var languageRaw = AppLanguage.system.rawValue
     @AppStorage("hasSelectedInitialGameMode") private var hasSelectedInitialGameMode = false
@@ -654,8 +655,16 @@ struct ContentView: View {
                 }
             }
 
+            // Optional pip total, shown once the dice have settled (off by default).
+            if showDiceTotal && viewModel.hasRolled && !viewModel.isRolling {
+                Text(L10n.format("Dice total %lld", viewModel.diceTotal))
+                    .font(GameTypography.value(size: 16 * scale))
+                    .foregroundStyle(theme.text.opacity(0.86))
+                    .transition(.opacity)
+            }
         }
         .animation(.spring(response: 0.25, dampingFraction: 0.78), value: viewModel.dieCount)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.isRolling)
     }
 
     // Subtle, edge-free contact shadow that sits under the die's resting base.
@@ -688,22 +697,15 @@ struct ContentView: View {
             : "\(seconds)s"
     }
 
-    // MARK: - Secondary tool bar (hint + undo)
+    // MARK: - Secondary tool bar (hint)
 
     private func secondaryToolBar(scale: CGFloat) -> some View {
-        // Hint is only meaningful while selecting tiles; Undo only when a move exists.
-        // Both are matching pills, centred as a group, so neither floats off to a
-        // corner — and the strip collapses to nothing when there's nothing to show.
+        // Hint is only meaningful while selecting tiles. The strip collapses to
+        // nothing when there's nothing to show.
         let showHintButton = showHints && viewModel.canSelectTiles
-        let showUndoButton = viewModel.canUndo
-        let hasContent = showHintButton || showUndoButton
 
-        // Muted tone for both — secondary actions must not pull focus from the
-        // gold Confirm button.
-        let pillTint = theme.text.opacity(0.78)
-
-        // Hint is the more optional of the two — dial it back further so it reads as
-        // a quiet, almost text-only secondary action beside the (already muted) Undo.
+        // Quiet, almost text-only secondary action so it never pulls focus from
+        // the gold Confirm button.
         let hintTint = theme.text.opacity(0.56)
 
         return HStack(spacing: 10 * scale) {
@@ -719,16 +721,11 @@ struct ContentView: View {
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
-            if showUndoButton {
-                toolPillButton(title: "Undo", systemImage: "arrow.uturn.backward", tint: pillTint, scale: scale, action: viewModel.undoLastMove)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-            }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: hasContent ? 36 * scale : 0)
-        .opacity(hasContent ? 1 : 0)
+        .frame(height: showHintButton ? 36 * scale : 0)
+        .opacity(showHintButton ? 1 : 0)
         .animation(.easeInOut(duration: 0.2), value: showHintButton)
-        .animation(.easeInOut(duration: 0.2), value: showUndoButton)
     }
 
     private func toolPillButton(
@@ -774,7 +771,14 @@ struct ContentView: View {
     private func actionButton(scale: CGFloat) -> some View {
         switch viewModel.gameState {
         case .waitingToRoll:
-            rollButton(scale: scale)
+            // The opening throw of a game is manual (the Roll button). Once the
+            // dice have been rolled once, every later throw is automatic, so the
+            // slot becomes a non-interactive status instead.
+            if viewModel.canRoll && !viewModel.hasRolled {
+                rollButton(scale: scale)
+            } else {
+                rollStatus(scale: scale)
+            }
         case .selecting:
             selectingActionZone(scale: scale)
         case .gameOver:
@@ -797,6 +801,29 @@ struct ContentView: View {
         }
         .buttonStyle(BoardGameButtonStyle(isEnabled: viewModel.canRoll, tint: .amber))
         .disabled(!viewModel.canRoll)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.isRolling)
+    }
+
+    // After the opening throw the dice roll automatically (after each confirmed
+    // move), so this slot is just a non-interactive "Rolling…" status. The fixed
+    // height keeps everything below it from shifting between idle and rolling.
+    private func rollStatus(scale: CGFloat) -> some View {
+        Group {
+            if viewModel.isRolling {
+                HStack(spacing: 9 * scale) {
+                    Image(systemName: "dice.fill")
+                        .font(.system(size: 16 * scale, weight: .bold))
+                    Text("Rolling...")
+                        .font(GameTypography.button(size: 19 * scale))
+                }
+                .foregroundStyle(theme.text.opacity(0.70))
+                .transition(.opacity)
+            } else {
+                Color.clear
+            }
+        }
+        .frame(maxWidth: 260 * scale)
+        .frame(height: 58 * scale)
         .animation(.easeInOut(duration: 0.2), value: viewModel.isRolling)
     }
 
