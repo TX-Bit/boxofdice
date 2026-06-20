@@ -377,7 +377,6 @@ private struct GoldenFireworks: View {
         guard tp <= shell.life else { return }
         let bx = shell.burstX * w
         let by = shell.burstY * h
-        let f = (1 - exp(-Double(drag) * tp)) / Double(drag)   // dragged travel factor
 
         // Opening flash.
         if tp < 0.16 {

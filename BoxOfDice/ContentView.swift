@@ -86,7 +86,7 @@ struct ContentView: View {
                 }
 
                 if isGameOverVisible, case .gameOver = viewModel.gameState {
-                    Color.black.opacity(0.56)
+                    dimBackground
                         .ignoresSafeArea()
                         .transition(.opacity)
 
@@ -454,6 +454,12 @@ struct ContentView: View {
 
     private var theme: GameTheme {
         GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .classicWood)
+    }
+
+    private var dimBackground: Color {
+        theme.name == .minimalLight
+            ? Color(red: 20 / 255, green: 16 / 255, blue: 12 / 255).opacity(0.55)
+            : Color.black.opacity(0.55)
     }
 
     private var diceAnimationSpeed: DiceAnimationSpeed {

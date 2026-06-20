@@ -1,7 +1,7 @@
 /* Finnish localization for BoxOfDice */
 
-"BOX OF DICE" = "BOX OF DICE";
-"Box of Dice" = "Box of Dice";
+"BOX OF DICE" = "NOPPALAUTA";
+"Box of Dice" = "Noppalauta";
 "Classic" = "Klassinen";
 "Speed Run" = "Nopeuspeli";
 "Big Box" = "Iso laatikko";
@@ -177,6 +177,6 @@
 "A new personal best for this mode." = "Uusi henkilökohtainen ennätys tässä pelitilassa.";
 "Your first score for this mode." = "Ensimmäinen tuloksesi tässä pelitilassa.";
 "Share" = "Jaa";
-"Perfect clear in Box of Dice! 🎲 — %@" = "Täydellinen tyhjennys Box of Dicessa! 🎲 — %@";
-"Cleared the board in Box of Dice 🎲 — %@" = "Tyhjensin laatikon Box of Dicessa 🎲 — %@";
-"I scored %lld in Box of Dice 🎲 — %@" = "Sain %lld pistettä Box of Dicessa 🎲 — %@";
+"Perfect clear in Box of Dice! 🎲 — %@" = "Täydellinen tyhjennys Noppalauta -pelissä! 🎲 — %@";
+"Cleared the board in Box of Dice 🎲 — %@" = "Tyhjensin laudan Noppalauta -pelissä 🎲 — %@";
+"I scored %lld in Box of Dice 🎲 — %@" = "Sain %lld pistettä Noppalauta -pelissä 🎲 — %@";

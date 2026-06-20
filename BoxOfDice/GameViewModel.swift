@@ -110,12 +110,9 @@ final class GameViewModel: ObservableObject {
             try? await Task.sleep(nanoseconds: 820_000_000)
             guard !Task.isCancelled else { return }
             engine.roll(dice: finalDice)
-            if case .gameOver(let won) = engine.gameState, won {
-                successFeedback()
-            } else if case .gameOver = engine.gameState {
-                errorFeedback()
-            }
-            if case .gameOver = engine.gameState {
+            if case .gameOver(let won) = engine.gameState {
+                if won { successFeedback() } else { errorFeedback() }
+                gameOverSound(won: won)
                 stopTimer()
             }
             isRolling = false
@@ -146,10 +143,9 @@ final class GameViewModel: ObservableObject {
         soundTileFlip()
         highlightedHint = []
 
-        if case .gameOver(let won) = engine.gameState, won {
-            successFeedback()
-        }
-        if case .gameOver = engine.gameState {
+        if case .gameOver(let won) = engine.gameState {
+            if won { successFeedback() }
+            gameOverSound(won: won)
             stopTimer()
         }
 
@@ -280,6 +276,15 @@ final class GameViewModel: ObservableObject {
     private func soundTileFlip() {
         guard feedbackOptions.soundsEnabled else { return }
         feedback.playTileFlip()
+    }
+
+    private func gameOverSound(won: Bool) {
+        guard feedbackOptions.soundsEnabled else { return }
+        if won {
+            feedback.playVictory()
+        } else {
+            feedback.playGameOver()
+        }
     }
 }
 

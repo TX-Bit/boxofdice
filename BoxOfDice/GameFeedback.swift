@@ -20,6 +20,8 @@ protocol GameFeedbackProviding: AnyObject {
     func boardCleared()
     func playDiceRoll()
     func playTileFlip()
+    func playGameOver()
+    func playVictory()
 }
 
 @MainActor
@@ -34,6 +36,8 @@ final class NoOpGameFeedback: GameFeedbackProviding {
     func boardCleared() {}
     func playDiceRoll() {}
     func playTileFlip() {}
+    func playGameOver() {}
+    func playVictory() {}
 }
 
 @MainActor
@@ -59,6 +63,8 @@ final class GameFeedback: GameFeedbackProviding {
         // call is what made the dice sound lag behind the throw.
         preload(.diceRoll)
         preload(.tileFlip)
+        preload(.gameOver)
+        preload(.victory)
         #endif
     }
 
@@ -106,6 +112,14 @@ final class GameFeedback: GameFeedbackProviding {
         play(.tileFlip)
     }
 
+    func playGameOver() {
+        play(.gameOver)
+    }
+
+    func playVictory() {
+        play(.victory)
+    }
+
     @discardableResult
     private func preload(_ sound: Sound) -> AVAudioPlayer? {
         #if os(watchOS)
@@ -145,6 +159,8 @@ final class GameFeedback: GameFeedbackProviding {
 private enum Sound: Hashable {
     case diceRoll
     case tileFlip
+    case gameOver
+    case victory
 
     var resourceName: String {
         switch self {
@@ -152,13 +168,17 @@ private enum Sound: Hashable {
             return "dicesound1"
         case .tileFlip:
             return "tile-flip"
+        case .gameOver:
+            return "gameover"
+        case .victory:
+            return "victory"
         }
     }
 
     var fileExtension: String {
         switch self {
         case .diceRoll: return "aiff"
-        case .tileFlip: return "wav"
+        case .tileFlip, .gameOver, .victory: return "wav"
         }
     }
 
@@ -170,6 +190,10 @@ private enum Sound: Hashable {
             return 0.35
         case .tileFlip:
             return 0.28
+        case .gameOver:
+            return 0.5
+        case .victory:
+            return 0.52
         }
     }
 
@@ -182,6 +206,10 @@ private enum Sound: Hashable {
             samples = Self.diceRollSamples(sampleRate: sampleRate)
         case .tileFlip:
             samples = Self.tileFlipSamples(sampleRate: sampleRate)
+        case .gameOver:
+            samples = Self.gameOverSamples(sampleRate: sampleRate)
+        case .victory:
+            samples = Self.victorySamples(sampleRate: sampleRate)
         }
 
         return Self.wavData(samples: samples, sampleRate: sampleRate)
@@ -227,6 +255,68 @@ private enum Sound: Hashable {
         }
 
         return samples
+    }
+
+    // Descending three-note "game over" motif (A4 → F4 → D4) with a soft, bell-like
+    // decay and a low octave under the last note so it lands rather than just stops.
+    private static func gameOverSamples(sampleRate: Int) -> [Int16] {
+        let notes: [Double] = [440.0, 349.23, 293.66]   // A4, F4, D4 — minor, sombre
+        let noteSpacing = 0.20
+        let total = noteSpacing * Double(notes.count - 1) + 0.95
+        let count = Int(Double(sampleRate) * total)
+        var buffer = [Double](repeating: 0, count: count)
+
+        for (index, freq) in notes.enumerated() {
+            let start = Int(Double(sampleRate) * noteSpacing * Double(index))
+            let isLast = index == notes.count - 1
+            for n in 0..<(count - start) {
+                let t = Double(n) / Double(sampleRate)
+                let decay = isLast ? 3.0 : 5.0
+                let env = exp(-t * decay)
+                var value = sin(2.0 * .pi * freq * t) * 0.6
+                    + sin(2.0 * .pi * freq * 2.0 * t) * 0.18
+                if isLast {
+                    value += sin(2.0 * .pi * freq * 0.5 * t) * 0.30   // low octave thud
+                }
+                buffer[start + n] += value * env
+            }
+        }
+
+        return normalized(buffer, peak: 0.82)
+    }
+
+    // Rising arpeggio (C5 E5 G5 C6) that rings out into a chord — a bright,
+    // celebratory flourish for clearing the board.
+    private static func victorySamples(sampleRate: Int) -> [Int16] {
+        let notes: [Double] = [523.25, 659.25, 783.99, 1046.50]   // C5, E5, G5, C6
+        let noteSpacing = 0.135
+        let total = noteSpacing * Double(notes.count - 1) + 0.85
+        let count = Int(Double(sampleRate) * total)
+        var buffer = [Double](repeating: 0, count: count)
+
+        for (index, freq) in notes.enumerated() {
+            let start = Int(Double(sampleRate) * noteSpacing * Double(index))
+            for n in 0..<(count - start) {
+                let t = Double(n) / Double(sampleRate)
+                let env = exp(-t * 4.2)
+                // Bell-ish timbre: fundamental + octave + a soft fifth, plus a touch
+                // of high sparkle that fades fastest.
+                let value = sin(2.0 * .pi * freq * t) * 0.55
+                    + sin(2.0 * .pi * freq * 2.0 * t) * 0.22
+                    + sin(2.0 * .pi * freq * 3.0 * t) * 0.10 * exp(-t * 9.0)
+                buffer[start + n] += value * env
+            }
+        }
+
+        return normalized(buffer, peak: 0.85)
+    }
+
+    // Scales a Double buffer so its loudest sample sits at `peak`, then converts to
+    // 16-bit — keeps summed notes from clipping while staying nicely audible.
+    private static func normalized(_ buffer: [Double], peak: Double) -> [Int16] {
+        let maxMagnitude = buffer.reduce(0.0) { Swift.max($0, abs($1)) }
+        let gain = maxMagnitude > 0 ? peak / maxMagnitude : 1.0
+        return buffer.map { clampedSample($0 * gain) }
     }
 
     private static func clampedSample(_ value: Double) -> Int16 {

@@ -260,7 +260,7 @@ struct WatchContentView: View {
     private func compactHeader(metrics: WatchGameplayLayoutMetrics) -> some View {
         HStack(alignment: .center, spacing: 0) {
             VStack(alignment: .leading, spacing: 1) {
-                Text("Box of Dice")
+                Text(L10n.string("Box of Dice"))
                     .font(.custom("AmericanTypewriter-Bold", size: metrics.titleFontSize))
                     .foregroundStyle(
                         LinearGradient(colors: theme.title, startPoint: .leading, endPoint: .trailing)

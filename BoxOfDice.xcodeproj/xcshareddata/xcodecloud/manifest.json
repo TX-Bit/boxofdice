@@ -1,0 +1,9 @@
+{
+  "id" : "6f3db6ca-a225-407c-ac38-3fd9a97075ee",
+  "targets" : [
+    {
+      "id" : "f0635cf6-d769-4836-8c9c-186b9479bbc6",
+      "name" : "BoxOfDice"
+    }
+  ]
+}
