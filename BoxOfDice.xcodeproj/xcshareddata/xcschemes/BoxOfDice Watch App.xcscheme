@@ -47,6 +47,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "C097FD3D2FD7B4A800471A18"
             BuildableName = "BoxOfDice Watch App.app"
+            BlueprintName = "BoxOfDice Watch App"
             ReferencedContainer = "container:BoxOfDice.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -63,6 +64,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "C097FD3D2FD7B4A800471A18"
             BuildableName = "BoxOfDice Watch App.app"
+            BlueprintName = "BoxOfDice Watch App"
             ReferencedContainer = "container:BoxOfDice.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

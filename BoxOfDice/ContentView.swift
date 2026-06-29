@@ -17,11 +17,6 @@ struct ContentView: View {
     @State private var isShowingCelebration = false
     @State private var celebrationOutcome: CelebrationOutcome?
 
-    #if targetEnvironment(simulator)
-    // Simulator-only: lets the debug menu preview an animation without ending a game.
-    @State private var debugCelebration: CelebrationOutcome?
-    #endif
-
     // Pass & Play state
     @State private var currentPassAndPlayPlayer = 0
     @State private var passAndPlayScores: [Int] = []
@@ -125,38 +120,6 @@ struct ContentView: View {
                     .transition(.opacity)
                     .zIndex(2)
                 }
-
-                #if targetEnvironment(simulator)
-                VStack {
-                    Spacer()
-                    HStack {
-                        CelebrationDebugMenu(
-                            modeName: currentGameMode.title,
-                            tileCount: currentGameMode.tileCount
-                        ) { outcome in
-                            withAnimation(.easeOut(duration: 0.3)) { debugCelebration = outcome }
-                        }
-                        Spacer()
-                    }
-                }
-                .padding(.leading, 16)
-                .padding(.bottom, 44)
-                .zIndex(4)
-
-                if let debugCelebration {
-                    CelebrationView(
-                        outcome: debugCelebration,
-                        theme: theme,
-                        level: celebrationLevel,
-                        reduceMotion: reduceMotion
-                    ) {
-                        self.debugCelebration = nil
-                    }
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .zIndex(5)
-                }
-                #endif
             }
         }
         .onAppear {
