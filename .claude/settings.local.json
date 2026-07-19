@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Claude_Code_Remote__add_repo",
+      "Bash(export JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\")",
+      "Bash(./gradlew :app:compileDebugKotlin --offline -q)",
+      "Bash(grep -iE '\\\\.\\(png|jpg|jpeg|webp|heic|bmp\\)$')",
+      "Read(//c/Users/Kone/Desktop/**)",
+      "Bash(curl -s -m 10 -o /dev/null -w \"github=%{http_code}\\\\n\" https://raw.githubusercontent.com)",
+      "Bash(curl -s -m 10 -o /dev/null -w \"maven=%{http_code}\\\\n\" https://dl.google.com)",
+      "Bash(curl -s -m 10 -o /dev/null -w \"mavencentral=%{http_code}\\\\n\" https://repo1.maven.org/maven2/)",
+      "Bash(curl -s -m 20 \"https://raw.githubusercontent.com/android/user-interface-samples/main/DownloadableFonts/app/src/main/res/values/font_certs.xml\" -o app/src/main/res/values/font_certs.xml)",
+      "Bash(rm -f vframe_*.png)",
+      "Bash(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 \"/c/Users/Kone/Desktop/boxofdice.mp4\")",
+      "Bash(ffmpeg -loglevel error -i \"/c/Users/Kone/Desktop/boxofdice.mp4\" -vf \"fps=2,scale=360:-1\" vframe_%03d.png)",
+      "Bash(rm -f roll_*.png)",
+      "Bash(ffmpeg -loglevel error -ss 16 -t 5 -i \"/c/Users/Kone/Desktop/boxofdice.mp4\" -vf \"fps=12,scale=360:-1\" roll_%03d.png)",
+      "Bash(rm -f aframe_*.png)",
+      "Bash(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 \"/c/Users/Kone/Desktop/android.webm\")",
+      "Bash(ffmpeg -loglevel error -i \"/c/Users/Kone/Desktop/android.webm\" -vf \"fps=2,scale=360:-1\" aframe_%03d.png)",
+      "PowerShell(git config *)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}

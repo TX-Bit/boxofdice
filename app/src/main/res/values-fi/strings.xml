@@ -1,0 +1,111 @@
+<resources>
+    <string name="app_name">Box of Dice</string>
+
+    <!-- Valikko -->
+    <string name="menu_kicker">BOX OF DICE</string>
+    <string name="menu_title">Sulje laatikko</string>
+    <string name="menu_settings">⚙  Asetukset</string>
+    <string name="menu_stats">▤  Tilastot</string>
+    <string name="menu_choose_mode">Valitse pelimuoto</string>
+    <string name="badge_timed">AIKA</string>
+
+    <!-- Pelimuodot -->
+    <string name="mode_classic">Klassinen</string>
+    <string name="mode_classic_desc">12 laattaa · 2 noppaa</string>
+    <string name="mode_speed">Pikapeli</string>
+    <string name="mode_speed_desc">12 laattaa · 2 noppaa · ajastettu</string>
+    <string name="mode_bigbox">Iso laatikko</string>
+    <string name="mode_bigbox_desc">18 laattaa · 3 noppaa</string>
+    <string name="mode_bigbox_speed">Iso laatikko pika</string>
+    <string name="mode_bigbox_speed_desc">18 laattaa · 3 noppaa · ajastettu</string>
+    <string name="mode_pass">Vuoropeli</string>
+    <string name="mode_pass_desc">2–4 pelaajaa · kukin yksi klassinen kierros</string>
+
+    <!-- Otsikko -->
+    <string name="score_label">Pisteet: %1$d</string>
+    <string name="player_label">PELAAJA %1$d / %2$d</string>
+    <string name="timer_label">⏱ %1$d s</string>
+
+    <!-- Noppaohjeet -->
+    <string name="instr_begin">Aloita napauttamalla Heitä nopat</string>
+    <string name="instr_rolling">Heitetään…</string>
+    <string name="instr_select">Valitse noppia vastaavat laatat</string>
+
+    <!-- Toimintopainikkeet -->
+    <string name="btn_roll">Heitä nopat</string>
+    <string name="btn_roll_again">Heitä uudelleen</string>
+    <string name="btn_rolling">Heitetään…</string>
+    <string name="btn_confirm">✓  Vahvista  %1$d</string>
+    <string name="btn_selected">Valittu  %1$d  /  %2$d</string>
+    <string name="btn_undo">Kumoa</string>
+    <string name="btn_hint">Vihje</string>
+    <string name="btn_undo_move">↩  Kumoa siirto</string>
+
+    <!-- Pelin loppu -->
+    <string name="result_perfect">★  TÄYDELLINEN  ★</string>
+    <string name="result_gameover">Peli päättyi</string>
+    <string name="result_sub_gameover">Ei kelvollisia siirtoja jäljellä.</string>
+    <string name="result_sub_perfect">Virheetön — kaikki laatat suljettu.</string>
+    <string name="result_tiles_remaining">Laattoja jäljellä</string>
+    <string name="result_time">Aika</string>
+    <string name="result_time_value">%1$d s</string>
+    <string name="result_final_score">Loppupisteet</string>
+    <string name="btn_new_game">Uusi peli</string>
+    <string name="btn_share">Jaa</string>
+    <string name="btn_menu">Valikko</string>
+    <string name="share_subject">Box of Dice — %1$s</string>
+    <string name="share_score">Loppupisteet: %1$d</string>
+    <string name="share_perfect">  (Täydellinen!)</string>
+    <string name="share_chooser">Jaa tulos</string>
+
+    <!-- Vuoropeli -->
+    <string name="pass_title">Vuoropeli</string>
+    <string name="pass_how_many">Montako pelaajaa?</string>
+    <string name="pass_cancel">Peruuta</string>
+    <string name="pass_player_done">Pelaaja %1$d valmis!</string>
+    <string name="pass_handoff">Anna laite seuraavalle pelaajalle.</string>
+    <string name="pass_all_done">Kaikki pelaajat ovat pelanneet.</string>
+    <string name="pass_score">PISTEET</string>
+    <string name="pass_lower_better">Pienempi on parempi</string>
+    <string name="pass_next_player">Seuraava pelaaja</string>
+    <string name="pass_see_results">Näytä tulokset</string>
+    <string name="pass_results">Tulokset</string>
+    <string name="pass_lowest_wins">Pienimmät pisteet voittaa!</string>
+    <string name="pass_player_n">Pelaaja %1$d</string>
+    <string name="pass_points">%1$d p</string>
+
+    <!-- Asetukset -->
+    <string name="settings_title">Asetukset</string>
+    <string name="settings_section_theme">Teema</string>
+    <string name="settings_section_dice">Nopat</string>
+    <string name="settings_section_moves">Siirrot</string>
+    <string name="settings_section_feedback">Palaute</string>
+    <string name="settings_sound">Äänet</string>
+    <string name="settings_haptics">Värinä</string>
+    <string name="settings_done">Valmis</string>
+
+    <!-- Noppatilat -->
+    <string name="dice_always_all">Käytä aina kaikkia noppia</string>
+    <string name="dice_one_low">Käytä yhtä noppaa kun vain laatat 1–6 ovat auki</string>
+
+    <!-- Siirtosäännöt -->
+    <string name="move_any">Mikä tahansa avoimien laattojen yhdistelmä</string>
+    <string name="move_one_two">Vain yksi tai kaksi laattaa</string>
+
+    <!-- Teemat -->
+    <string name="theme_classic_wood">Klassinen puu</string>
+    <string name="theme_green_felt">Vihreä verka</string>
+    <string name="theme_midnight">Keskiyö</string>
+    <string name="theme_high_contrast">Suuri kontrasti</string>
+    <string name="theme_minimal_light">Vaalea minimaalinen</string>
+    <string name="theme_dark_walnut">Tumma pähkinä</string>
+
+    <!-- Tilastot -->
+    <string name="stats_title">Tilastot</string>
+    <string name="stats_games">Pelit</string>
+    <string name="stats_perfect">Täydelliset</string>
+    <string name="stats_streak">Putki</string>
+    <string name="stats_best_streak">Paras putki</string>
+    <string name="stats_best_scores">PARHAAT PISTEET</string>
+    <string name="stats_none">—</string>
+</resources>

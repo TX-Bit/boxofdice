@@ -1,0 +1,111 @@
+<resources>
+    <string name="app_name">Box of Dice</string>
+
+    <!-- Menu -->
+    <string name="menu_kicker">BOX OF DICE</string>
+    <string name="menu_title">Shut the Box</string>
+    <string name="menu_settings">⚙  Settings</string>
+    <string name="menu_stats">▤  Stats</string>
+    <string name="menu_choose_mode">Choose Mode</string>
+    <string name="badge_timed">TIMED</string>
+
+    <!-- Modes -->
+    <string name="mode_classic">Classic</string>
+    <string name="mode_classic_desc">12 tiles · 2 dice</string>
+    <string name="mode_speed">Speed Run</string>
+    <string name="mode_speed_desc">12 tiles · 2 dice · timed</string>
+    <string name="mode_bigbox">Big Box</string>
+    <string name="mode_bigbox_desc">18 tiles · 3 dice</string>
+    <string name="mode_bigbox_speed">Big Box Speed</string>
+    <string name="mode_bigbox_speed_desc">18 tiles · 3 dice · timed</string>
+    <string name="mode_pass">Pass &amp; Play</string>
+    <string name="mode_pass_desc">2–4 players · one Classic round each</string>
+
+    <!-- Header -->
+    <string name="score_label">Score: %1$d</string>
+    <string name="player_label">PLAYER %1$d OF %2$d</string>
+    <string name="timer_label">⏱ %1$ds</string>
+
+    <!-- Dice area instructions -->
+    <string name="instr_begin">Tap Roll Dice to begin</string>
+    <string name="instr_rolling">Rolling…</string>
+    <string name="instr_select">Select tiles matching the dice</string>
+
+    <!-- Action buttons -->
+    <string name="btn_roll">Roll Dice</string>
+    <string name="btn_roll_again">Roll Again</string>
+    <string name="btn_rolling">Rolling…</string>
+    <string name="btn_confirm">✓  Confirm  %1$d</string>
+    <string name="btn_selected">Selected  %1$d  /  %2$d</string>
+    <string name="btn_undo">Undo</string>
+    <string name="btn_hint">Hint</string>
+    <string name="btn_undo_move">↩  Undo move</string>
+
+    <!-- Game over -->
+    <string name="result_perfect">★  PERFECT  ★</string>
+    <string name="result_gameover">Game Over</string>
+    <string name="result_sub_gameover">No valid move remains.</string>
+    <string name="result_sub_perfect">Flawless — every tile closed.</string>
+    <string name="result_tiles_remaining">Tiles Remaining</string>
+    <string name="result_time">Time</string>
+    <string name="result_time_value">%1$ds</string>
+    <string name="result_final_score">Final Score</string>
+    <string name="btn_new_game">New Game</string>
+    <string name="btn_share">Share</string>
+    <string name="btn_menu">Menu</string>
+    <string name="share_subject">Box of Dice — %1$s</string>
+    <string name="share_score">Final score: %1$d</string>
+    <string name="share_perfect">  (Perfect!)</string>
+    <string name="share_chooser">Share score</string>
+
+    <!-- Pass and Play -->
+    <string name="pass_title">Pass &amp; Play</string>
+    <string name="pass_how_many">How many players?</string>
+    <string name="pass_cancel">Cancel</string>
+    <string name="pass_player_done">Player %1$d done!</string>
+    <string name="pass_handoff">Hand the device to the next player.</string>
+    <string name="pass_all_done">All players have finished.</string>
+    <string name="pass_score">SCORE</string>
+    <string name="pass_lower_better">Lower is better</string>
+    <string name="pass_next_player">Next Player</string>
+    <string name="pass_see_results">See Results</string>
+    <string name="pass_results">Results</string>
+    <string name="pass_lowest_wins">Lowest score wins!</string>
+    <string name="pass_player_n">Player %1$d</string>
+    <string name="pass_points">%1$d pts</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_theme">Theme</string>
+    <string name="settings_section_dice">Dice</string>
+    <string name="settings_section_moves">Moves</string>
+    <string name="settings_section_feedback">Feedback</string>
+    <string name="settings_sound">Sound effects</string>
+    <string name="settings_haptics">Haptics</string>
+    <string name="settings_done">Done</string>
+
+    <!-- Dice modes -->
+    <string name="dice_always_all">Always use all dice</string>
+    <string name="dice_one_low">Use one die when only tiles 1–6 remain open</string>
+
+    <!-- Move rules -->
+    <string name="move_any">Any combination of open tiles</string>
+    <string name="move_one_two">Only one or two tiles</string>
+
+    <!-- Themes -->
+    <string name="theme_classic_wood">Classic Wood</string>
+    <string name="theme_green_felt">Green Felt</string>
+    <string name="theme_midnight">Midnight</string>
+    <string name="theme_high_contrast">High Contrast</string>
+    <string name="theme_minimal_light">Minimal Light</string>
+    <string name="theme_dark_walnut">Dark Walnut</string>
+
+    <!-- Stats -->
+    <string name="stats_title">Statistics</string>
+    <string name="stats_games">Games</string>
+    <string name="stats_perfect">Perfect</string>
+    <string name="stats_streak">Streak</string>
+    <string name="stats_best_streak">Best streak</string>
+    <string name="stats_best_scores">BEST SCORES</string>
+    <string name="stats_none">—</string>
+</resources>
