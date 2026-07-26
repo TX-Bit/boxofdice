@@ -46,6 +46,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -67,7 +68,10 @@ import com.example.boxofdice.ui.components.DiceView
 import com.example.boxofdice.ui.components.GameActionButton
 import com.example.boxofdice.ui.theme.AppFont
 import com.example.boxofdice.ui.theme.DesignTokens
+import com.example.boxofdice.ui.theme.DisplayFont
+import com.example.boxofdice.ui.theme.LabelFont
 import com.example.boxofdice.ui.theme.LocalBoardTheme
+import com.example.boxofdice.ui.theme.TitleFont
 import com.example.boxofdice.viewmodel.GameViewModel
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -86,9 +90,20 @@ fun GameScreen(viewModel: GameViewModel) {
     var showPlayerCount by remember { mutableStateOf(false) }
     var showSettings    by remember { mutableStateOf(false) }
     var showStats       by remember { mutableStateOf(false) }
+    var showModeSelect  by remember { mutableStateOf(false) }
 
     val lastResult = remember { mutableStateOf<GameResult?>(null) }
     gameResult?.let { lastResult.value = it }
+
+    // Snapshot the still-open tiles for the result card (iOS "Remaining Open
+    // Tiles" chips). Read from the live GameState — no game-logic change needed —
+    // and remembered so the card keeps its content during the exit animation.
+    val lastRemaining = remember { mutableStateOf<List<Int>>(emptyList()) }
+    if (gameResult != null) {
+        gameState?.let { s ->
+            lastRemaining.value = s.tiles.filter { it.isOpen }.map { it.number }
+        }
+    }
 
     val pap = passAndPlay
     val playerLabel = pap?.let { "PLAYER ${it.currentPlayer} OF ${it.playerCount}" }
@@ -108,7 +123,8 @@ fun GameScreen(viewModel: GameViewModel) {
                 // The 3D dice surface draws on top of the window, so suppress it while
                 // any full-screen overlay/sheet is up (it would otherwise punch through).
                 val overlayActive = gameResult != null || showSettings || showStats ||
-                    showPlayerCount || pap?.showRoundEnd == true || pap?.showResults == true
+                    showModeSelect || showPlayerCount ||
+                    pap?.showRoundEnd == true || pap?.showResults == true
                 ActiveGameScreen(
                     state          = state,
                     playerLabel    = playerLabel,
@@ -116,7 +132,7 @@ fun GameScreen(viewModel: GameViewModel) {
                     onToggle       = viewModel::toggleTile,
                     onRoll         = viewModel::rollDice,
                     onConfirm      = viewModel::confirmSelection,
-                    onExit         = viewModel::exitGame,
+                    onModeSelect   = { showModeSelect = true },
                     onHint         = viewModel::hint,
                     onUndo         = viewModel::clearSelection,
                     onUndoMove     = viewModel::undoLastMove,
@@ -134,9 +150,10 @@ fun GameScreen(viewModel: GameViewModel) {
         ) {
             lastResult.value?.let { result ->
                 GameOverOverlay(
-                    result      = result,
-                    onPlayAgain = { viewModel.startGame(result.mode) },
-                    onMenu      = viewModel::exitGame
+                    result         = result,
+                    remainingTiles = lastRemaining.value,
+                    onPlayAgain    = { viewModel.startGame(result.mode) },
+                    onMenu         = viewModel::exitGame
                 )
             }
         }
@@ -187,6 +204,19 @@ fun GameScreen(viewModel: GameViewModel) {
                 overall   = overall,
                 modeBests = modeBests,
                 onClose   = { showStats = false }
+            )
+        }
+
+        // iOS-style mode selection sheet over the running game: picking a mode
+        // starts it; cancelling just closes the sheet and play continues.
+        if (showModeSelect) {
+            ModeSelectOverlay(
+                onSelect = { mode ->
+                    showModeSelect = false
+                    if (mode.isMultiplayer) showPlayerCount = true
+                    else viewModel.startGame(mode)
+                },
+                onClose  = { showModeSelect = false }
             )
         }
     }
@@ -267,8 +297,8 @@ private fun MenuScreen(
             text          = stringResource(R.string.menu_kicker),
             color         = theme.text.copy(alpha = 0.5f),
             fontSize      = 12.sp,
-            fontFamily    = AppFont,
-            fontWeight    = FontWeight.Black,
+            fontFamily    = LabelFont,
+            fontWeight    = FontWeight.Bold,
             letterSpacing = 3.sp
         )
         Spacer(Modifier.height(8.dp))
@@ -372,6 +402,31 @@ private fun MenuPillButton(label: String, onClick: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mode selection sheet (iOS GameModeSelectionView) — shown over a running game;
+// Cancel dismisses and play continues.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ModeSelectOverlay(
+    onSelect: (GameMode) -> Unit,
+    onClose:  () -> Unit
+) {
+    ThemedSheet(
+        title      = stringResource(R.string.menu_choose_mode),
+        onClose    = onClose,
+        closeLabel = stringResource(R.string.pass_cancel)
+    ) {
+        Spacer(Modifier.height(10.dp))
+        GroupCard {
+            GameMode.entries.forEachIndexed { i, mode ->
+                if (i > 0) GroupDivider()
+                ModeRow(mode = mode, onClick = { onSelect(mode) })
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Active game
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -383,7 +438,7 @@ private fun ActiveGameScreen(
     onToggle:       (Int) -> Unit,
     onRoll:         () -> Unit,
     onConfirm:      () -> Unit,
-    onExit:         () -> Unit,
+    onModeSelect:   () -> Unit,
     onHint:         () -> Unit,
     onUndo:         () -> Unit,
     onUndoMove:     () -> Unit,
@@ -397,9 +452,9 @@ private fun ActiveGameScreen(
     val dieSize     = if (isTablet) 150.dp else if (isLandscape) 92.dp else DesignTokens.diceSize
 
     if (isLandscape && !isTablet) {
-        LandscapeGameLayout(state, playerLabel, dieSize, scale, overlayActive, onToggle, onRoll, onConfirm, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
+        LandscapeGameLayout(state, playerLabel, dieSize, scale, overlayActive, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
     } else {
-        PortraitGameLayout(state, playerLabel, dieSize, scale, isTablet, overlayActive, onToggle, onRoll, onConfirm, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
+        PortraitGameLayout(state, playerLabel, dieSize, scale, isTablet, overlayActive, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
     }
 }
 
@@ -414,6 +469,7 @@ private fun PortraitGameLayout(
     onToggle:    (Int) -> Unit,
     onRoll:      () -> Unit,
     onConfirm:   () -> Unit,
+    onModeSelect: () -> Unit,
     onHint:         () -> Unit,
     onUndo:         () -> Unit,
     onUndoMove:     () -> Unit,
@@ -421,30 +477,35 @@ private fun PortraitGameLayout(
     onOpenStats:    () -> Unit
 ) {
     val boardMax = if (isTablet) 720.dp else 430.dp
+    // iOS portrait is a ScrollView: header, board, dice and controls stack from the
+    // top with a fixed 8pt (short screens) / 12pt gap between every section, and
+    // whatever felt is left over pools at the bottom. No weighted spacers — the
+    // board never drifts down on tall screens.
+    val gap = if (LocalConfiguration.current.screenHeightDp < 700) 8.dp else 12.dp
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 12.dp)
-            .padding(top = 8.dp, bottom = 16.dp),
+            .padding(top = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        GameHeader(state, playerLabel, scale, onOpenStats, onOpenSettings)
-        // iOS keeps the table top-aligned: a small gap to the board, a larger one
-        // down to the dice, then a big pool of empty felt below the controls.
-        Spacer(Modifier.weight(0.40f))
+        Spacer(Modifier.height(10.dp))
+        GameHeader(state, playerLabel, scale, onOpenStats, onOpenSettings, onModeSelect)
+        Spacer(Modifier.height(gap))
         BoardView(
             tiles       = state.tiles,
             onTileClick = onToggle,
             modifier    = Modifier.fillMaxWidth().widthIn(max = boardMax)
         )
-        Spacer(Modifier.weight(0.55f))
-        DiceArea(state, dieSize, scale, overlayActive)
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(gap))
+        DiceArea(state, dieSize, overlayActive)
+        Spacer(Modifier.height(gap))
         GameActionButton(
             state, onRoll, onConfirm, onHint, onUndo, onUndoMove,
             modifier = Modifier.widthIn(max = 360.dp)
         )
-        Spacer(Modifier.weight(1.5f))
+        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -458,6 +519,7 @@ private fun LandscapeGameLayout(
     onToggle:    (Int) -> Unit,
     onRoll:      () -> Unit,
     onConfirm:   () -> Unit,
+    onModeSelect: () -> Unit,
     onHint:         () -> Unit,
     onUndo:         () -> Unit,
     onUndoMove:     () -> Unit,
@@ -477,8 +539,8 @@ private fun LandscapeGameLayout(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
-            ScoreModeBlock(state, playerLabel, scale)
-            DiceArea(state, dieSize, scale, overlayActive)
+            ScoreModeBlock(state, playerLabel, scale, onModeSelect)
+            DiceArea(state, dieSize, overlayActive)
             GameActionButton(state, onRoll, onConfirm, onHint, onUndo, onUndoMove)
         }
     }
@@ -494,25 +556,29 @@ private fun GameHeader(
     playerLabel: String?,
     scale:       Float,
     onStats:     () -> Unit,
-    onSettings:  () -> Unit
+    onSettings:  () -> Unit,
+    onModeSelect: () -> Unit = {}
 ) {
     Box(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-        ScoreModeBlock(state, playerLabel, scale)
+        ScoreModeBlock(state, playerLabel, scale, onModeSelect)
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
             CircleIconButton(onClick = onStats) { StatsBarsIcon() }
             Spacer(Modifier.weight(1f))
-            CircleIconButton(onClick = onSettings) {
-                Text("⚙", color = DesignTokens.headerIconTint, fontSize = 17.sp)
-            }
+            CircleIconButton(onClick = onSettings) { GearIcon() }
         }
     }
 }
 
 @Composable
-private fun ScoreModeBlock(state: GameState, playerLabel: String?, scale: Float) {
+private fun ScoreModeBlock(
+    state: GameState,
+    playerLabel: String?,
+    scale: Float,
+    onModeSelect: () -> Unit = {}
+) {
     val theme = LocalBoardTheme.current
     Column(
         modifier            = Modifier.fillMaxWidth(),
@@ -522,7 +588,7 @@ private fun ScoreModeBlock(state: GameState, playerLabel: String?, scale: Float)
             text          = playerLabel ?: stringResource(R.string.menu_kicker),
             color         = if (playerLabel != null) theme.accent.copy(alpha = 0.85f) else theme.text.copy(alpha = 0.42f),
             fontSize      = (10 * scale).sp,
-            fontFamily    = AppFont, fontWeight = FontWeight.Black,
+            fontFamily    = LabelFont, fontWeight = FontWeight.Bold,
             letterSpacing = (3 * scale).sp
         )
         Spacer(Modifier.height(4.dp))
@@ -530,28 +596,30 @@ private fun ScoreModeBlock(state: GameState, playerLabel: String?, scale: Float)
             Text(
                 text = stringResource(R.string.score_label, state.remainingScore),
                 color = theme.text,
-                fontFamily = AppFont, fontWeight = FontWeight.Black,
+                fontFamily = LabelFont, fontWeight = FontWeight.Bold,
                 fontSize = (DesignTokens.scoreSize.value * scale).sp
             )
             if (state.mode.hasTimer && state.hasRolled) {
                 Text("  ·  ", color = theme.text.copy(alpha = 0.35f), fontSize = (18 * scale).sp)
-                Text("⏱ ", color = theme.text, fontSize = (14 * scale).sp)
                 Text(
                     text = stringResource(R.string.timer_label, state.elapsedSeconds),
                     color = theme.text,
-                    fontFamily = AppFont, fontWeight = FontWeight.Black,
+                    fontFamily = LabelFont, fontWeight = FontWeight.Bold,
                     fontSize = (18 * scale).sp
                 )
             }
         }
         Spacer(Modifier.height(5.dp))
-        ModePill(state.mode.label(), scale)
+        ModePill(state.mode.label(), scale, onModeSelect)
     }
 }
 
 @Composable
-private fun ModePill(label: String, scale: Float) {
+private fun ModePill(label: String, scale: Float, onClick: () -> Unit = {}) {
     val theme = LocalBoardTheme.current
+    val tint = theme.text.copy(alpha = 0.82f)
+    // Tappable like the iOS mode pill (a plain Button opening mode selection):
+    // returns to the game-mode menu so a new mode can be picked mid-game.
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(50))
@@ -559,16 +627,42 @@ private fun ModePill(label: String, scale: Float) {
                 Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.30f), Color.Black.copy(alpha = 0.16f)))
             )
             .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(50))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication        = null,
+                onClick           = onClick
+            )
             .padding(horizontal = (12 * scale).dp, vertical = (5 * scale).dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("⚂", color = theme.accent, fontSize = (12 * scale).sp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy((5 * scale).dp)
+        ) {
+            MiniDieIcon(tint = tint, size = (10 * scale).dp)
             Text(
-                text = "  $label  ›",
-                color = theme.text.copy(alpha = 0.82f),
-                fontFamily = AppFont, fontWeight = FontWeight.Medium, fontSize = (12 * scale).sp
+                text = label,
+                color = tint,
+                fontFamily = LabelFont, fontWeight = FontWeight.SemiBold, fontSize = (12 * scale).sp
+            )
+            Text(
+                text = "›",
+                color = tint.copy(alpha = tint.alpha * 0.7f),
+                fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = (11 * scale).sp
             )
         }
+    }
+}
+
+/** Tiny filled die glyph (iOS `dice.fill`) — rounded square with punched pips. */
+@Composable
+private fun MiniDieIcon(tint: Color, size: Dp) {
+    Canvas(modifier = Modifier.size(size)) {
+        val s = this.size.width
+        drawRoundRect(color = tint, cornerRadius = CornerRadius(s * 0.24f))
+        val pipR = s * 0.10f
+        val hole = Color.Black.copy(alpha = 0.75f)
+        listOf(0.28f to 0.28f, 0.72f to 0.28f, 0.50f to 0.50f, 0.28f to 0.72f, 0.72f to 0.72f)
+            .forEach { (fx, fy) -> drawCircle(hole, pipR, Offset(s * fx, s * fy)) }
     }
 }
 
@@ -608,6 +702,36 @@ private fun StatsBarsIcon() {
     }
 }
 
+/** Gold gear (gearshape.fill) drawn from Canvas — the ⚙ glyph renders as an emoji
+ *  on many devices, which broke the iOS look. */
+@Composable
+private fun GearIcon() {
+    Canvas(modifier = Modifier.size(18.dp)) {
+        val c = Offset(size.width / 2f, size.height / 2f)
+        val outerR = size.width * 0.36f
+        val toothLen = size.width * 0.14f
+        val toothW = size.width * 0.16f
+        // Eight teeth around the rim.
+        for (i in 0 until 8) {
+            rotate(degrees = i * 45f, pivot = c) {
+                drawRoundRect(
+                    color = DesignTokens.headerIconTint,
+                    topLeft = Offset(c.x - toothW / 2f, c.y - outerR - toothLen),
+                    size = Size(toothW, toothLen + outerR * 0.5f),
+                    cornerRadius = CornerRadius(toothW * 0.35f)
+                )
+            }
+        }
+        // Body ring: solid disc with a punched-out hub.
+        drawCircle(color = DesignTokens.headerIconTint, radius = outerR, center = c)
+        drawCircle(
+            color = Color.Black.copy(alpha = 0.55f),
+            radius = size.width * 0.15f,
+            center = c
+        )
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Dice area
 // ─────────────────────────────────────────────────────────────────────────────
@@ -615,8 +739,7 @@ private fun StatsBarsIcon() {
 private val decorativeFaces = listOf(5, 2, 4)
 
 @Composable
-private fun DiceArea(state: GameState, dieSize: Dp, scale: Float, overlayActive: Boolean) {
-    val theme = LocalBoardTheme.current
+private fun DiceArea(state: GameState, dieSize: Dp, overlayActive: Boolean) {
     val showDecorative = !state.hasRolled && !state.isRolling
     val diceToShow = when {
         showDecorative -> decorativeFaces.take(state.mode.diceCount)
@@ -624,37 +747,52 @@ private fun DiceArea(state: GameState, dieSize: Dp, scale: Float, overlayActive:
         else -> state.dice
     }
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        if (overlayActive) {
-            // A full-screen overlay is up; the GL surface would draw over it, so use
-            // the flat dice (hidden behind the overlay anyway).
-            DiceView(dice = diceToShow, isRolling = state.isRolling, dieSize = dieSize)
-        } else {
+    // No instruction text under the dice — on iOS the roll/rolling status lives in
+    // the action-button slot, which the Android layout already mirrors.
+    if (overlayActive) {
+        // A full-screen overlay is up; the GL surface would draw over it, so use
+        // the flat dice (hidden behind the overlay anyway).
+        DiceView(dice = diceToShow, isRolling = state.isRolling, dieSize = dieSize)
+    } else {
+        val n = diceToShow.size.coerceAtLeast(1)
+        Box(contentAlignment = Alignment.Center) {
+            // Soft elliptical contact shadows on the felt, one per die, drawn in
+            // Compose *behind* the GL surface — its transparent pixels let them
+            // show through (iOS `dieContactShadow`).
+            Canvas(
+                modifier = Modifier
+                    .height(dieSize * 1.4f)
+                    .width(dieSize * 1.4f * n)
+            ) {
+                val diePx = dieSize.toPx()
+                val cellW = size.width / n
+                for (i in 0 until n) {
+                    val cx = cellW * (i + 0.5f)
+                    val cy = size.height * 0.5f + diePx * (36f / 108f)
+                    val ew = diePx * (86f / 108f)
+                    val eh = diePx * (22f / 108f)
+                    drawOval(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.42f),
+                                Color.Black.copy(alpha = 0.16f),
+                                Color.Transparent
+                            ),
+                            center = Offset(cx, cy),
+                            radius = ew / 2f
+                        ),
+                        topLeft = Offset(cx - ew / 2f, cy - eh / 2f),
+                        size = Size(ew, eh)
+                    )
+                }
+            }
             Dice3DView(
                 dice      = diceToShow,
                 isRolling = state.isRolling,
                 dieSize   = dieSize,
                 modifier  = Modifier
                     .height(dieSize * 1.4f)
-                    .width(dieSize * 1.4f * diceToShow.size.coerceAtLeast(1))
-            )
-        }
-
-        val instruction = when {
-            showDecorative                     -> stringResource(R.string.instr_begin)
-            state.isRolling                    -> stringResource(R.string.instr_rolling)
-            else                               -> ""
-        }
-        if (instruction.isNotEmpty()) {
-            Text(
-                text = instruction,
-                fontFamily = AppFont, fontWeight = FontWeight.Normal,
-                fontSize = (13 * scale).sp,
-                color = theme.text.copy(alpha = 0.66f),
-                textAlign = TextAlign.Center
+                    .width(dieSize * 1.4f * n)
             )
         }
     }
@@ -666,12 +804,19 @@ private fun DiceArea(state: GameState, dieSize: Dp, scale: Float, overlayActive:
 
 @Composable
 private fun GameOverOverlay(
-    result:      GameResult,
-    onPlayAgain: () -> Unit,
-    onMenu:      () -> Unit
+    result:         GameResult,
+    remainingTiles: List<Int>,
+    onPlayAgain:    () -> Unit,
+    onMenu:         () -> Unit
 ) {
     val theme = LocalBoardTheme.current
     val context = LocalContext.current
+
+    // iOS result-title gradients are fixed (not theme-driven): warm gold for a
+    // plain Game Over, celebratory gold for a Perfect Clear.
+    val titleColors =
+        if (result.isPerfect) listOf(Color(1.0f, 0.91f, 0.68f), Color(0.86f, 0.56f, 0.24f))
+        else listOf(Color(1.0f, 0.88f, 0.60f), Color(0.96f, 0.56f, 0.22f))
 
     Box(
         modifier         = Modifier
@@ -697,14 +842,15 @@ private fun GameOverOverlay(
                 GradientText(
                     text = if (result.isPerfect) stringResource(R.string.result_perfect)
                            else stringResource(R.string.result_gameover),
-                    colors = theme.title, fontSize = 34.sp
+                    colors = titleColors,
+                    fontSize = if (result.isPerfect) 31.sp else 34.sp
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = if (result.isPerfect) stringResource(R.string.result_sub_perfect)
                            else stringResource(R.string.result_sub_gameover),
                     color = theme.text.copy(alpha = 0.72f),
-                    fontFamily = AppFont, fontWeight = FontWeight.Medium, fontSize = 16.sp,
+                    fontFamily = LabelFont, fontWeight = FontWeight.Medium, fontSize = 16.sp,
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(10.dp))
@@ -718,7 +864,7 @@ private fun GameOverOverlay(
                     Text(
                         text = result.mode.label(),
                         color = theme.text.copy(alpha = 0.78f),
-                        fontFamily = AppFont, fontWeight = FontWeight.Medium, fontSize = 12.sp
+                        fontFamily = LabelFont, fontWeight = FontWeight.Medium, fontSize = 12.sp
                     )
                 }
 
@@ -737,14 +883,14 @@ private fun GameOverOverlay(
                     Text(
                         text = stringResource(R.string.result_final_score).uppercase(),
                         color = theme.accent.copy(alpha = 0.82f),
-                        fontFamily = AppFont, fontWeight = FontWeight.Black,
+                        fontFamily = LabelFont, fontWeight = FontWeight.Bold,
                         fontSize = 12.sp, letterSpacing = 1.8.sp
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = result.score.toString(),
                         color = theme.text,
-                        fontFamily = AppFont, fontWeight = FontWeight.Black,
+                        fontFamily = DisplayFont, fontWeight = FontWeight.Bold,
                         fontSize = DesignTokens.displaySize
                     )
                     if (result.mode.hasTimer) {
@@ -753,8 +899,42 @@ private fun GameOverOverlay(
                             text = stringResource(R.string.result_time) + ": " +
                                    stringResource(R.string.result_time_value, result.timeSeconds),
                             color = theme.accent.copy(alpha = 0.76f),
-                            fontFamily = AppFont, fontWeight = FontWeight.Medium, fontSize = 13.sp
+                            fontFamily = LabelFont, fontWeight = FontWeight.Medium, fontSize = 13.sp
                         )
+                    } else {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.result_lower_better),
+                            color = theme.text.copy(alpha = 0.52f),
+                            fontFamily = LabelFont, fontWeight = FontWeight.Medium, fontSize = 12.sp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Remaining open tiles — gold chips grid, or a green "None".
+                Text(
+                    text = stringResource(R.string.result_remaining).uppercase(),
+                    color = theme.accent.copy(alpha = 0.78f),
+                    fontFamily = LabelFont, fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp, letterSpacing = 1.4.sp
+                )
+                Spacer(Modifier.height(10.dp))
+                if (remainingTiles.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.result_none),
+                        color = Color(0.58f, 1.0f, 0.50f),
+                        fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        remainingTiles.chunked(6).forEach { rowTiles ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                rowTiles.forEach { n -> RemainingTileChip(n, theme.button) }
+                            }
+                        }
                     }
                 }
 
@@ -788,6 +968,27 @@ private fun GameOverOverlay(
     }
 }
 
+/** One "still open" tile chip on the result card — iOS remainingTilesSection. */
+@Composable
+private fun RemainingTileChip(number: Int, buttonColors: List<Color>) {
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        modifier = Modifier
+            .width(36.dp)
+            .height(34.dp)
+            .clip(shape)
+            .background(Brush.verticalGradient(buttonColors))
+            .border(1.dp, Color.White.copy(alpha = 0.42f), shape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = number.toString(),
+            color = DesignTokens.buttonLabel,
+            fontFamily = AppFont, fontWeight = FontWeight.Black, fontSize = 15.sp
+        )
+    }
+}
+
 @Composable
 private fun GoldOverlayButton(text: String, onClick: () -> Unit) {
     val shape = RoundedCornerShape(15.dp)
@@ -806,8 +1007,8 @@ private fun GoldOverlayButton(text: String, onClick: () -> Unit) {
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = DesignTokens.buttonLabel, fontFamily = AppFont,
-            fontWeight = FontWeight.Black, fontSize = 18.sp)
+        Text(text, color = DesignTokens.buttonLabel, fontFamily = LabelFont,
+            fontWeight = FontWeight.Bold, fontSize = 18.sp)
     }
 }
 
@@ -828,7 +1029,7 @@ private fun OverlaySecondary(text: String, modifier: Modifier = Modifier, onClic
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = theme.text.copy(alpha = 0.82f), fontFamily = AppFont,
+        Text(text, color = theme.text.copy(alpha = 0.82f), fontFamily = LabelFont,
             fontWeight = FontWeight.Bold, fontSize = 15.sp)
     }
 }
@@ -841,8 +1042,9 @@ private fun OverlaySecondary(text: String, modifier: Modifier = Modifier, onClic
 private fun GradientText(text: String, colors: List<Color>, fontSize: TextUnit) {
     Text(
         text = text,
-        fontFamily = AppFont,
-        fontWeight = FontWeight.Black,
+        // iOS titles use AmericanTypewriter-Bold; TitleFont is the typewriter match.
+        fontFamily = TitleFont,
+        fontWeight = FontWeight.Bold,
         fontSize = fontSize,
         textAlign = TextAlign.Center,
         style = androidx.compose.ui.text.TextStyle(

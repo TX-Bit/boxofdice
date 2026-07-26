@@ -42,8 +42,8 @@ import androidx.compose.ui.unit.sp
 import com.example.boxofdice.R
 import com.example.boxofdice.model.GamePhase
 import com.example.boxofdice.model.GameState
-import com.example.boxofdice.ui.theme.AppFont
 import com.example.boxofdice.ui.theme.DesignTokens
+import com.example.boxofdice.ui.theme.LabelFont
 import com.example.boxofdice.ui.theme.LocalBoardTheme
 
 /**
@@ -101,7 +101,7 @@ fun GameActionButton(
                     Text(
                         text = "⚄  " + stringResource(R.string.btn_rolling),
                         color = theme.text.copy(alpha = 0.70f),
-                        fontFamily = AppFont, fontWeight = FontWeight.Bold,
+                        fontFamily = LabelFont, fontWeight = FontWeight.Bold,
                         fontSize = DesignTokens.buttonTextSize
                     )
                 }
@@ -112,20 +112,20 @@ fun GameActionButton(
                     Text(
                         text = stringResource(R.string.instr_select),
                         color = theme.text.copy(alpha = 0.80f),
-                        fontFamily = AppFont, fontWeight = FontWeight.Medium, fontSize = 15.sp
+                        fontFamily = LabelFont, fontWeight = FontWeight.Medium, fontSize = 15.sp
                     )
                 }
                 if (isSelectionValid) {
                     AmberButton(
-                        text     = stringResource(R.string.btn_confirm, state.diceTotal),
-                        leading  = "✓",
+                        text     = stringResource(R.string.btn_confirm),
+                        leading  = null,
                         halo     = true,
                         maxWidth = 280.dp,
                         onClick  = onConfirm
                     )
                 } else {
                     SelectedStatusCard(
-                        text = stringResource(R.string.btn_selected, state.selectedSum, state.diceTotal),
+                        text = stringResource(R.string.btn_selected, state.selectedSum),
                         textColor = theme.text
                     )
                 }
@@ -205,7 +205,7 @@ private fun AmberButton(
             Text(
                 text = text,
                 color = DesignTokens.buttonLabel,
-                fontFamily = AppFont, fontWeight = FontWeight.Black,
+                fontFamily = LabelFont, fontWeight = FontWeight.Black,
                 fontSize = DesignTokens.buttonTextSize
             )
         }
@@ -234,7 +234,7 @@ private fun SelectedStatusCard(text: String, textColor: Color) {
             Text(
                 text = text,
                 color = textColor.copy(alpha = 0.72f),
-                fontFamily = AppFont, fontWeight = FontWeight.Bold, fontSize = 17.sp
+                fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = 17.sp
             )
         }
     }
@@ -267,7 +267,7 @@ private fun QuietPill(
         Text(
             text = text,
             color = theme.text.copy(alpha = if (enabled) 0.56f else 0.22f),
-            fontFamily = AppFont, fontWeight = FontWeight.Bold, fontSize = 14.sp
+            fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = 14.sp
         )
     }
 }

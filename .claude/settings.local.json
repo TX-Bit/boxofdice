@@ -20,7 +20,16 @@
       "Bash(ffmpeg -loglevel error -i \"/c/Users/Kone/Desktop/android.webm\" -vf \"fps=2,scale=360:-1\" aframe_%03d.png)",
       "PowerShell(git config *)",
       "Bash(git init *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -q -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git ls-remote *)",
+      "Bash(git fetch *)",
+      "Bash(git ls-tree *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(git clone *)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew :app:compileDebugKotlin --console=plain -q)"
     ]
   }
 }

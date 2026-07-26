@@ -35,15 +35,18 @@
     <string name="btn_roll">Heitä nopat</string>
     <string name="btn_roll_again">Heitä uudelleen</string>
     <string name="btn_rolling">Heitetään…</string>
-    <string name="btn_confirm">✓  Vahvista  %1$d</string>
-    <string name="btn_selected">Valittu  %1$d  /  %2$d</string>
+    <string name="btn_confirm">✓  Vahvista</string>
+    <string name="btn_selected">Valittu %1$d</string>
     <string name="btn_undo">Kumoa</string>
     <string name="btn_hint">Vihje</string>
     <string name="btn_undo_move">↩  Kumoa siirto</string>
 
     <!-- Pelin loppu -->
-    <string name="result_perfect">★  TÄYDELLINEN  ★</string>
+    <string name="result_perfect">Täydellinen tyhjennys!</string>
     <string name="result_gameover">Peli päättyi</string>
+    <string name="result_remaining">Avoimet laatat</string>
+    <string name="result_none">Ei yhtään</string>
+    <string name="result_lower_better">Pienempi on parempi</string>
     <string name="result_sub_gameover">Ei kelvollisia siirtoja jäljellä.</string>
     <string name="result_sub_perfect">Virheetön — kaikki laatat suljettu.</string>
     <string name="result_tiles_remaining">Laattoja jäljellä</string>

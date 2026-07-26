@@ -108,6 +108,8 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
     private var targX = FloatArray(2)
     private var targY = FloatArray(2)
     private var settleT = FloatArray(2)   // 0..1 progress; <0 means "not settling"
+    private var hopY = FloatArray(2)      // vertical throw arc (world units)
+    private var timeAcc = 0f
     private var lastNanos = 0L
     private var wasRolling = false
 
@@ -129,6 +131,7 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
         startX = startX.copyOf(n); startY = startY.copyOf(n)
         targX = targX.copyOf(n); targY = targY.copyOf(n)
         settleT = settleT.copyOf(n)
+        hopY = hopY.copyOf(n)
     }
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
@@ -183,12 +186,17 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
         GLES20.glVertexAttribPointer(aNormal, 3, GLES20.GL_FLOAT, false, 0, normBuf)
 
         val n = values.size
-        // Lay the dice out along X, centered, matching the iOS tight grouping.
-        val spacing = 1.55f
+        // Lay the dice out along X, centered. Cube edge is 1.2 units; 1.9 leaves a
+        // clear gap between dice so they read as separate objects (1.55 made them
+        // sit nearly edge-to-edge under the angled camera).
+        val spacing = 1.9f
         val x0 = -(n - 1) * spacing / 2f
         for (i in 0 until n) {
             Matrix.setIdentityM(model, 0)
-            Matrix.translateM(model, 0, x0 + i * spacing, 0f, 0f)
+            Matrix.translateM(model, 0, x0 + i * spacing, hopY[i], 0f)
+            // Slight per-die in-plane roll — the iOS dice never rest perfectly
+            // square (stableYaw ±12°/16°); a small screen-space tilt sells that.
+            Matrix.rotateM(model, 0, restTilt(i), 0f, 0f, 1f)
             Matrix.rotateM(model, 0, rotX[i], 1f, 0f, 0f)
             Matrix.rotateM(model, 0, rotY[i], 0f, 1f, 0f)
 
@@ -207,6 +215,7 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
     private fun step(dt: Float) {
         val n = values.size
         ensureCapacity(n)
+        timeAcc += dt
         if (rolling) {
             if (!wasRolling) {
                 // Calm, coherent tumble: moderate speeds, both dice spin the same
@@ -220,6 +229,8 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
             for (i in 0 until n) {
                 rotX[i] += velX[i] * dt
                 rotY[i] += velY[i] * dt
+                // Gentle airborne bob while tumbling (the iOS throw arcs upward).
+                hopY[i] = kotlin.math.abs(kotlin.math.sin(timeAcc * 6.5f + i * 1.4f)) * 0.17f
             }
         } else {
             if (wasRolling) {
@@ -243,20 +254,39 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
                         val (tx, ty) = faceTargets(values[i])
                         rotX[i] = tx
                         rotY[i] = ty
+                        hopY[i] = 0f
                     } else {
-                        val e = easeOutCubic(settleT[i])
+                        val p = settleT[i]
+                        val e = easeOutCubic(p)
                         rotX[i] = startX[i] + (targX[i] - startX[i]) * e
                         rotY[i] = startY[i] + (targY[i] - startY[i]) * e
+                        // iOS landing arc: a confident main hop, then a small
+                        // secondary bounce as the die settles onto the felt.
+                        val mainArc = kotlin.math.sin(
+                            Math.PI.toFloat() * (p / 0.82f).coerceAtMost(1f)
+                        ) * 0.30f
+                        val secondBounce = if (p > 0.82f)
+                            kotlin.math.sin((p - 0.82f) / 0.18f * Math.PI.toFloat()) * 0.06f
+                        else 0f
+                        hopY[i] = mainArc + secondBounce
                     }
                 } else {
                     // Idle / decorative dice sit statically on their value's face.
                     val (tx, ty) = faceTargets(values[i])
                     rotX[i] = tx
                     rotY[i] = ty
+                    hopY[i] = 0f
                 }
             }
         }
         wasRolling = rolling
+    }
+
+    /** Small deterministic in-plane resting roll per die (iOS stableYaw feel). */
+    private fun restTilt(i: Int): Float = when (i % 3) {
+        0 -> -6f
+        1 -> 7f
+        else -> -4f
     }
 
     private fun easeOutCubic(t: Float): Float {
@@ -264,14 +294,21 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
         return 1f - u * u * u
     }
 
-    /** Degrees (rotX, rotY) that bring the given value's face toward the camera. */
+    /**
+     * Degrees (rotX, rotY) that bring the given value's face toward the camera.
+     *
+     * Right-hand rule about each axis (OpenGL/Matrix.rotateM convention): a
+     * POSITIVE rotation about X carries +Y onto +Z, so the top face (3) needs
+     * +90° and the bottom face (4) −90° — these were swapped originally, which
+     * made every rolled 3 display as 4 and vice versa.
+     */
     private fun faceTargets(value: Int): Pair<Float, Float> = when (value) {
         1 -> 0f to 0f       // +Z front
-        2 -> 0f to -90f     // +X right
-        3 -> -90f to 0f     // +Y top
-        4 -> 90f to 0f      // -Y bottom
-        5 -> 0f to 90f      // -X left
-        else -> 0f to 180f  // 6 → -Z back
+        2 -> 0f to -90f     // +X right → front
+        3 -> 90f to 0f      // +Y top → front
+        4 -> -90f to 0f     // -Y bottom → front
+        5 -> 0f to 90f      // -X left → front
+        else -> 0f to 180f  // 6 → -Z back → front
     }
 
     /** Returns target +k*360 closest to current, so the spring doesn't unwind turns. */

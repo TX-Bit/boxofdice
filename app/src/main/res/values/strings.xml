@@ -35,15 +35,18 @@
     <string name="btn_roll">Roll Dice</string>
     <string name="btn_roll_again">Roll Again</string>
     <string name="btn_rolling">Rolling…</string>
-    <string name="btn_confirm">✓  Confirm  %1$d</string>
-    <string name="btn_selected">Selected  %1$d  /  %2$d</string>
+    <string name="btn_confirm">✓  Confirm</string>
+    <string name="btn_selected">Selected %1$d</string>
     <string name="btn_undo">Undo</string>
     <string name="btn_hint">Hint</string>
     <string name="btn_undo_move">↩  Undo move</string>
 
     <!-- Game over -->
-    <string name="result_perfect">★  PERFECT  ★</string>
+    <string name="result_perfect">Perfect Clear!</string>
     <string name="result_gameover">Game Over</string>
+    <string name="result_remaining">Remaining Open Tiles</string>
+    <string name="result_none">None</string>
+    <string name="result_lower_better">Lower is better</string>
     <string name="result_sub_gameover">No valid move remains.</string>
     <string name="result_sub_perfect">Flawless — every tile closed.</string>
     <string name="result_tiles_remaining">Tiles Remaining</string>

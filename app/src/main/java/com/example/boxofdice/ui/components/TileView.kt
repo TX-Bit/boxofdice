@@ -61,10 +61,22 @@ fun TileView(
         animationSpec = spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessMediumLow),
         label         = "tileScale"
     )
-    val openFraction by animateFloatAsState(
+    // Physical flap, matching the iOS two-phase animation:
+    //  - closing: the numeral fades fast (easeOut 0.07s) while the tile pivots
+    //    forward at its bottom hinge with `.spring(response: 0.22, damping: 0.70)`;
+    //  - opening: `.interpolatingSpring(stiffness: 270, damping: 20)` stands the
+    //    tile back up, then the numeral fades in after a 130ms beat.
+    val openT by animateFloatAsState(
         targetValue   = if (tile.isOpen) 1f else 0f,
-        animationSpec = tween(220),
+        animationSpec = if (tile.isOpen) spring(dampingRatio = 0.61f, stiffness = 270f)
+                        else spring(dampingRatio = 0.70f, stiffness = 815f),
         label         = "tileOpen"
+    )
+    val numberAlpha by animateFloatAsState(
+        targetValue   = if (tile.isOpen) 1f else 0f,
+        animationSpec = if (tile.isOpen) tween(durationMillis = 140, delayMillis = 130)
+                        else tween(durationMillis = 70),
+        label         = "tileNumber"
     )
 
     BoxWithConstraints(
@@ -88,39 +100,59 @@ fun TileView(
         val numberSize = with(androidx.compose.ui.platform.LocalDensity.current) {
             (maxWidth.toPx() * 0.42f).toSp()
         }
+        val showOpenFace = openT > 0.5f
 
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            if (openFraction > 0.5f) drawOpenTile(tile.isSelected)
-            else drawClosedTile()
-        }
+        // The face pivots at its bottom edge (iOS rotation3DEffect, anchor .bottom,
+        // -8° when down) and rides the iOS vertical offsets: -3 open, +4 closed.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    rotationX       = -8f * (1f - openT.coerceIn(0f, 1f))
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+                    cameraDistance  = 8f * density
+                    translationY    = (4.dp.toPx() - 7.dp.toPx() * openT.coerceIn(0f, 1f))
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                if (showOpenFace) drawOpenTile(tile.isSelected)
+                else drawClosedTile()
+            }
 
-        if (openFraction > 0.5f) {
-            Text(
-                text  = tile.number.toString(),
-                style = TextStyle(
-                    fontFamily = AppFont,
-                    fontWeight = FontWeight.Black,
-                    fontSize   = numberSize,
-                    color      = DesignTokens.tileNumberTop,
-                    shadow     = Shadow(
-                        color  = Color.White.copy(alpha = 0.55f),
-                        offset = Offset(0f, 2f),
-                        blurRadius = 0f
-                    )
-                )
-            )
-        } else {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (showOpenFace) {
                 Text(
                     text  = tile.number.toString(),
                     style = TextStyle(
                         fontFamily = AppFont,
                         fontWeight = FontWeight.Black,
-                        fontSize   = numberSize * 0.74f,
-                        color      = DesignTokens.closedTileNumber.copy(alpha = 0.45f)
+                        fontSize   = numberSize,
+                        color      = DesignTokens.tileNumberTop,
+                        shadow     = Shadow(
+                            color  = Color.White.copy(alpha = 0.55f),
+                            offset = Offset(0f, 2f),
+                            blurRadius = 0f
+                        )
                     ),
-                    modifier = Modifier.graphicsLayer { translationY = size.height * 0.16f }
+                    modifier = Modifier.graphicsLayer {
+                        alpha  = numberAlpha.coerceIn(0f, 1f)
+                        scaleX = 0.86f + 0.14f * numberAlpha.coerceIn(0f, 1f)
+                        scaleY = 0.86f + 0.14f * numberAlpha.coerceIn(0f, 1f)
+                    }
                 )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text  = tile.number.toString(),
+                        style = TextStyle(
+                            fontFamily = AppFont,
+                            fontWeight = FontWeight.Black,
+                            fontSize   = numberSize * 0.74f,
+                            color      = DesignTokens.closedTileNumber.copy(alpha = 0.45f)
+                        ),
+                        modifier = Modifier.graphicsLayer { translationY = size.height * 0.16f }
+                    )
+                }
             }
         }
     }

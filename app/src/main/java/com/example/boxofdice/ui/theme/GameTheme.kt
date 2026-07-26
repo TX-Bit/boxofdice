@@ -88,15 +88,19 @@ private val GameColors = darkColorScheme(
 )
 
 /**
- * Single swappable display font for the whole app — every Text routes through this.
+ * Font roles mirroring the iOS `GameTypography`. The iOS faces are Apple-proprietary
+ * and can't ship in an Android APK, so each role maps to the closest OFL Google Font,
+ * loaded as a downloadable font at runtime via Google Play Services — no bundled
+ * `.ttf` files:
  *
- * iOS uses SF Rounded for the carved numerals and a rounded display face elsewhere.
- * SF fonts are Apple-proprietary and can't ship in an Android APK, so we use
- * **Fredoka** (Google Fonts, OFL) as the closest free rounded match, loaded as a
- * downloadable font at runtime via Google Play Services — no bundled `.ttf` files.
+ *  - iOS `title`  = AmericanTypewriter-Bold      → [TitleFont]  = Special Elite
+ *  - iOS `display`= Georgia-Bold                 → [DisplayFont]= Gelasio (metric-compatible Georgia)
+ *  - iOS `button`/`label`/`value`/`section`
+ *          = AvenirNextCondensed DemiBold/Heavy  → [LabelFont]  = Archivo Narrow
+ *  - iOS `tileNumber` = SF Rounded heavy         → [AppFont]    = Fredoka
  *
  * The certificate array `com_google_android_gms_fonts_certs` lives in
- * res/values/font_certs.xml. Before the font finishes downloading the system falls
+ * res/values/font_certs.xml. Before a font finishes downloading the system falls
  * back to a sans-serif so text is never invisible.
  */
 private val googleFontProvider = GoogleFont.Provider(
@@ -105,13 +109,35 @@ private val googleFontProvider = GoogleFont.Provider(
     certificates      = R.array.com_google_android_gms_fonts_certs
 )
 
-private val fredoka = GoogleFont("Fredoka")
+private val fredoka       = GoogleFont("Fredoka")
+private val specialElite  = GoogleFont("Special Elite")
+private val gelasio       = GoogleFont("Gelasio")
+private val archivoNarrow = GoogleFont("Archivo Narrow")
 
+/** Rounded face for tile numerals and general playful text (iOS SF Rounded). */
 val AppFont: FontFamily = FontFamily(
     Font(googleFont = fredoka, fontProvider = googleFontProvider, weight = FontWeight.Normal),
     Font(googleFont = fredoka, fontProvider = googleFontProvider, weight = FontWeight.Medium),
     Font(googleFont = fredoka, fontProvider = googleFontProvider, weight = FontWeight.SemiBold),
     Font(googleFont = fredoka, fontProvider = googleFontProvider, weight = FontWeight.Bold)
+)
+
+/** Typewriter display face for big result/menu titles (iOS American Typewriter). */
+val TitleFont: FontFamily = FontFamily(
+    Font(googleFont = specialElite, fontProvider = googleFontProvider, weight = FontWeight.Normal)
+)
+
+/** Serif numeral face for the huge final-score figure (iOS Georgia-Bold). */
+val DisplayFont: FontFamily = FontFamily(
+    Font(googleFont = gelasio, fontProvider = googleFontProvider, weight = FontWeight.Bold)
+)
+
+/** Condensed grotesque for buttons, labels, captions and the score row
+ *  (iOS Avenir Next Condensed DemiBold/Heavy). */
+val LabelFont: FontFamily = FontFamily(
+    Font(googleFont = archivoNarrow, fontProvider = googleFontProvider, weight = FontWeight.Medium),
+    Font(googleFont = archivoNarrow, fontProvider = googleFontProvider, weight = FontWeight.SemiBold),
+    Font(googleFont = archivoNarrow, fontProvider = googleFontProvider, weight = FontWeight.Bold)
 )
 
 private val GameTypography = Typography(
