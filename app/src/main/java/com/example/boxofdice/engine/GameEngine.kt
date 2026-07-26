@@ -31,7 +31,7 @@ class GameEngine(
     // ────────────────────────────────────────────────
 
     private val _open: MutableSet<Int> =
-        initialOpenTiles.toMutableSet()
+        initialOpenTiles.toMutableSet()commit
 
     private val _closed: MutableSet<Int> =
         ((1..currentGameMode.tileCount).toSet() - initialOpenTiles).toMutableSet()

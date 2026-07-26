@@ -81,15 +81,19 @@ fun GameActionButton(
     ) {
         when (state.phase) {
             GamePhase.IDLE -> {
-                AmberButton(
-                    text     = if (state.hasRolled) stringResource(R.string.btn_roll_again)
-                               else stringResource(R.string.btn_roll),
-                    leading  = "⚄",
-                    maxWidth = 260.dp,
-                    onClick  = onRoll
-                )
-                if (state.canUndo) {
-                    QuietPill(text = stringResource(R.string.btn_undo_move), onClick = onUndoMove)
+                if (!state.canUndo) {
+                    // Opening throw of the game — the only manual roll (iOS flow).
+                    AmberButton(
+                        text     = stringResource(R.string.btn_roll),
+                        leading  = "⚄",
+                        maxWidth = 260.dp,
+                        onClick  = onRoll
+                    )
+                } else {
+                    // Mid-game: the next throw fires automatically after a short
+                    // beat (see GameScreen), so hold an empty slot at the button
+                    // height to keep the layout from jumping (iOS rollStatus).
+                    Box(Modifier.height(DesignTokens.mainButtonHeight))
                 }
             }
 

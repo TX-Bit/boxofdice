@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -449,7 +450,26 @@ private fun ActiveGameScreen(
     val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isTablet    = config.smallestScreenWidthDp >= 600
     val scale       = if (isTablet) 1.4f else if (isLandscape) 0.9f else 1.0f
-    val dieSize     = if (isTablet) 150.dp else if (isLandscape) 92.dp else DesignTokens.diceSize
+    val desired     = if (isTablet) 150.dp else if (isLandscape) 92.dp else DesignTokens.diceSize
+
+    // iOS fittingDieSize: shrink the die so the widest row fits the space the dice
+    // actually get. The GL surface needs dieSize × 1.4 per die (margin for the
+    // shadow/hop), and we always size for the 3-dice Big Box row so the dice stay
+    // the SAME size in every mode instead of jumping between Classic and Big Box.
+    val screenW     = config.screenWidthDp.dp
+    val diceAvail   = if (isLandscape && !isTablet) screenW / 2 - 36.dp else screenW - 24.dp
+    val dieSize     = minOf(desired, diceAvail / (1.4f * 3f)).coerceAtLeast(56.dp)
+
+    // iOS game flow: only the opening throw is manual. After a confirmed move the
+    // state returns to IDLE (dice cleared, a move in history) — roll the next
+    // throw automatically after a short beat. Purely UI-driven: this calls the
+    // same rollDice() the button does, so game logic is untouched.
+    LaunchedEffect(state.phase, state.canUndo) {
+        if (state.phase == GamePhase.IDLE && state.canUndo) {
+            kotlinx.coroutines.delay(650L)
+            onRoll()
+        }
+    }
 
     if (isLandscape && !isTablet) {
         LandscapeGameLayout(state, playerLabel, dieSize, scale, overlayActive, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
