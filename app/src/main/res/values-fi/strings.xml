@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">Box of Dice</string>
+    <string name="app_name">Noppalauta</string>
 
     <!-- Valikko -->
-    <string name="menu_kicker">BOX OF DICE</string>
+    <string name="menu_kicker">NOPPALAUTA</string>
     <string name="menu_title">Sulje laatikko</string>
     <string name="menu_settings">⚙  Asetukset</string>
     <string name="menu_stats">▤  Tilastot</string>
@@ -56,7 +56,7 @@
     <string name="btn_new_game">Uusi peli</string>
     <string name="btn_share">Jaa</string>
     <string name="btn_menu">Valikko</string>
-    <string name="share_subject">Box of Dice — %1$s</string>
+    <string name="share_subject">Noppalauta — %1$s</string>
     <string name="share_score">Loppupisteet: %1$d</string>
     <string name="share_perfect">  (Täydellinen!)</string>
     <string name="share_chooser">Jaa tulos</string>
@@ -79,13 +79,23 @@
 
     <!-- Asetukset -->
     <string name="settings_title">Asetukset</string>
-    <string name="settings_section_theme">Teema</string>
-    <string name="settings_section_dice">Nopat</string>
-    <string name="settings_section_moves">Siirrot</string>
-    <string name="settings_section_feedback">Palaute</string>
-    <string name="settings_sound">Äänet</string>
-    <string name="settings_haptics">Värinä</string>
     <string name="settings_done">Valmis</string>
+    <string name="settings_section_look">Ulkoasu</string>
+    <string name="settings_section_flow">Pelin kulku</string>
+    <string name="settings_language">Kieli</string>
+    <string name="settings_theme">Teema</string>
+    <string name="settings_haptics">Tuntopalaute</string>
+    <string name="settings_sound">Äänitehosteet</string>
+    <string name="settings_dice_animation">Nopan animaatio</string>
+    <string name="settings_show_hints">Näytä vihjeet</string>
+    <string name="settings_show_dice_total">Näytä silmäluku</string>
+    <string name="lang_system">Järjestelmä</string>
+    <string name="lang_english">English</string>
+    <string name="lang_finnish">Suomi</string>
+    <string name="anim_short">Lyhyt</string>
+    <string name="anim_normal">Normaali</string>
+    <string name="anim_long">Pitkä</string>
+    <string name="dice_total">Yhteensä %1$d</string>
 
     <!-- Noppatilat -->
     <string name="dice_always_all">Käytä aina kaikkia noppia</string>

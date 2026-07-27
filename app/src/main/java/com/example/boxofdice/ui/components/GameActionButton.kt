@@ -62,6 +62,7 @@ fun GameActionButton(
     onHint:     () -> Unit,
     onUndo:     () -> Unit,
     onUndoMove: () -> Unit = {},
+    showHint:   Boolean = true,
     modifier:   Modifier = Modifier
 ) {
     val theme = LocalBoardTheme.current
@@ -143,11 +144,13 @@ fun GameActionButton(
                         enabled = state.selectedTiles.isNotEmpty(),
                         modifier = Modifier.weight(1f)
                     )
-                    QuietPill(
-                        text = stringResource(R.string.btn_hint),
-                        onClick = onHint,
-                        modifier = Modifier.weight(1f)
-                    )
+                    if (showHint) {
+                        QuietPill(
+                            text = stringResource(R.string.btn_hint),
+                            onClick = onHint,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 

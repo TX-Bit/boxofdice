@@ -130,6 +130,8 @@ fun GameScreen(viewModel: GameViewModel) {
                     state          = state,
                     playerLabel    = playerLabel,
                     overlayActive  = overlayActive,
+                    showHints      = settings.showHints,
+                    showDiceTotal  = settings.showDiceTotal,
                     onToggle       = viewModel::toggleTile,
                     onRoll         = viewModel::rollDice,
                     onConfirm      = viewModel::confirmSelection,
@@ -190,13 +192,15 @@ fun GameScreen(viewModel: GameViewModel) {
 
         if (showSettings) {
             SettingsOverlay(
-                settings   = settings,
-                onTheme    = viewModel::setTheme,
-                onDiceMode = viewModel::setDiceMode,
-                onMoveRule = viewModel::setMoveRule,
-                onSound    = viewModel::setSoundEnabled,
-                onHaptics  = viewModel::setHapticsEnabled,
-                onClose    = { showSettings = false }
+                settings        = settings,
+                onTheme         = viewModel::setTheme,
+                onLanguage      = viewModel::setLanguage,
+                onAnimSpeed     = viewModel::setDiceAnimationSpeed,
+                onSound         = viewModel::setSoundEnabled,
+                onHaptics       = viewModel::setHapticsEnabled,
+                onShowHints     = viewModel::setShowHints,
+                onShowDiceTotal = viewModel::setShowDiceTotal,
+                onClose         = { showSettings = false }
             )
         }
 
@@ -436,6 +440,8 @@ private fun ActiveGameScreen(
     state:          GameState,
     playerLabel:    String?,
     overlayActive:  Boolean,
+    showHints:      Boolean,
+    showDiceTotal:  Boolean,
     onToggle:       (Int) -> Unit,
     onRoll:         () -> Unit,
     onConfirm:      () -> Unit,
@@ -472,9 +478,9 @@ private fun ActiveGameScreen(
     }
 
     if (isLandscape && !isTablet) {
-        LandscapeGameLayout(state, playerLabel, dieSize, scale, overlayActive, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
+        LandscapeGameLayout(state, playerLabel, dieSize, scale, overlayActive, showHints, showDiceTotal, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
     } else {
-        PortraitGameLayout(state, playerLabel, dieSize, scale, isTablet, overlayActive, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
+        PortraitGameLayout(state, playerLabel, dieSize, scale, isTablet, overlayActive, showHints, showDiceTotal, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
     }
 }
 
@@ -486,6 +492,8 @@ private fun PortraitGameLayout(
     scale:       Float,
     isTablet:    Boolean,
     overlayActive: Boolean,
+    showHints:     Boolean,
+    showDiceTotal: Boolean,
     onToggle:    (Int) -> Unit,
     onRoll:      () -> Unit,
     onConfirm:   () -> Unit,
@@ -519,10 +527,11 @@ private fun PortraitGameLayout(
             modifier    = Modifier.fillMaxWidth().widthIn(max = boardMax)
         )
         Spacer(Modifier.height(gap))
-        DiceArea(state, dieSize, overlayActive)
+        DiceArea(state, dieSize, overlayActive, showDiceTotal)
         Spacer(Modifier.height(gap))
         GameActionButton(
             state, onRoll, onConfirm, onHint, onUndo, onUndoMove,
+            showHint = showHints,
             modifier = Modifier.widthIn(max = 360.dp)
         )
         Spacer(Modifier.height(24.dp))
@@ -536,6 +545,8 @@ private fun LandscapeGameLayout(
     dieSize:     Dp,
     scale:       Float,
     overlayActive: Boolean,
+    showHints:     Boolean,
+    showDiceTotal: Boolean,
     onToggle:    (Int) -> Unit,
     onRoll:      () -> Unit,
     onConfirm:   () -> Unit,
@@ -560,8 +571,8 @@ private fun LandscapeGameLayout(
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
             ScoreModeBlock(state, playerLabel, scale, onModeSelect)
-            DiceArea(state, dieSize, overlayActive)
-            GameActionButton(state, onRoll, onConfirm, onHint, onUndo, onUndoMove)
+            DiceArea(state, dieSize, overlayActive, showDiceTotal)
+            GameActionButton(state, onRoll, onConfirm, onHint, onUndo, onUndoMove, showHint = showHints)
         }
     }
 }
@@ -759,7 +770,8 @@ private fun GearIcon() {
 private val decorativeFaces = listOf(5, 2, 4)
 
 @Composable
-private fun DiceArea(state: GameState, dieSize: Dp, overlayActive: Boolean) {
+private fun DiceArea(state: GameState, dieSize: Dp, overlayActive: Boolean, showTotal: Boolean = false) {
+    val theme = LocalBoardTheme.current
     val showDecorative = !state.hasRolled && !state.isRolling
     val diceToShow = when {
         showDecorative -> decorativeFaces.take(state.mode.diceCount)
@@ -767,52 +779,63 @@ private fun DiceArea(state: GameState, dieSize: Dp, overlayActive: Boolean) {
         else -> state.dice
     }
 
-    // No instruction text under the dice — on iOS the roll/rolling status lives in
-    // the action-button slot, which the Android layout already mirrors.
-    if (overlayActive) {
-        // A full-screen overlay is up; the GL surface would draw over it, so use
-        // the flat dice (hidden behind the overlay anyway).
-        DiceView(dice = diceToShow, isRolling = state.isRolling, dieSize = dieSize)
-    } else {
-        val n = diceToShow.size.coerceAtLeast(1)
-        Box(contentAlignment = Alignment.Center) {
-            // Soft elliptical contact shadows on the felt, one per die, drawn in
-            // Compose *behind* the GL surface — its transparent pixels let them
-            // show through (iOS `dieContactShadow`).
-            Canvas(
-                modifier = Modifier
-                    .height(dieSize * 1.4f)
-                    .width(dieSize * 1.4f * n)
-            ) {
-                val diePx = dieSize.toPx()
-                val cellW = size.width / n
-                for (i in 0 until n) {
-                    val cx = cellW * (i + 0.5f)
-                    val cy = size.height * 0.5f + diePx * (36f / 108f)
-                    val ew = diePx * (86f / 108f)
-                    val eh = diePx * (22f / 108f)
-                    drawOval(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.42f),
-                                Color.Black.copy(alpha = 0.16f),
-                                Color.Transparent
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // No instruction text under the dice — on iOS the roll/rolling status lives in
+        // the action-button slot, which the Android layout already mirrors.
+        if (overlayActive) {
+            // A full-screen overlay is up; the GL surface would draw over it, so use
+            // the flat dice (hidden behind the overlay anyway).
+            DiceView(dice = diceToShow, isRolling = state.isRolling, dieSize = dieSize)
+        } else {
+            val n = diceToShow.size.coerceAtLeast(1)
+            Box(contentAlignment = Alignment.Center) {
+                // Soft elliptical contact shadows on the felt, one per die, drawn in
+                // Compose *behind* the GL surface — its transparent pixels let them
+                // show through (iOS `dieContactShadow`).
+                Canvas(
+                    modifier = Modifier
+                        .height(dieSize * 1.4f)
+                        .width(dieSize * 1.4f * n)
+                ) {
+                    val diePx = dieSize.toPx()
+                    val cellW = size.width / n
+                    for (i in 0 until n) {
+                        val cx = cellW * (i + 0.5f)
+                        val cy = size.height * 0.5f + diePx * (36f / 108f)
+                        val ew = diePx * (86f / 108f)
+                        val eh = diePx * (22f / 108f)
+                        drawOval(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color.Black.copy(alpha = 0.42f),
+                                    Color.Black.copy(alpha = 0.16f),
+                                    Color.Transparent
+                                ),
+                                center = Offset(cx, cy),
+                                radius = ew / 2f
                             ),
-                            center = Offset(cx, cy),
-                            radius = ew / 2f
-                        ),
-                        topLeft = Offset(cx - ew / 2f, cy - eh / 2f),
-                        size = Size(ew, eh)
-                    )
+                            topLeft = Offset(cx - ew / 2f, cy - eh / 2f),
+                            size = Size(ew, eh)
+                        )
+                    }
                 }
+                Dice3DView(
+                    dice      = diceToShow,
+                    isRolling = state.isRolling,
+                    dieSize   = dieSize,
+                    modifier  = Modifier
+                        .height(dieSize * 1.4f)
+                        .width(dieSize * 1.4f * n)
+                )
             }
-            Dice3DView(
-                dice      = diceToShow,
-                isRolling = state.isRolling,
-                dieSize   = dieSize,
-                modifier  = Modifier
-                    .height(dieSize * 1.4f)
-                    .width(dieSize * 1.4f * n)
+        }
+        // iOS: dice total readout under the dice when the setting is on.
+        if (showTotal && state.hasRolled && !state.isRolling) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = stringResource(R.string.dice_total, state.diceTotal),
+                color = theme.text.copy(alpha = 0.85f),
+                fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = 16.sp
             )
         }
     }

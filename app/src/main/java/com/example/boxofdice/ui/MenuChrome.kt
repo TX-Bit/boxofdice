@@ -236,7 +236,11 @@ fun IosToggle(checked: Boolean, onChange: (Boolean) -> Unit) {
     ) {
         val h = size.height
         val r = h / 2f
-        val track = lerp(Color.Black.copy(alpha = 0.30f), theme.accent, t)
+        // Off-state track must stay visible on both dark and light surfaces
+        // (iOS switches show a grey track when off).
+        val off = if (theme.lightSurface) Color.Black.copy(alpha = 0.22f)
+                  else Color.White.copy(alpha = 0.24f)
+        val track = lerp(off, theme.accent, t)
         drawRoundRect(color = track, cornerRadius = CornerRadius(r))
         val knobR = r - 3.dp.toPx()
         val cx = r + t * (size.width - h)

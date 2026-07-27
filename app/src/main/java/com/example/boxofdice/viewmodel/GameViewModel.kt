@@ -96,6 +96,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { settingsRepo.setHapticsEnabled(enabled) }
     }
 
+    fun setLanguage(language: com.example.boxofdice.model.AppLanguage) {
+        viewModelScope.launch { settingsRepo.setLanguage(language) }
+    }
+
+    fun setDiceAnimationSpeed(speed: com.example.boxofdice.model.DiceAnimationSpeed) {
+        viewModelScope.launch { settingsRepo.setDiceAnimationSpeed(speed) }
+    }
+
+    fun setShowHints(show: Boolean) {
+        viewModelScope.launch { settingsRepo.setShowHints(show) }
+    }
+
+    fun setShowDiceTotal(show: Boolean) {
+        viewModelScope.launch { settingsRepo.setShowDiceTotal(show) }
+    }
+
     // ── Public actions ────────────────────────────────────────────────────────
 
     fun startGame(
@@ -201,7 +217,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 startTimer()
             }
 
-            delay(700L) // animation window
+            delay(_settings.value.diceAnimationSpeed.rollDelayMillis) // animation window
 
             e.rollDice()
             syncState()

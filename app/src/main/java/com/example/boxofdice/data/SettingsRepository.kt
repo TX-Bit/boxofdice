@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.boxofdice.model.AppLanguage
+import com.example.boxofdice.model.DiceAnimationSpeed
 import com.example.boxofdice.model.DiceMode
 import com.example.boxofdice.model.MoveRule
 import com.example.boxofdice.ui.theme.AppTheme
@@ -20,7 +22,11 @@ data class AppSettings(
     val diceMode: DiceMode = DiceMode.ALWAYS_ALL,
     val moveRule: MoveRule = MoveRule.ANY_COMBINATION,
     val soundEnabled: Boolean = true,
-    val hapticsEnabled: Boolean = true
+    val hapticsEnabled: Boolean = true,
+    val language: AppLanguage = AppLanguage.SYSTEM,
+    val diceAnimationSpeed: DiceAnimationSpeed = DiceAnimationSpeed.NORMAL,
+    val showHints: Boolean = true,
+    val showDiceTotal: Boolean = false
 )
 
 class SettingsRepository(private val context: Context) {
@@ -32,6 +38,10 @@ class SettingsRepository(private val context: Context) {
         private val KEY_MOVE_RULE = stringPreferencesKey("move_rule")
         private val KEY_SOUND = booleanPreferencesKey("sound_enabled")
         private val KEY_HAPTICS = booleanPreferencesKey("haptics_enabled")
+        private val KEY_LANGUAGE = stringPreferencesKey("language")
+        private val KEY_DICE_ANIM = stringPreferencesKey("dice_animation_speed")
+        private val KEY_SHOW_HINTS = booleanPreferencesKey("show_hints")
+        private val KEY_SHOW_DICE_TOTAL = booleanPreferencesKey("show_dice_total")
     }
 
     val defaultModeIndex: Flow<Int> = context.settingsStore.data.map { prefs ->
@@ -44,7 +54,11 @@ class SettingsRepository(private val context: Context) {
             diceMode = prefs[KEY_DICE_MODE]?.let { runCatching { DiceMode.valueOf(it) }.getOrNull() } ?: DiceMode.ALWAYS_ALL,
             moveRule = prefs[KEY_MOVE_RULE]?.let { runCatching { MoveRule.valueOf(it) }.getOrNull() } ?: MoveRule.ANY_COMBINATION,
             soundEnabled   = prefs[KEY_SOUND] ?: true,
-            hapticsEnabled = prefs[KEY_HAPTICS] ?: true
+            hapticsEnabled = prefs[KEY_HAPTICS] ?: true,
+            language           = prefs[KEY_LANGUAGE]?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() } ?: AppLanguage.SYSTEM,
+            diceAnimationSpeed = prefs[KEY_DICE_ANIM]?.let { runCatching { DiceAnimationSpeed.valueOf(it) }.getOrNull() } ?: DiceAnimationSpeed.NORMAL,
+            showHints          = prefs[KEY_SHOW_HINTS] ?: true,
+            showDiceTotal      = prefs[KEY_SHOW_DICE_TOTAL] ?: false
         )
     }
 
@@ -70,5 +84,21 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setHapticsEnabled(enabled: Boolean) {
         context.settingsStore.edit { it[KEY_HAPTICS] = enabled }
+    }
+
+    suspend fun setLanguage(language: AppLanguage) {
+        context.settingsStore.edit { it[KEY_LANGUAGE] = language.name }
+    }
+
+    suspend fun setDiceAnimationSpeed(speed: DiceAnimationSpeed) {
+        context.settingsStore.edit { it[KEY_DICE_ANIM] = speed.name }
+    }
+
+    suspend fun setShowHints(show: Boolean) {
+        context.settingsStore.edit { it[KEY_SHOW_HINTS] = show }
+    }
+
+    suspend fun setShowDiceTotal(show: Boolean) {
+        context.settingsStore.edit { it[KEY_SHOW_DICE_TOTAL] = show }
     }
 }

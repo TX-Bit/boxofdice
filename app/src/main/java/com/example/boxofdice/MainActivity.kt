@@ -8,6 +8,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.boxofdice.ui.AppLocaleProvider
 import com.example.boxofdice.ui.GameScreen
 import com.example.boxofdice.ui.theme.BoardTheme
 import com.example.boxofdice.ui.theme.GameTheme
@@ -22,10 +23,12 @@ class MainActivity : ComponentActivity() {
             GameTheme {
                 val vm: GameViewModel = viewModel()
                 val settings by vm.settings.collectAsStateWithLifecycle()
-                CompositionLocalProvider(
-                    LocalBoardTheme provides BoardTheme.palette(settings.theme)
-                ) {
-                    GameScreen(viewModel = vm)
+                AppLocaleProvider(settings.language) {
+                    CompositionLocalProvider(
+                        LocalBoardTheme provides BoardTheme.palette(settings.theme)
+                    ) {
+                        GameScreen(viewModel = vm)
+                    }
                 }
             }
         }
