@@ -156,7 +156,8 @@ fun GameScreen(viewModel: GameViewModel) {
                     result         = result,
                     remainingTiles = lastRemaining.value,
                     onPlayAgain    = { viewModel.startGame(result.mode) },
-                    onMenu         = viewModel::exitGame
+                    onStats        = { showStats = true },
+                    onSettings     = { showSettings = true }
                 )
             }
         }
@@ -716,7 +717,7 @@ private fun CircleIconButton(onClick: () -> Unit, content: @Composable () -> Uni
 
 /** Three bars (chart.bar.fill). */
 @Composable
-private fun StatsBarsIcon() {
+private fun StatsBarsIcon(tint: Color = DesignTokens.headerIconTint) {
     Canvas(modifier = Modifier.size(17.dp)) {
         val barW = size.width * 0.22f
         val gap = (size.width - barW * 3f) / 2f
@@ -724,7 +725,7 @@ private fun StatsBarsIcon() {
             val x = i * (barW + gap)
             val barH = size.height * frac
             drawRoundRect(
-                color = DesignTokens.headerIconTint,
+                color = tint,
                 topLeft = Offset(x, size.height - barH),
                 size = Size(barW, barH),
                 cornerRadius = CornerRadius(barW * 0.4f)
@@ -736,7 +737,7 @@ private fun StatsBarsIcon() {
 /** Gold gear (gearshape.fill) drawn from Canvas — the ⚙ glyph renders as an emoji
  *  on many devices, which broke the iOS look. */
 @Composable
-private fun GearIcon() {
+private fun GearIcon(tint: Color = DesignTokens.headerIconTint) {
     Canvas(modifier = Modifier.size(18.dp)) {
         val c = Offset(size.width / 2f, size.height / 2f)
         val outerR = size.width * 0.36f
@@ -746,7 +747,7 @@ private fun GearIcon() {
         for (i in 0 until 8) {
             rotate(degrees = i * 45f, pivot = c) {
                 drawRoundRect(
-                    color = DesignTokens.headerIconTint,
+                    color = tint,
                     topLeft = Offset(c.x - toothW / 2f, c.y - outerR - toothLen),
                     size = Size(toothW, toothLen + outerR * 0.5f),
                     cornerRadius = CornerRadius(toothW * 0.35f)
@@ -754,7 +755,7 @@ private fun GearIcon() {
             }
         }
         // Body ring: solid disc with a punched-out hub.
-        drawCircle(color = DesignTokens.headerIconTint, radius = outerR, center = c)
+        drawCircle(color = tint, radius = outerR, center = c)
         drawCircle(
             color = Color.Black.copy(alpha = 0.55f),
             radius = size.width * 0.15f,
@@ -850,7 +851,8 @@ private fun GameOverOverlay(
     result:         GameResult,
     remainingTiles: List<Int>,
     onPlayAgain:    () -> Unit,
-    onMenu:         () -> Unit
+    onStats:        () -> Unit,
+    onSettings:     () -> Unit
 ) {
     val theme = LocalBoardTheme.current
     val context = LocalContext.current
@@ -878,10 +880,28 @@ private fun GameOverOverlay(
                     .background(
                         Brush.linearGradient(theme.background.map { it.copy(alpha = 0.97f) })
                     )
-                    .border(1.5.dp, theme.accent.copy(alpha = 0.25f), RoundedCornerShape(DesignTokens.cornerRadiusLarge))
+                    // iOS card border: white → accent → black vertical gradient.
+                    .border(
+                        1.5.dp,
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.28f),
+                                theme.accent.copy(alpha = 0.25f),
+                                Color.Black.copy(alpha = 0.30f)
+                            )
+                        ),
+                        RoundedCornerShape(DesignTokens.cornerRadiusLarge)
+                    )
                     .padding(horizontal = 26.dp, vertical = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // iOS iconBar: stats on the left, settings on the right.
+                Row(Modifier.fillMaxWidth()) {
+                    CardIconButton(onClick = onStats) { StatsBarsIcon(theme.text.copy(alpha = 0.70f)) }
+                    Spacer(Modifier.weight(1f))
+                    CardIconButton(onClick = onSettings) { GearIcon(theme.text.copy(alpha = 0.70f)) }
+                }
+                Spacer(Modifier.height(14.dp))
                 GradientText(
                     text = if (result.isPerfect) stringResource(R.string.result_perfect)
                            else stringResource(R.string.result_gameover),
@@ -985,30 +1005,43 @@ private fun GameOverOverlay(
 
                 GoldOverlayButton(stringResource(R.string.btn_new_game), onPlayAgain)
                 Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    val modeName = result.mode.label()
-                    OverlaySecondary(stringResource(R.string.btn_share), Modifier.weight(1f)) {
-                        val msg = buildString {
-                            append(context.getString(R.string.share_subject, modeName)).append("\n")
-                            append(context.getString(R.string.share_score, result.score))
-                            if (result.isPerfect) append(context.getString(R.string.share_perfect))
-                        }
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, msg)
-                        }
-                        runCatching {
-                            context.startActivity(Intent.createChooser(send, context.getString(R.string.share_chooser)))
-                        }
+                // iOS: a single full-width Share secondary with the share glyph.
+                val modeName = result.mode.label()
+                ShareButton(stringResource(R.string.btn_share)) {
+                    val msg = buildString {
+                        append(context.getString(R.string.share_subject, modeName)).append("\n")
+                        append(context.getString(R.string.share_score, result.score))
+                        if (result.isPerfect) append(context.getString(R.string.share_perfect))
                     }
-                    OverlaySecondary(stringResource(R.string.btn_menu), Modifier.weight(1f), onMenu)
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, msg)
+                    }
+                    runCatching {
+                        context.startActivity(Intent.createChooser(send, context.getString(R.string.share_chooser)))
+                    }
                 }
             }
         }
     }
+}
+
+/** 36 dp circle icon button on the result card (iOS `iconButtonLabel`). */
+@Composable
+private fun CardIconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.20f))
+            .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication        = null,
+                onClick           = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) { content() }
 }
 
 /** One "still open" tile chip on the result card — iOS remainingTilesSection. */
@@ -1056,11 +1089,13 @@ private fun GoldOverlayButton(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun OverlaySecondary(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun ShareButton(text: String, onClick: () -> Unit) {
     val theme = LocalBoardTheme.current
     val shape = RoundedCornerShape(13.dp)
+    val tint = theme.text.copy(alpha = 0.82f)
     Box(
-        modifier = modifier
+        modifier = Modifier
+            .fillMaxWidth()
             .height(46.dp)
             .clip(shape)
             .background(Color.Black.copy(alpha = 0.20f))
@@ -1072,8 +1107,34 @@ private fun OverlaySecondary(text: String, modifier: Modifier = Modifier, onClic
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = theme.text.copy(alpha = 0.82f), fontFamily = LabelFont,
-            fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            ShareIcon(tint)
+            Text(text, color = tint, fontFamily = LabelFont,
+                fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
+    }
+}
+
+/** iOS `square.and.arrow.up`: an open box with an arrow rising from its centre. */
+@Composable
+private fun ShareIcon(tint: Color) {
+    Canvas(Modifier.size(14.dp)) {
+        val w = size.width
+        val h = size.height
+        val stroke = 1.6.dp.toPx()
+        // Box (open at the top where the arrow passes through).
+        drawLine(tint, Offset(w * 0.14f, h * 0.42f), Offset(w * 0.14f, h * 0.94f), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+        drawLine(tint, Offset(w * 0.86f, h * 0.42f), Offset(w * 0.86f, h * 0.94f), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+        drawLine(tint, Offset(w * 0.14f, h * 0.94f), Offset(w * 0.86f, h * 0.94f), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+        drawLine(tint, Offset(w * 0.14f, h * 0.42f), Offset(w * 0.30f, h * 0.42f), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+        drawLine(tint, Offset(w * 0.70f, h * 0.42f), Offset(w * 0.86f, h * 0.42f), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+        // Arrow shaft + head.
+        drawLine(tint, Offset(w * 0.50f, h * 0.06f), Offset(w * 0.50f, h * 0.62f), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+        drawLine(tint, Offset(w * 0.32f, h * 0.24f), Offset(w * 0.50f, h * 0.06f), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
+        drawLine(tint, Offset(w * 0.68f, h * 0.24f), Offset(w * 0.50f, h * 0.06f), stroke, androidx.compose.ui.graphics.StrokeCap.Round)
     }
 }
 

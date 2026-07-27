@@ -236,12 +236,15 @@ fun IosToggle(checked: Boolean, onChange: (Boolean) -> Unit) {
     ) {
         val h = size.height
         val r = h / 2f
-        // Off-state track must stay visible on both dark and light surfaces
-        // (iOS switches show a grey track when off).
-        val off = if (theme.lightSurface) Color.Black.copy(alpha = 0.22f)
-                  else Color.White.copy(alpha = 0.24f)
-        val track = lerp(off, theme.accent, t)
+        // iOS off-state: a dark grey track. A faint stroke keeps it readable on
+        // the equally dark grouped cards without lightening the fill.
+        val track = lerp(Color.Black.copy(alpha = 0.34f), theme.accent, t)
         drawRoundRect(color = track, cornerRadius = CornerRadius(r))
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.16f * (1f - t)),
+            cornerRadius = CornerRadius(r),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+        )
         val knobR = r - 3.dp.toPx()
         val cx = r + t * (size.width - h)
         drawCircle(Color.White, knobR, Offset(cx, r))

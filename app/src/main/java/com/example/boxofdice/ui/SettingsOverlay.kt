@@ -59,12 +59,13 @@ import com.example.boxofdice.ui.theme.LocalBoardTheme
 // that open a themed selection dialog; the rest are compact iOS switches.
 // ─────────────────────────────────────────────────────────────────────────────
 
-private val SheetCornerRadius   = 32.dp
-private val SectionMarginH      = 28.dp
-private val CardCornerRadius    = 24.dp
-private val RowPaddingH         = 22.dp
-private val RowHeight           = 72.dp
-private val HeaderHeight        = 104.dp
+// Dimensions measured from the iOS settings sheet screenshot (pt ≈ dp).
+private val SheetCornerRadius   = 28.dp
+private val SectionMarginH      = 16.dp
+private val CardCornerRadius    = 18.dp
+private val RowPaddingH         = 16.dp
+private val RowHeight           = 58.dp
+private val HeaderHeight        = 84.dp
 
 private enum class SettingsPicker { LANGUAGE, THEME, DICE_ANIMATION }
 
@@ -197,18 +198,24 @@ fun SettingsOverlay(
 @Composable
 private fun SettingsHeader(onClose: () -> Unit) {
     val theme = LocalBoardTheme.current
+    // iOS renders the nav title in system ink (black in light appearance); keep
+    // that on themes whose sheet top is light enough, fall back to theme text on
+    // the truly dark ones where black would vanish.
+    val darkSheet = theme.theme == AppTheme.HIGH_CONTRAST ||
+        theme.theme == AppTheme.MIDNIGHT ||
+        theme.theme == AppTheme.DARK_WALNUT
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(HeaderHeight)
-            .padding(horizontal = 18.dp)
+            .padding(horizontal = 16.dp)
     ) {
         Text(
             text       = stringResource(R.string.settings_title),
-            color      = theme.text,
+            color      = if (darkSheet) theme.text else Color.Black.copy(alpha = 0.88f),
             fontFamily = AppFont,
             fontWeight = FontWeight.Bold,
-            fontSize   = 28.sp,
+            fontSize   = 22.sp,
             modifier   = Modifier.align(Alignment.Center)
         )
         DoneCapsule(
@@ -225,20 +232,13 @@ private fun DoneCapsule(label: String, onClick: () -> Unit, modifier: Modifier =
     val shape = RoundedCornerShape(50)
     Box(
         modifier = modifier
-            .width(110.dp)
-            .height(56.dp)
-            .shadow(10.dp, shape, spotColor = Color.Black.copy(alpha = 0.55f))
+            .width(92.dp)
+            .height(42.dp)
+            .shadow(8.dp, shape, spotColor = Color.Black.copy(alpha = 0.45f))
             .clip(shape)
-            .background(
-                if (theme.lightSurface) Color.White.copy(alpha = 0.55f)
-                else Color.Black.copy(alpha = 0.28f)
-            )
-            .border(
-                1.dp,
-                if (theme.lightSurface) Color.Black.copy(alpha = 0.10f)
-                else Color.White.copy(alpha = 0.18f),
-                shape
-            )
+            // iOS glassy toolbar capsule: light translucent fill, amber label.
+            .background(Color.White.copy(alpha = 0.34f))
+            .border(1.dp, Color.White.copy(alpha = 0.40f), shape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication        = null,
@@ -251,7 +251,7 @@ private fun DoneCapsule(label: String, onClick: () -> Unit, modifier: Modifier =
             color      = theme.accent,
             fontFamily = LabelFont,
             fontWeight = FontWeight.Bold,
-            fontSize   = 20.sp
+            fontSize   = 17.sp
         )
     }
 }
@@ -331,7 +331,7 @@ private fun RowLabel(text: String, modifier: Modifier = Modifier) {
         color      = theme.text.copy(alpha = 0.88f),
         fontFamily = LabelFont,
         fontWeight = FontWeight.SemiBold,
-        fontSize   = 20.sp,
+        fontSize   = 18.sp,
         modifier   = modifier
     )
 }
@@ -347,9 +347,9 @@ private fun PickerRow(label: String, value: String, onClick: () -> Unit) {
             color      = theme.accent,
             fontFamily = LabelFont,
             fontWeight = FontWeight.Bold,
-            fontSize   = 20.sp
+            fontSize   = 18.sp
         )
-        Spacer(Modifier.width(7.dp))
+        Spacer(Modifier.width(6.dp))
         UpDownChevrons(theme.accent)
     }
 }

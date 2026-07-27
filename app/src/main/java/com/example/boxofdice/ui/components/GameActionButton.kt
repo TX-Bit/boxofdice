@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -134,23 +136,13 @@ fun GameActionButton(
                         textColor = theme.text
                     )
                 }
-                Row(
-                    modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                // iOS secondaryToolBar: a single quiet hint pill, centered.
+                // No undo pill — deselect by tapping the tile again, like iOS.
+                if (showHint) {
                     QuietPill(
-                        text = stringResource(R.string.btn_undo),
-                        onClick = onUndo,
-                        enabled = state.selectedTiles.isNotEmpty(),
-                        modifier = Modifier.weight(1f)
+                        text = stringResource(R.string.btn_hint),
+                        onClick = onHint
                     )
-                    if (showHint) {
-                        QuietPill(
-                            text = stringResource(R.string.btn_hint),
-                            onClick = onHint,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
                 }
             }
 
@@ -170,8 +162,10 @@ private fun AmberButton(
     val shape = RoundedCornerShape(DesignTokens.cornerRadiusMedium)
     Box(
         modifier = Modifier
-            .fillMaxWidth()
+            // widthIn must precede fillMaxWidth: the cap has no effect the other
+            // way round (fillMaxWidth fixes min = max = parent width first).
             .widthIn(max = maxWidth)
+            .fillMaxWidth()
             .height(DesignTokens.mainButtonHeight)
             .then(
                 if (halo) Modifier
@@ -230,8 +224,8 @@ private fun SelectedStatusCard(text: String, textColor: Color) {
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
                 .widthIn(max = 280.dp)
+                .fillMaxWidth()
                 .height(49.dp)
                 .clip(shape)
                 .background(Color.Black.copy(alpha = 0.18f))
@@ -251,11 +245,11 @@ private fun SelectedStatusCard(text: String, textColor: Color) {
 private fun QuietPill(
     text:     String,
     onClick:  () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled:  Boolean = true
+    modifier: Modifier = Modifier
 ) {
     val theme = LocalBoardTheme.current
     val shape = RoundedCornerShape(50)
+    val tint  = theme.text.copy(alpha = 0.56f)
     Box(
         modifier = modifier
             .heightIn(min = 36.dp)
@@ -265,16 +259,37 @@ private fun QuietPill(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication        = null,
-                enabled           = enabled,
                 onClick           = onClick
             )
             .padding(horizontal = 15.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = text,
-            color = theme.text.copy(alpha = if (enabled) 0.56f else 0.22f),
-            fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = 14.sp
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            BulbIcon(tint)
+            Text(
+                text = text,
+                color = tint,
+                fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = 14.sp
+            )
+        }
+    }
+}
+
+/** iOS `lightbulb.fill` stand-in: filled bulb dome over a small base. */
+@Composable
+private fun BulbIcon(tint: Color) {
+    Canvas(Modifier.size(12.dp)) {
+        val w = size.width
+        val h = size.height
+        drawCircle(tint, radius = w * 0.34f, center = Offset(w / 2f, h * 0.36f))
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(w * 0.34f, h * 0.58f),
+            size = Size(w * 0.32f, h * 0.34f),
+            cornerRadius = CornerRadius(w * 0.08f)
         )
     }
 }
