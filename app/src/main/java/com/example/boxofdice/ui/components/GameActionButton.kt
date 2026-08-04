@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,76 +78,100 @@ fun GameActionButton(
         label = "pulseAlpha"
     )
 
+    // iOS: `VStack(spacing: 6) { actionButton; moveHistorySummary; secondaryToolBar }`,
+    // where the action slot is itself a `VStack(spacing: 7)`.
     Column(
         modifier            = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(7.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        when (state.phase) {
-            GamePhase.IDLE -> {
-                if (!state.canUndo) {
-                    // Opening throw of the game — the only manual roll (iOS flow).
-                    AmberButton(
-                        text     = stringResource(R.string.btn_roll),
-                        leading  = "⚄",
-                        maxWidth = 260.dp,
-                        onClick  = onRoll
-                    )
-                } else {
-                    // Mid-game: the next throw fires automatically after a short
-                    // beat (see GameScreen), so hold an empty slot at the button
-                    // height to keep the layout from jumping (iOS rollStatus).
-                    Box(Modifier.height(DesignTokens.mainButtonHeight))
+        Column(
+            modifier            = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            when (state.phase) {
+                GamePhase.IDLE -> {
+                    if (!state.canUndo) {
+                        // Opening throw of the game — the only manual roll (iOS flow).
+                        AmberButton(
+                            text     = stringResource(R.string.btn_roll),
+                            leading  = "⚄",
+                            maxWidth = 260.dp,
+                            onClick  = onRoll
+                        )
+                    } else {
+                        // Mid-game: the next throw fires automatically after a short
+                        // beat (see GameScreen), so hold an empty slot at the button
+                        // height to keep the layout from jumping (iOS rollStatus).
+                        Box(Modifier.height(DesignTokens.mainButtonHeight))
+                    }
                 }
-            }
 
-            GamePhase.ROLLING -> {
-                Box(
-                    modifier = Modifier.height(DesignTokens.mainButtonHeight).alpha(pulseAlpha),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "⚄  " + stringResource(R.string.btn_rolling),
-                        color = theme.text.copy(alpha = 0.70f),
-                        fontFamily = LabelFont, fontWeight = FontWeight.Bold,
-                        fontSize = DesignTokens.buttonTextSize
-                    )
+                GamePhase.ROLLING -> {
+                    Box(
+                        modifier = Modifier.height(DesignTokens.mainButtonHeight).alpha(pulseAlpha),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "⚄  " + stringResource(R.string.btn_rolling),
+                            color = theme.text.copy(alpha = 0.70f),
+                            fontFamily = LabelFont, fontWeight = FontWeight.Bold,
+                            fontSize = DesignTokens.buttonTextSize
+                        )
+                    }
                 }
-            }
 
-            GamePhase.SELECTING -> {
-                if (state.selectedTiles.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.instr_select),
-                        color = theme.text.copy(alpha = 0.80f),
-                        fontFamily = LabelFont, fontWeight = FontWeight.Medium, fontSize = 15.sp
-                    )
+                GamePhase.SELECTING -> {
+                    if (state.selectedTiles.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.instr_select),
+                            color = theme.text.copy(alpha = 0.80f),
+                            fontFamily = LabelFont, fontWeight = FontWeight.Medium, fontSize = 15.sp
+                        )
+                    }
+                    if (isSelectionValid) {
+                        AmberButton(
+                            text     = stringResource(R.string.btn_confirm),
+                            leading  = null,
+                            halo     = true,
+                            maxWidth = 280.dp,
+                            onClick  = onConfirm
+                        )
+                    } else {
+                        SelectedStatusCard(
+                            text = stringResource(R.string.btn_selected, state.selectedSum),
+                            textColor = theme.text
+                        )
+                    }
                 }
-                if (isSelectionValid) {
-                    AmberButton(
-                        text     = stringResource(R.string.btn_confirm),
-                        leading  = null,
-                        halo     = true,
-                        maxWidth = 280.dp,
-                        onClick  = onConfirm
-                    )
-                } else {
-                    SelectedStatusCard(
-                        text = stringResource(R.string.btn_selected, state.selectedSum),
-                        textColor = theme.text
-                    )
-                }
-                // iOS secondaryToolBar: a single quiet hint pill, centered.
-                // No undo pill — deselect by tapping the tile again, like iOS.
-                if (showHint) {
-                    QuietPill(
-                        text = stringResource(R.string.btn_hint),
-                        onClick = onHint
-                    )
-                }
-            }
 
-            GamePhase.GAME_OVER -> { /* overlay handles interaction */ }
+                GamePhase.GAME_OVER -> { /* overlay handles interaction */ }
+            }
+        }
+
+        // iOS moveHistorySummary — a quiet recap of the tiles the last confirmed
+        // move closed.
+        if (state.lastClosedTiles.isNotEmpty()) {
+            Text(
+                text = stringResource(
+                    R.string.last_move,
+                    state.lastClosedTiles.joinToString(", ")
+                ),
+                color = theme.text.copy(alpha = 0.72f),
+                fontFamily = LabelFont, fontWeight = FontWeight.Medium, fontSize = 13.sp,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        // iOS secondaryToolBar: a single quiet hint pill, centered, present only
+        // while tiles can actually be selected. No undo pill — deselect by tapping
+        // the tile again, like iOS.
+        if (showHint && state.phase == GamePhase.SELECTING) {
+            QuietPill(
+                text = stringResource(R.string.btn_hint),
+                onClick = onHint
+            )
         }
     }
 }

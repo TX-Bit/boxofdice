@@ -315,7 +315,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             phase         = phase,
             elapsedMillis = _gameState.value?.elapsedMillis ?: 0L,
             isRolling     = isRolling,
-            canUndo       = e.canUndo()
+            canUndo       = e.canUndo(),
+            lastClosedTiles = e.moveHistory.lastOrNull()?.closedTiles?.sorted() ?: emptyList()
         )
     }
 

@@ -60,6 +60,12 @@ object DesignTokens {
     val tileSpacing    = 8.dp        // horizontal gap between tiles
     val diceSize       = 108.dp      // default die edge (phone portrait)
     val mainButtonHeight = 58.dp     // Roll / Confirm button height
+    // The action zone changes height as the turn moves from Roll → select → Confirm
+    // (instruction line, status card, last-move recap, hint pill). iOS can let it
+    // grow because its portrait stack is top-aligned; the Android stack is centred,
+    // so the slot is held at the tallest state or the board would bob every turn:
+    // instruction 20 + 7 + card 58 + 6 + hint pill 36 + 6 + last-move 18.
+    val actionZoneHeight = 152.dp
 
     // ── Supporting structural tokens (drawn chrome) ────────────────────────────
 

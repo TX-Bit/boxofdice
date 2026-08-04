@@ -110,7 +110,7 @@ fun AppLocaleProvider(language: AppLanguage, content: @Composable () -> Unit) {
     // state below (e.g. the open Settings sheet).
     val config = remember(code, baseConfig) {
         if (code == null) baseConfig
-        else Configuration(baseConfig).apply { setLocale(Locale(code)) }
+        else Configuration(baseConfig).apply { setLocale(Locale.forLanguageTag(code)) }
     }
     val context = remember(code, base, config) {
         if (code == null) base

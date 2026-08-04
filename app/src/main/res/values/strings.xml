@@ -95,7 +95,8 @@
     <string name="anim_short">Short</string>
     <string name="anim_normal">Normal</string>
     <string name="anim_long">Long</string>
-    <string name="dice_total">Total %1$d</string>
+    <string name="dice_total">Dice total %1$d</string>
+    <string name="last_move">Last: closed %1$s</string>
 
     <!-- Dice modes -->
     <string name="dice_always_all">Always use all dice</string>

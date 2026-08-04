@@ -19,14 +19,17 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.boxofdice.R
@@ -65,6 +69,7 @@ import com.example.boxofdice.model.GameResult
 import com.example.boxofdice.model.GameState
 import com.example.boxofdice.ui.components.BoardView
 import com.example.boxofdice.ui.components.Dice3DView
+import com.example.boxofdice.ui.components.DiceSurface
 import com.example.boxofdice.ui.components.DiceView
 import com.example.boxofdice.ui.components.GameActionButton
 import com.example.boxofdice.ui.theme.AppFont
@@ -121,8 +126,9 @@ fun GameScreen(viewModel: GameViewModel) {
             )
         } else {
             gameState?.let { state ->
-                // The 3D dice surface draws on top of the window, so suppress it while
-                // any full-screen overlay/sheet is up (it would otherwise punch through).
+                // The GL dice now composite in normal z-order, so this is no longer a
+                // correctness workaround — it just retires the render thread while a
+                // full-screen overlay hides the dice anyway.
                 val overlayActive = gameResult != null || showSettings || showStats ||
                     showModeSelect || showPlayerCount ||
                     pap?.showRoundEnd == true || pap?.showResults == true
@@ -294,6 +300,7 @@ private fun MenuScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 22.dp, vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -455,17 +462,33 @@ private fun ActiveGameScreen(
 ) {
     val config      = LocalConfiguration.current
     val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val isTablet    = config.smallestScreenWidthDp >= 600
-    val scale       = if (isTablet) 1.4f else if (isLandscape) 0.9f else 1.0f
-    val desired     = if (isTablet) 150.dp else if (isLandscape) 92.dp else DesignTokens.diceSize
+    val smallestW   = config.smallestScreenWidthDp
+    val isPhone     = smallestW < 600
+    // iOS picks one of three layoutScales straight from the size class: 1.0 portrait,
+    // 0.9 phone landscape, 1.5 iPad. Android screen sizes are a continuum, and the
+    // plain `>= 600dp` step meant a 480dp device rendered at pure iPhone scale with
+    // all the slack pooling as empty felt — so the iPad end is blended in from 400dp
+    // up instead of switching on in one jump.
+    val sizeFraction = ((smallestW - 400f) / 200f).coerceIn(0f, 1f)
+    val scale        = (1f + 0.5f * sizeFraction) * (if (isLandscape && isPhone) 0.9f else 1f)
+    // iOS desired die: 108 phone portrait, 88 phone landscape, 156 iPad portrait.
+    val desired      = if (isLandscape && isPhone) 88.dp
+                       else lerp(DesignTokens.diceSize, 156.dp, sizeFraction)
 
-    // iOS fittingDieSize: shrink the die so the widest row fits the space the dice
-    // actually get. The GL surface needs dieSize × 1.4 per die (margin for the
-    // shadow/hop), and we always size for the 3-dice Big Box row so the dice stay
-    // the SAME size in every mode instead of jumping between Classic and Big Box.
+    // iOS fittingDieSize: `available / (count + (count-1) * diceSpacingFactor)`, so a
+    // die is only shrunk when the row genuinely would not fit. iOS portrait never
+    // shrinks (a 3-dice Big Box row is 350pt on a 369pt column), so this only bites
+    // on Android screens narrower than an iPhone.
     val screenW     = config.screenWidthDp.dp
-    val diceAvail   = if (isLandscape && !isTablet) screenW / 2 - 36.dp else screenW - 24.dp
-    val dieSize     = minOf(desired, diceAvail / (1.4f * 3f)).coerceAtLeast(56.dp)
+    val diceAvail   = if (isLandscape && isPhone) screenW / 2 - 36.dp else screenW - 24.dp
+    val rowFactor   = DiceSurface.widthFactor(state.mode.diceCount.coerceAtLeast(1))
+    val dieSize     = minOf(desired, diceAvail / rowFactor).coerceAtLeast(40.dp)
+
+    // iOS hands the board an explicit column width and tile cap (68 iPhone / 104 iPad);
+    // both now ride the same blended fraction as the rest of the layout.
+    val boardMaxWidth = minOf(lerp(430.dp, 900.dp, sizeFraction), screenW) -
+                        lerp(24.dp, 64.dp, sizeFraction)
+    val maxTileWidth  = lerp(68.dp, 104.dp, sizeFraction)
 
     // iOS game flow: only the opening throw is manual. After a confirmed move the
     // state returns to IDLE (dice cleared, a move in history) — roll the next
@@ -478,10 +501,10 @@ private fun ActiveGameScreen(
         }
     }
 
-    if (isLandscape && !isTablet) {
-        LandscapeGameLayout(state, playerLabel, dieSize, scale, overlayActive, showHints, showDiceTotal, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
+    if (isLandscape && isPhone) {
+        LandscapeGameLayout(state, playerLabel, dieSize, scale, maxTileWidth, overlayActive, showHints, showDiceTotal, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
     } else {
-        PortraitGameLayout(state, playerLabel, dieSize, scale, isTablet, overlayActive, showHints, showDiceTotal, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
+        PortraitGameLayout(state, playerLabel, dieSize, scale, boardMaxWidth, maxTileWidth, overlayActive, showHints, showDiceTotal, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
     }
 }
 
@@ -489,9 +512,10 @@ private fun ActiveGameScreen(
 private fun PortraitGameLayout(
     state:       GameState,
     playerLabel: String?,
-    dieSize:     Dp,
-    scale:       Float,
-    isTablet:    Boolean,
+    dieSize:      Dp,
+    scale:        Float,
+    boardMaxWidth: Dp,
+    maxTileWidth:  Dp,
     overlayActive: Boolean,
     showHints:     Boolean,
     showDiceTotal: Boolean,
@@ -505,37 +529,57 @@ private fun PortraitGameLayout(
     onOpenSettings: () -> Unit,
     onOpenStats:    () -> Unit
 ) {
-    val boardMax = if (isTablet) 720.dp else 430.dp
-    // iOS portrait is a ScrollView: header, board, dice and controls stack from the
-    // top with a fixed 8pt (short screens) / 12pt gap between every section, and
-    // whatever felt is left over pools at the bottom. No weighted spacers — the
-    // board never drifts down on tall screens.
-    val gap = if (LocalConfiguration.current.screenHeightDp < 700) 8.dp else 12.dp
+    // iOS keeps a fixed 8pt (short screens) / 12pt gap between every section.
+    val screenH = LocalConfiguration.current.screenHeightDp
+    val gap = if (screenH < 700) 8.dp else 12.dp
+    // iOS portrait is a ScrollView whose content very nearly fills an iPhone. Android
+    // viewports are taller (and in dp often much larger), so the header, dice and
+    // action rows are laid out at their natural height and the tray takes everything
+    // left over — the same trade iOS makes in its landscape and iPad layouts. Once the
+    // tray hits its tile cap the remaining slack is split evenly above and below.
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp)
-            .padding(top = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            // iOS honours the safe area; enableEdgeToEdge() means we must ask for
+            // the same insets or the header rides up under the status bar and the
+            // controls sit behind the navigation bar.
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Spacer(Modifier.height(10.dp))
         GameHeader(state, playerLabel, scale, onOpenStats, onOpenSettings, onModeSelect)
         Spacer(Modifier.height(gap))
-        BoardView(
-            tiles       = state.tiles,
-            onTileClick = onToggle,
-            modifier    = Modifier.fillMaxWidth().widthIn(max = boardMax)
-        )
+        // fill = false: the weight hands the tray the leftover height as a *ceiling*,
+        // not a demand, so a tray already at its cap stays centred instead of stretching.
+        Box(
+            modifier         = Modifier.weight(1f, fill = false),
+            contentAlignment = Alignment.Center
+        ) {
+            BoardView(
+                tiles        = state.tiles,
+                onTileClick  = onToggle,
+                // widthIn must precede fillMaxWidth or the cap is ignored: fillMaxWidth
+                // pins min = max = the parent width first.
+                modifier     = Modifier.widthIn(max = boardMaxWidth).fillMaxWidth(),
+                maxTileWidth = maxTileWidth
+            )
+        }
         Spacer(Modifier.height(gap))
         DiceArea(state, dieSize, overlayActive, showDiceTotal)
         Spacer(Modifier.height(gap))
-        GameActionButton(
-            state, onRoll, onConfirm, onHint, onUndo, onUndoMove,
-            showHint = showHints,
-            modifier = Modifier.widthIn(max = 360.dp)
-        )
-        Spacer(Modifier.height(24.dp))
+        // Fixed slot: the zone's own height swings by ~90dp across the turn, and
+        // in a centred stack that would drag the tray up and down with it.
+        Box(
+            modifier         = Modifier.fillMaxWidth().height(DesignTokens.actionZoneHeight),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            GameActionButton(
+                state, onRoll, onConfirm, onHint, onUndo, onUndoMove,
+                showHint = showHints,
+                modifier = Modifier.widthIn(max = 360.dp)
+            )
+        }
     }
 }
 
@@ -543,8 +587,9 @@ private fun PortraitGameLayout(
 private fun LandscapeGameLayout(
     state:       GameState,
     playerLabel: String?,
-    dieSize:     Dp,
-    scale:       Float,
+    dieSize:      Dp,
+    scale:        Float,
+    maxTileWidth: Dp,
     overlayActive: Boolean,
     showHints:     Boolean,
     showDiceTotal: Boolean,
@@ -561,11 +606,14 @@ private fun LandscapeGameLayout(
     Row(
         modifier = Modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment     = Alignment.CenterVertically
     ) {
-        BoardView(state.tiles, onToggle, Modifier.weight(1f))
+        // The Row bounds the height, so the tray already fits itself to the shorter of
+        // the two axes here — the same iOS `boardSizing` rule the portrait layout uses.
+        BoardView(state.tiles, onToggle, Modifier.weight(1f), maxTileWidth)
         Column(
             modifier            = Modifier.weight(1f).fillMaxHeight().padding(vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -591,15 +639,18 @@ private fun GameHeader(
     onSettings:  () -> Unit,
     onModeSelect: () -> Unit = {}
 ) {
-    Box(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+    // iOS portraitHeader is a bare ZStack(alignment: .top) — all of the top offset
+    // lives in the caller's padding, so no extra nudge here.
+    Box(Modifier.fillMaxWidth()) {
         ScoreModeBlock(state, playerLabel, scale, onModeSelect)
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            CircleIconButton(onClick = onStats) { StatsBarsIcon() }
+            // iOS headerIconButton: a 17×scale glyph in a 40×scale circle.
+            CircleIconButton(scale, onClick = onStats) { StatsBarsIcon(size = (17 * scale).dp) }
             Spacer(Modifier.weight(1f))
-            CircleIconButton(onClick = onSettings) { GearIcon() }
+            CircleIconButton(scale, onClick = onSettings) { GearIcon(size = (17 * scale).dp) }
         }
     }
 }
@@ -699,10 +750,10 @@ private fun MiniDieIcon(tint: Color, size: Dp) {
 }
 
 @Composable
-private fun CircleIconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+private fun CircleIconButton(scale: Float = 1f, onClick: () -> Unit, content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
-            .size(40.dp)
+            .size((40 * scale).dp)
             .clip(CircleShape)
             .background(Color.Black.copy(alpha = 0.18f))
             .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
@@ -717,16 +768,18 @@ private fun CircleIconButton(onClick: () -> Unit, content: @Composable () -> Uni
 
 /** Three bars (chart.bar.fill). */
 @Composable
-private fun StatsBarsIcon(tint: Color = DesignTokens.headerIconTint) {
-    Canvas(modifier = Modifier.size(17.dp)) {
-        val barW = size.width * 0.22f
-        val gap = (size.width - barW * 3f) / 2f
+private fun StatsBarsIcon(tint: Color = DesignTokens.headerIconTint, size: Dp = 17.dp) {
+    Canvas(modifier = Modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val barW = w * 0.22f
+        val gap = (w - barW * 3f) / 2f
         listOf(0.45f, 0.75f, 1.0f).forEachIndexed { i, frac ->
             val x = i * (barW + gap)
-            val barH = size.height * frac
+            val barH = h * frac
             drawRoundRect(
                 color = tint,
-                topLeft = Offset(x, size.height - barH),
+                topLeft = Offset(x, h - barH),
                 size = Size(barW, barH),
                 cornerRadius = CornerRadius(barW * 0.4f)
             )
@@ -737,12 +790,13 @@ private fun StatsBarsIcon(tint: Color = DesignTokens.headerIconTint) {
 /** Gold gear (gearshape.fill) drawn from Canvas — the ⚙ glyph renders as an emoji
  *  on many devices, which broke the iOS look. */
 @Composable
-private fun GearIcon(tint: Color = DesignTokens.headerIconTint) {
-    Canvas(modifier = Modifier.size(18.dp)) {
-        val c = Offset(size.width / 2f, size.height / 2f)
-        val outerR = size.width * 0.36f
-        val toothLen = size.width * 0.14f
-        val toothW = size.width * 0.16f
+private fun GearIcon(tint: Color = DesignTokens.headerIconTint, size: Dp = 17.dp) {
+    Canvas(modifier = Modifier.size(size)) {
+        val w = this.size.width
+        val c = Offset(w / 2f, this.size.height / 2f)
+        val outerR = w * 0.36f
+        val toothLen = w * 0.14f
+        val toothW = w * 0.16f
         // Eight teeth around the rim.
         for (i in 0 until 8) {
             rotate(degrees = i * 45f, pivot = c) {
@@ -758,7 +812,7 @@ private fun GearIcon(tint: Color = DesignTokens.headerIconTint) {
         drawCircle(color = tint, radius = outerR, center = c)
         drawCircle(
             color = Color.Black.copy(alpha = 0.55f),
-            radius = size.width * 0.15f,
+            radius = w * 0.15f,
             center = c
         )
     }
@@ -784,24 +838,27 @@ private fun DiceArea(state: GameState, dieSize: Dp, overlayActive: Boolean, show
         // No instruction text under the dice — on iOS the roll/rolling status lives in
         // the action-button slot, which the Android layout already mirrors.
         if (overlayActive) {
-            // A full-screen overlay is up; the GL surface would draw over it, so use
-            // the flat dice (hidden behind the overlay anyway).
+            // A full-screen overlay is up and the dice are hidden behind it, so drop to
+            // the flat Compose dice and let the GL thread go.
             DiceView(dice = diceToShow, isRolling = state.isRolling, dieSize = dieSize)
         } else {
             val n = diceToShow.size.coerceAtLeast(1)
+            // iOS lays out n `dieSize` frames with dieSize × 13/108 between them; the
+            // GL surface reproduces that pitch and apparent die size (see DiceSurface).
+            val surfaceH = dieSize * DiceSurface.HEIGHT_FACTOR
+            val surfaceW = dieSize * DiceSurface.widthFactor(n)
             Box(contentAlignment = Alignment.Center) {
                 // Soft elliptical contact shadows on the felt, one per die, drawn in
                 // Compose *behind* the GL surface — its transparent pixels let them
                 // show through (iOS `dieContactShadow`).
                 Canvas(
                     modifier = Modifier
-                        .height(dieSize * 1.4f)
-                        .width(dieSize * 1.4f * n)
+                        .height(surfaceH)
+                        .width(surfaceW)
                 ) {
                     val diePx = dieSize.toPx()
-                    val cellW = size.width / n
                     for (i in 0 until n) {
-                        val cx = cellW * (i + 0.5f)
+                        val cx = diePx * DiceSurface.centerFactor(i)
                         val cy = size.height * 0.5f + diePx * (36f / 108f)
                         val ew = diePx * (86f / 108f)
                         val eh = diePx * (22f / 108f)
@@ -825,17 +882,18 @@ private fun DiceArea(state: GameState, dieSize: Dp, overlayActive: Boolean, show
                     isRolling = state.isRolling,
                     dieSize   = dieSize,
                     modifier  = Modifier
-                        .height(dieSize * 1.4f)
-                        .width(dieSize * 1.4f * n)
+                        .height(surfaceH)
+                        .width(surfaceW)
                 )
             }
         }
         // iOS: dice total readout under the dice when the setting is on.
         if (showTotal && state.hasRolled && !state.isRolling) {
-            Spacer(Modifier.height(2.dp))
+            // iOS diceSection is a VStack(spacing: 8).
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.dice_total, state.diceTotal),
-                color = theme.text.copy(alpha = 0.85f),
+                color = theme.text.copy(alpha = 0.86f),
                 fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = 16.sp
             )
         }

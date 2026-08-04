@@ -20,7 +20,9 @@ data class GameState(
     val phase: GamePhase = GamePhase.IDLE,
     val elapsedMillis: Long = 0L,
     val isRolling: Boolean = false,
-    val canUndo: Boolean = false
+    val canUndo: Boolean = false,
+    /** Tiles closed by the most recent confirmed move (iOS `moveHistory.last`). */
+    val lastClosedTiles: List<Int> = emptyList()
 ) {
     val diceTotal: Int get() = dice.sum()
     val openTiles: List<TileState> get() = tiles.filter { it.isOpen }

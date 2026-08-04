@@ -5,7 +5,6 @@ import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.PixelFormat
 import android.graphics.Shader
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
@@ -27,17 +26,48 @@ import kotlin.random.Random
 
 /**
  * Real 3D dice rendered with OpenGL ES 2.0 (genuine perspective-projected rotating
- * cubes), as a translucent [GLSurfaceView] hosted in Compose. Each cube's six faces
- * carry runtime-drawn pip textures (1–6) packed into a single atlas, so no binary
- * model or texture asset is required.
+ * cubes), drawn into a translucent [GLTextureView] hosted in Compose — see that class
+ * for why this is not a `GLSurfaceView`. Each cube's six faces carry runtime-drawn pip
+ * textures (1–6) packed into a single atlas, so no binary model or texture asset is
+ * required.
  *
  * Public surface mirrors [DiceView] so it is a drop-in replacement:
  *  - while [dice] are rolling the cubes tumble continuously,
  *  - when rolling stops each cube settles, bringing the rolled value's face to camera.
  *
- * On-device verification notes: the per-value settle orientation signs ([faceTargets])
- * and the surface z-order ([GLSurfaceView.setZOrderOnTop]) are the two things to eyeball.
+ * On-device verification note: the per-value settle orientation signs ([faceTargets])
+ * are the thing to eyeball.
  */
+/**
+ * Layout geometry for the shared GL dice surface, derived so the row reproduces the
+ * iOS one exactly.
+ *
+ * iOS gives each die its own `dieSize` SCNView frame and puts `dieSize * 13/108`
+ * between frames ([SPACING_FACTOR]). Inside that frame its camera (38° FOV at
+ * distance 2.74) renders the 1.0-unit cube at 1.0/1.884 ≈ 0.531 of the frame.
+ *
+ * Our renderer draws every die into one surface with a 30° vertical FOV at distance
+ * 4.11, so the 1.2-unit cube covers 1.2/2.204 ≈ 0.544 of the surface *height*.
+ * Matching the two gives [HEIGHT_FACTOR] = 0.531/0.544, and [WORLD_SPACING] is the
+ * cube-centre distance that maps back to one iOS frame pitch.
+ */
+object DiceSurface {
+    /** iOS `diceSpacingFactor`. */
+    const val SPACING_FACTOR = 13f / 108f
+
+    /** Surface height ÷ die frame, so our cube lands at the iOS apparent size. */
+    const val HEIGHT_FACTOR = 0.974f
+
+    /** Cube-centre distance in world units — one iOS frame pitch. */
+    const val WORLD_SPACING = 2.531f
+
+    /** Row width ÷ die frame for [count] dice. */
+    fun widthFactor(count: Int): Float = count + SPACING_FACTOR * (count - 1)
+
+    /** Centre of die [index] ÷ die frame, measured from the row's leading edge. */
+    fun centerFactor(index: Int): Float = 0.5f + index * (1f + SPACING_FACTOR)
+}
+
 @Composable
 fun Dice3DView(
     dice:      List<Int>,
@@ -50,20 +80,14 @@ fun Dice3DView(
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
-            GLSurfaceView(ctx).apply {
-                setEGLContextClientVersion(2)
-                setEGLConfigChooser(8, 8, 8, 8, 16, 0)
-                holder.setFormat(PixelFormat.TRANSLUCENT)
-                setZOrderOnTop(true)
-                val r = DiceGLRenderer()
-                setRenderer(r)
-                renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
-                tag = r
-            }
+            GLTextureView(ctx).apply { renderer = DiceGLRenderer() }
         },
         update = { view ->
-            (view.tag as? DiceGLRenderer)?.update(dice, isRolling)
-        }
+            (view.renderer as? DiceGLRenderer)?.update(dice, isRolling)
+        },
+        // Stop the render thread the moment the composable leaves, rather than waiting
+        // for the view to be detached.
+        onRelease = { view -> view.stop() }
     )
 }
 
@@ -186,10 +210,9 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
         GLES20.glVertexAttribPointer(aNormal, 3, GLES20.GL_FLOAT, false, 0, normBuf)
 
         val n = values.size
-        // Lay the dice out along X, centered. Cube edge is 1.2 units; 1.9 leaves a
-        // clear gap between dice so they read as separate objects (1.55 made them
-        // sit nearly edge-to-edge under the angled camera).
-        val spacing = 1.9f
+        // Lay the dice out along X, centered, one iOS frame pitch apart — see
+        // DiceSurface, which sizes the surface to the same geometry.
+        val spacing = DiceSurface.WORLD_SPACING
         val x0 = -(n - 1) * spacing / 2f
         for (i in 0 until n) {
             Matrix.setIdentityM(model, 0)
@@ -327,7 +350,7 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
     // friendly rounded cubes the iOS app uses rather than sharp blocks.
     private fun buildGeometry() {
         val s = 0.60f            // half-size
-        val r = 0.16f            // corner radius
+        val r = 0.246f           // corner radius — iOS chamferRadius 0.205 × edge
         val inner = s - r
         val seg = 8              // subdivisions per face edge (smoothness)
         val cellW = 1f / 6f
@@ -400,8 +423,9 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
         val cell = 128
         val bmp = Bitmap.createBitmap(cell * 6, cell, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
-        val face = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = AndroidColor.rgb(247, 244, 234) }
-        val pip = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = AndroidColor.rgb(26, 26, 34) }
+        // iOS die material diffuse (245,242,230) and pip diffuse (0.055,0.055,0.052).
+        val face = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = AndroidColor.rgb(245, 242, 230) }
+        val pip = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = AndroidColor.rgb(14, 14, 13) }
         for (v in 1..6) {
             val ox = (v - 1) * cell
             // Fill the whole cell so cube faces are fully opaque (no see-through corners).

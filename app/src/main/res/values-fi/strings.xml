@@ -95,7 +95,8 @@
     <string name="anim_short">Lyhyt</string>
     <string name="anim_normal">Normaali</string>
     <string name="anim_long">Pitkä</string>
-    <string name="dice_total">Yhteensä %1$d</string>
+    <string name="dice_total">Noppien summa %1$d</string>
+    <string name="last_move">Viimeksi: suljettu %1$s</string>
 
     <!-- Noppatilat -->
     <string name="dice_always_all">Käytä aina kaikkia noppia</string>

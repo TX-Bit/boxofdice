@@ -26,12 +26,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.example.boxofdice.model.TileState
 import com.example.boxofdice.ui.theme.AppFont
@@ -97,9 +102,9 @@ fun TileView(
         contentAlignment = Alignment.Center
     ) {
         // Numeral size tracks the tile so 1–9 and 10–18 stay visually balanced.
-        val numberSize = with(androidx.compose.ui.platform.LocalDensity.current) {
-            (maxWidth.toPx() * 0.42f).toSp()
-        }
+        val tileDensity = LocalDensity.current
+        val numberPx = with(tileDensity) { maxWidth.toPx() } * 0.42f
+        val numberSize = with(tileDensity) { numberPx.toSp() }
         val showOpenFace = openT > 0.5f
 
         // The face pivots at its bottom edge (iOS rotation3DEffect, anchor .bottom,
@@ -121,18 +126,18 @@ fun TileView(
             }
 
             if (showOpenFace) {
-                Text(
-                    text  = tile.number.toString(),
-                    style = TextStyle(
-                        fontFamily = AppFont,
-                        fontWeight = FontWeight.Black,
-                        fontSize   = numberSize,
-                        color      = DesignTokens.tileNumberTop,
-                        shadow     = Shadow(
-                            color  = Color.White.copy(alpha = 0.55f),
-                            offset = Offset(0f, 2f),
-                            blurRadius = 0f
-                        )
+                EngravedNumeral(
+                    text       = tile.number.toString(),
+                    fontSize   = numberSize,
+                    strokeWidth = numberPx * OPEN_NUMERAL_STROKE,
+                    fill       = Brush.verticalGradient(
+                        listOf(DesignTokens.tileNumberTop, DesignTokens.tileNumberBottom)
+                    ),
+                    // iOS carves the numeral with a hard white highlight one point below.
+                    shadow     = Shadow(
+                        color  = Color.White.copy(alpha = 0.55f),
+                        offset = Offset(0f, 2f),
+                        blurRadius = 0f
                     ),
                     modifier = Modifier.graphicsLayer {
                         alpha  = numberAlpha.coerceIn(0f, 1f)
@@ -142,21 +147,60 @@ fun TileView(
                 )
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text  = tile.number.toString(),
-                        style = TextStyle(
-                            fontFamily = AppFont,
-                            fontWeight = FontWeight.Black,
-                            fontSize   = numberSize * 0.74f,
-                            color      = DesignTokens.closedTileNumber.copy(alpha = 0.45f)
-                        ),
-                        modifier = Modifier.graphicsLayer { translationY = size.height * 0.16f }
+                    EngravedNumeral(
+                        text        = tile.number.toString(),
+                        fontSize    = numberSize * 0.74f,
+                        strokeWidth = numberPx * 0.74f * CLOSED_NUMERAL_STROKE,
+                        fill        = SolidColor(DesignTokens.closedTileNumber.copy(alpha = 0.45f)),
+                        modifier    = Modifier.graphicsLayer { translationY = size.height * 0.16f }
                     )
                 }
             }
         }
     }
 }
+
+/**
+ * iOS draws the numeral in SF Rounded **Heavy** (w800). The closest OFL rounded face
+ * we can download — Fredoka — tops out at Bold (w700), and Compose only synthesizes
+ * bolding when the resolved font is lighter than w600, so `FontWeight.Black` alone
+ * silently renders at 700 and the tiles read thin next to the iOS build. Stroking the
+ * glyph outline underneath the fill adds the missing optical weight: half the stroke
+ * lands outside the contour, so a stroke of [OPEN_NUMERAL_STROKE] × font size widens
+ * each stem by about the step from Bold to Heavy.
+ */
+@Composable
+private fun EngravedNumeral(
+    text:        String,
+    fontSize:    TextUnit,
+    strokeWidth: Float,
+    fill:        Brush,
+    modifier:    Modifier = Modifier,
+    shadow:      Shadow? = null
+) {
+    val base = TextStyle(
+        fontFamily = AppFont,
+        fontWeight = FontWeight.Black,
+        fontSize   = fontSize,
+        brush      = fill
+    )
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Text(
+            text  = text,
+            style = base.copy(
+                drawStyle = Stroke(width = strokeWidth, join = StrokeJoin.Round, cap = StrokeCap.Round),
+                shadow    = shadow
+            )
+        )
+        Text(text = text, style = base)
+    }
+}
+
+/** Stroke width ÷ font size for the open-tile numeral (Bold → Heavy). */
+private const val OPEN_NUMERAL_STROKE = 0.085f
+
+/** The closed-tile engraving is faint, so it takes a lighter share of the same trick. */
+private const val CLOSED_NUMERAL_STROKE = 0.06f
 
 // ── Open ivory tile ───────────────────────────────────────────────────────────
 
