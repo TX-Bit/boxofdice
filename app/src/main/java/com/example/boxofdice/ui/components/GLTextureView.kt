@@ -5,10 +5,21 @@ import android.graphics.SurfaceTexture
 import android.opengl.EGL14
 import android.opengl.EGLConfig
 import android.opengl.EGLContext
-import android.opengl.EGLDisplay
 import android.opengl.EGLSurface
 import android.opengl.GLSurfaceView
 import android.view.TextureView
+
+/**
+ * A renderer that knows when it has nothing left to animate, so the host can stop
+ * feeding it frames instead of spinning the GPU — and the window's compositor — forever.
+ */
+internal interface OnDemandRenderer : GLSurfaceView.Renderer {
+    /** True while the scene is still moving and needs another frame after this one. */
+    val isAnimating: Boolean
+
+    /** Clock for the frame about to be drawn, in the `System.nanoTime()` timebase. */
+    fun onFrameTime(nanos: Long)
+}
 
 /**
  * A [TextureView] that drives a [GLSurfaceView.Renderer] on its own EGL thread.
@@ -24,6 +35,12 @@ import android.view.TextureView
  * A TextureView is an ordinary view drawn into the window, so it composites in normal
  * z-order with the Compose content around it and disappears with it. The cost is one
  * extra copy per frame, which is immaterial for a row of dice.
+ *
+ * The loop draws only while an [OnDemandRenderer] reports something left to animate,
+ * and blocks on [lock] otherwise. That matters more here than for a normal GL view:
+ * a TextureView frame invalidates the Compose owner, which damages the *whole window*,
+ * so every dice frame costs a full redraw of the felt, the tray and every tile. Left
+ * free-running, still dice were buying that redraw sixty times a second forever.
  *
  * The [GLSurfaceView.Renderer] contract is reused as-is so [DiceGLRenderer] needs no
  * changes; the `GL10`/`EGLConfig` arguments of that interface belong to the old EGL 1.0
@@ -61,6 +78,15 @@ internal class GLTextureView(context: Context) : TextureView(context), TextureVi
 
     override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
 
+    /**
+     * Wakes the render thread for at least one more frame. Required after anything that
+     * changes what the renderer would draw, because an idle renderer is not being
+     * polled.
+     */
+    fun requestRender() {
+        thread?.requestRender()
+    }
+
     /** Stops the render thread and blocks until it has released its EGL resources. */
     fun stop() {
         thread?.quitAndJoin()
@@ -80,17 +106,48 @@ private class RenderThread(
     @Volatile private var height = height
     @Volatile private var sizeDirty = true
 
+    /** Guards the idle wait; every wake-up condition is published under it. */
+    private val lock = Object()
+
+    /** Forces at least one more frame regardless of what the renderer reports. */
+    private var wakeUp = true
+
     fun resize(width: Int, height: Int) {
         this.width = width
         this.height = height
         sizeDirty = true
+        requestRender()
+    }
+
+    fun requestRender() {
+        synchronized(lock) {
+            wakeUp = true
+            lock.notifyAll()
+        }
     }
 
     fun quitAndJoin() {
         running = false
-        // The loop is vsync-paced, so this returns within a frame or two. The join
-        // matters: the SurfaceTexture must not be released before EGL lets go of it.
+        // Wake an idle thread so it can notice `running` and unwind, instead of waiting
+        // out the two seconds below. The join matters: the SurfaceTexture must not be
+        // released before EGL lets go of it.
+        requestRender()
         join(2_000)
+    }
+
+    /** Blocks until there is something to draw. Returns false when the thread is done. */
+    private fun awaitFrame(): Boolean {
+        val onDemand = renderer as? OnDemandRenderer ?: return running
+        synchronized(lock) {
+            while (running && !wakeUp && !onDemand.isAnimating) {
+                // No timeout: every state change that affects the scene goes through
+                // requestRender(), so a missed wake-up would be a bug, not a stall to
+                // paper over with polling.
+                lock.wait()
+            }
+            wakeUp = false
+        }
+        return running
     }
 
     override fun run() {
@@ -133,13 +190,15 @@ private class RenderThread(
             if (!EGL14.eglMakeCurrent(display, surface, surface, context)) return
 
             renderer.onSurfaceCreated(null, null)
-            while (running) {
+            val onDemand = renderer as? OnDemandRenderer
+            while (awaitFrame()) {
                 if (sizeDirty) {
                     renderer.onSurfaceChanged(null, width, height)
                     sizeDirty = false
                 }
+                onDemand?.onFrameTime(System.nanoTime())
                 renderer.onDrawFrame(null)
-                // Paces the loop to vsync, and fails once the surface goes away.
+                // Paces the loop to the consumer, and fails once the surface goes away.
                 if (!EGL14.eglSwapBuffers(display, surface)) break
             }
         } finally {

@@ -49,7 +49,10 @@ fun BoardView(
     tiles:        List<TileState>,
     onTileClick:  (Int) -> Unit,
     modifier:     Modifier = Modifier,
-    maxTileWidth: Dp = 68.dp
+    maxTileWidth: Dp = 68.dp,
+    // iOS `boardView(numberFontSize: 27 * scale)` — one size for every tile, handed
+    // down from the layout rather than derived from the tile width.
+    numberSize:   Dp = 27.dp
 ) {
     val theme = LocalBoardTheme.current
 
@@ -108,9 +111,10 @@ fun BoardView(
                         Row(horizontalArrangement = Arrangement.spacedBy(tileGap)) {
                             rowTiles.forEach { tile ->
                                 TileView(
-                                    tile     = tile,
-                                    onClick  = { onTileClick(tile.number) },
-                                    modifier = Modifier.width(tileW)
+                                    tile       = tile,
+                                    onClick    = { onTileClick(tile.number) },
+                                    numberSize = numberSize,
+                                    modifier   = Modifier.width(tileW)
                                 )
                             }
                         }

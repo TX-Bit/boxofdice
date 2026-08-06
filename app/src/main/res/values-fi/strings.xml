@@ -3,25 +3,32 @@
 
     <!-- Valikko -->
     <string name="menu_kicker">NOPPALAUTA</string>
-    <string name="menu_title">Sulje laatikko</string>
     <string name="menu_settings">⚙  Asetukset</string>
     <string name="menu_stats">▤  Tilastot</string>
-    <string name="menu_choose_mode">Valitse pelimuoto</string>
-    <string name="badge_timed">AIKA</string>
+    <string name="menu_choose_mode">Valitse pelitila</string>
 
-    <!-- Pelimuodot -->
+    <!-- Pelimuodot — kuvaukset iOS-käännösten mukaiset -->
     <string name="mode_classic">Klassinen</string>
-    <string name="mode_classic_desc">12 laattaa · 2 noppaa</string>
-    <string name="mode_speed">Pikapeli</string>
-    <string name="mode_speed_desc">12 laattaa · 2 noppaa · ajastettu</string>
+    <string name="mode_classic_desc">12 laattaa · 2 noppaa · alin pistemäärä voittaa</string>
+    <string name="mode_speed">Nopeuspeli</string>
+    <string name="mode_speed_desc">12 laattaa · 2 noppaa · pisteet + kuluneet sekunnit</string>
     <string name="mode_bigbox">Iso laatikko</string>
-    <string name="mode_bigbox_desc">18 laattaa · 3 noppaa</string>
-    <string name="mode_bigbox_speed">Iso laatikko pika</string>
-    <string name="mode_bigbox_speed_desc">18 laattaa · 3 noppaa · ajastettu</string>
+    <string name="mode_bigbox_desc">18 laattaa · 3 noppaa · alin pistemäärä voittaa</string>
+    <string name="mode_bigbox_speed">Iso nopeuspeli</string>
+    <string name="mode_bigbox_speed_desc">18 laattaa · 3 noppaa · pisteet + kuluneet sekunnit</string>
     <string name="mode_pass">Vuoropeli</string>
-    <string name="mode_pass_desc">2–4 pelaajaa · kukin yksi klassinen kierros</string>
+    <string name="mode_pass_desc">2–4 pelaajaa · jokainen pelaa yhden klassisen kierroksen</string>
+
+    <!-- Pelitilan valinnan ryhmät (iOS GameModeSelectionView) -->
+    <string name="mode_group_classic">Klassinen</string>
+    <string name="mode_group_bigbox">Iso laatikko</string>
+    <string name="mode_group_multiplayer">Moninpeli</string>
+    <string name="mode_players">Pelaajat</string>
+    <string name="mode_player_count">%1$d pelaajaa</string>
+    <string name="mode_start_game">Aloita peli</string>
 
     <!-- Otsikko -->
+    <string name="score_hint">Sulje laattoja pienentääksesi pisteitä. Alin pistemäärä voittaa.</string>
     <string name="score_label">Pisteet: %1$d</string>
     <string name="player_label">PELAAJA %1$d / %2$d</string>
     <string name="timer_label">⏱ %1$d s</string>
@@ -62,8 +69,6 @@
     <string name="share_chooser">Jaa tulos</string>
 
     <!-- Vuoropeli -->
-    <string name="pass_title">Vuoropeli</string>
-    <string name="pass_how_many">Montako pelaajaa?</string>
     <string name="pass_cancel">Peruuta</string>
     <string name="pass_player_done">Pelaaja %1$d valmis!</string>
     <string name="pass_handoff">Anna laite seuraavalle pelaajalle.</string>
@@ -114,12 +119,27 @@
     <string name="theme_minimal_light">Vaalea minimaalinen</string>
     <string name="theme_dark_walnut">Tumma pähkinä</string>
 
-    <!-- Tilastot -->
+    <!-- Tilastot (iOS StatsView) -->
     <string name="stats_title">Tilastot</string>
-    <string name="stats_games">Pelit</string>
-    <string name="stats_perfect">Täydelliset</string>
-    <string name="stats_streak">Putki</string>
-    <string name="stats_best_streak">Paras putki</string>
-    <string name="stats_best_scores">PARHAAT PISTEET</string>
-    <string name="stats_none">—</string>
+    <string name="stats_reset">Nollaa</string>
+    <string name="stats_reset_confirm">Nollataanko kaikki tilastot?</string>
+    <string name="stats_played">Pelattu</string>
+    <string name="stats_won">Voitot</string>
+    <string name="stats_lost">Tappiot</string>
+    <string name="stats_best_score">Paras tulos</string>
+    <string name="stats_section_scores">Pisteet</string>
+    <string name="stats_avg_score">Keskipisteet</string>
+    <string name="stats_avg_win">Voittojen keskipisteet</string>
+    <string name="stats_avg_loss">Tappioiden keskipisteet</string>
+    <string name="stats_perfect_clears">Täydelliset tyhjennykset</string>
+    <string name="stats_section_by_mode">Paras tulos pelitiloittain</string>
+    <string name="stats_section_streaks">Putket ja kesto</string>
+    <string name="stats_current_streak">Nykyinen voittoputki</string>
+    <string name="stats_best_streak_row">Paras voittoputki</string>
+    <string name="stats_longest_game">Pisin peli</string>
+    <string name="stats_shortest_clear">Nopein tyhjennys</string>
+    <string name="stats_section_remaining">Yleisimmät jäljelle jääneet laatat</string>
+    <string name="stats_no_data">Ei dataa vielä — pelaa ensin muutama peli</string>
+    <string name="stats_turns">%1$d vuoroa</string>
+    <string name="stats_times">%1$d×</string>
 </resources>

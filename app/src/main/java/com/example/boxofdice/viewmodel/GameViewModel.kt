@@ -285,11 +285,21 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private inline fun haptic(block: GameFeedback.() -> Unit) {
-        if (_settings.value.hapticsEnabled) feedback.block()
+        if (_settings.value.hapticsEnabled) {
+            feedback.block()
+        } else {
+            // Logged so a silent phone can be told apart from a switched-off setting;
+            // see GameFeedback for the other half of the trail.
+            android.util.Log.d("BoxOfDiceFeedback", "haptic suppressed: setting is off")
+        }
     }
 
     private inline fun sound(block: GameFeedback.() -> Unit) {
-        if (_settings.value.soundEnabled) feedback.block()
+        if (_settings.value.soundEnabled) {
+            feedback.block()
+        } else {
+            android.util.Log.d("BoxOfDiceFeedback", "sound suppressed: setting is off")
+        }
     }
 
     /** Push current engine state into the UI StateFlow. */
@@ -370,10 +380,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             score       = if (e.currentGameMode.hasTimer) tileScore + timeSeconds else tileScore,
             tileScore   = tileScore,
             timeSeconds = timeSeconds,
-            isPerfect   = e.isBoardCleared()
+            isPerfect   = e.isBoardCleared(),
+            turns       = e.turnCount,
+            remainingTiles = e.openTiles.toList()
         )
         _gameResult.value = result
         viewModelScope.launch { stats.recordResult(result) }
+    }
+
+    /** iOS StatsView "Reset" — wipes every counter. */
+    fun resetStats() {
+        viewModelScope.launch { stats.reset() }
     }
 
     override fun onCleared() {

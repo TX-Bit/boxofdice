@@ -3,25 +3,32 @@
 
     <!-- Menu -->
     <string name="menu_kicker">BOX OF DICE</string>
-    <string name="menu_title">Shut the Box</string>
     <string name="menu_settings">⚙  Settings</string>
     <string name="menu_stats">▤  Stats</string>
     <string name="menu_choose_mode">Choose Mode</string>
-    <string name="badge_timed">TIMED</string>
 
-    <!-- Modes -->
+    <!-- Modes — subtitles match the iOS GameMode.subtitle strings verbatim -->
     <string name="mode_classic">Classic</string>
-    <string name="mode_classic_desc">12 tiles · 2 dice</string>
+    <string name="mode_classic_desc">12 tiles · 2 dice · lowest score wins</string>
     <string name="mode_speed">Speed Run</string>
-    <string name="mode_speed_desc">12 tiles · 2 dice · timed</string>
+    <string name="mode_speed_desc">12 tiles · 2 dice · score + elapsed seconds</string>
     <string name="mode_bigbox">Big Box</string>
-    <string name="mode_bigbox_desc">18 tiles · 3 dice</string>
+    <string name="mode_bigbox_desc">18 tiles · 3 dice · lowest score wins</string>
     <string name="mode_bigbox_speed">Big Box Speed</string>
-    <string name="mode_bigbox_speed_desc">18 tiles · 3 dice · timed</string>
+    <string name="mode_bigbox_speed_desc">18 tiles · 3 dice · score + elapsed seconds</string>
     <string name="mode_pass">Pass &amp; Play</string>
-    <string name="mode_pass_desc">2–4 players · one Classic round each</string>
+    <string name="mode_pass_desc">2–4 players · each plays one Classic round</string>
+
+    <!-- Mode chooser groups (iOS GameModeSelectionView) -->
+    <string name="mode_group_classic">Classic</string>
+    <string name="mode_group_bigbox">Big Box</string>
+    <string name="mode_group_multiplayer">Multiplayer</string>
+    <string name="mode_players">Players</string>
+    <string name="mode_player_count">%1$d players</string>
+    <string name="mode_start_game">Start Game</string>
 
     <!-- Header -->
+    <string name="score_hint">Close tiles to lower your score. Lowest score wins.</string>
     <string name="score_label">Score: %1$d</string>
     <string name="player_label">PLAYER %1$d OF %2$d</string>
     <string name="timer_label">⏱ %1$ds</string>
@@ -62,8 +69,6 @@
     <string name="share_chooser">Share score</string>
 
     <!-- Pass and Play -->
-    <string name="pass_title">Pass &amp; Play</string>
-    <string name="pass_how_many">How many players?</string>
     <string name="pass_cancel">Cancel</string>
     <string name="pass_player_done">Player %1$d done!</string>
     <string name="pass_handoff">Hand the device to the next player.</string>
@@ -114,12 +119,27 @@
     <string name="theme_minimal_light">Minimal Light</string>
     <string name="theme_dark_walnut">Dark Walnut</string>
 
-    <!-- Stats -->
+    <!-- Stats (iOS StatsView) -->
     <string name="stats_title">Statistics</string>
-    <string name="stats_games">Games</string>
-    <string name="stats_perfect">Perfect</string>
-    <string name="stats_streak">Streak</string>
-    <string name="stats_best_streak">Best streak</string>
-    <string name="stats_best_scores">BEST SCORES</string>
-    <string name="stats_none">—</string>
+    <string name="stats_reset">Reset</string>
+    <string name="stats_reset_confirm">Reset all statistics?</string>
+    <string name="stats_played">Played</string>
+    <string name="stats_won">Won</string>
+    <string name="stats_lost">Lost</string>
+    <string name="stats_best_score">Best Score</string>
+    <string name="stats_section_scores">Scores</string>
+    <string name="stats_avg_score">Average score</string>
+    <string name="stats_avg_win">Average winning score</string>
+    <string name="stats_avg_loss">Average losing score</string>
+    <string name="stats_perfect_clears">Perfect clears</string>
+    <string name="stats_section_by_mode">Best Score by Mode</string>
+    <string name="stats_section_streaks">Streaks &amp; Length</string>
+    <string name="stats_current_streak">Current win streak</string>
+    <string name="stats_best_streak_row">Best win streak</string>
+    <string name="stats_longest_game">Longest game</string>
+    <string name="stats_shortest_clear">Shortest clear</string>
+    <string name="stats_section_remaining">Most Common Remaining Tiles</string>
+    <string name="stats_no_data">No data yet — play a few games first</string>
+    <string name="stats_turns">%1$d turns</string>
+    <string name="stats_times">%1$d×</string>
 </resources>

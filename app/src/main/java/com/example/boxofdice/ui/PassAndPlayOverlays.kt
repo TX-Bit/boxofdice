@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,67 +39,6 @@ import com.example.boxofdice.ui.theme.GoldPrimary
 import com.example.boxofdice.ui.theme.TextGold
 import com.example.boxofdice.ui.theme.TextLight
 import com.example.boxofdice.ui.theme.TextMuted
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Player-count chooser (shown when the Pass & Play card is tapped)
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-fun PlayerCountDialog(
-    onSelect:  (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ScrimBox(onDismiss = onDismiss) {
-        OverlayCard {
-            Text(
-                text       = stringResource(R.string.pass_title),
-                color      = GoldPrimary,
-                fontFamily = AppFont, fontWeight = FontWeight.Black, fontSize = 23.sp,
-                textAlign  = TextAlign.Center
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text      = stringResource(R.string.pass_how_many),
-                color     = TextMuted,
-                fontFamily = AppFont,
-                fontSize  = 14.sp,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(20.dp))
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                (2..4).forEach { count ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(58.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFF0C2417).copy(alpha = 0.8f))
-                            .border(1.dp, GoldPrimary.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication        = null,
-                                onClick           = { onSelect(count) }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text       = "$count",
-                            color      = TextGold,
-                            fontFamily = AppFont,
-                            fontWeight = FontWeight.Bold,
-                            fontSize   = 24.sp
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            OverlayGhostButton(text = stringResource(R.string.pass_cancel), onClick = onDismiss)
-        }
-    }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Hand-off overlay shown after each player's round

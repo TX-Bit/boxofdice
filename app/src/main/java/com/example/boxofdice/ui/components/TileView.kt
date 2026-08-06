@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.example.boxofdice.model.TileState
@@ -55,9 +56,10 @@ import com.example.boxofdice.ui.theme.DesignTokens.TILE_ASPECT
  */
 @Composable
 fun TileView(
-    tile:    TileState,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    tile:       TileState,
+    onClick:    () -> Unit,
+    numberSize: Dp,
+    modifier:   Modifier = Modifier
 ) {
     // Selection lifts (-8dp on iOS) and grows the tile (1.09). Spring matches the
     // iOS `.spring(response: 0.24, dampingFraction: 0.62)`.
@@ -101,10 +103,20 @@ fun TileView(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Numeral size tracks the tile so 1–9 and 10–18 stay visually balanced.
+        // iOS passes one fixed numeral size (27pt × layout scale) down from the layout
+        // rather than deriving it from the tile, which is why its numerals fill a
+        // narrow phone's tile so much more than a proportional size would. The cap only
+        // bites on screens narrower than an iPhone, where 27dp would overflow "12".
         val tileDensity = LocalDensity.current
-        val numberPx = with(tileDensity) { maxWidth.toPx() } * 0.42f
-        val numberSize = with(tileDensity) { numberPx.toSp() }
+        val numberDp = minOf(numberSize, maxWidth * NUMERAL_MAX_TILE_FRACTION)
+        val numberPx = with(tileDensity) { numberDp.toPx() }
+        val numberFontSize = with(tileDensity) { numberPx.toSp() }
+        // The engraving below (outline stroke + hard highlight) is an absolute-pixel
+        // effect, not a scale-invariant one: on a 720p phone the numeral lands at
+        // ~40px, where a full-strength stroke fills in the counters of 4/6/8/9 and the
+        // highlight smears into the fill, so the glyph reads fat and smudged. Both
+        // taper below [NUMERAL_FULL_WEIGHT_PX]; larger screens keep the tuned look.
+        val engraveScale = (numberPx / NUMERAL_FULL_WEIGHT_PX).coerceIn(0.5f, 1f)
         val showOpenFace = openT > 0.5f
 
         // The face pivots at its bottom edge (iOS rotation3DEffect, anchor .bottom,
@@ -128,15 +140,17 @@ fun TileView(
             if (showOpenFace) {
                 EngravedNumeral(
                     text       = tile.number.toString(),
-                    fontSize   = numberSize,
-                    strokeWidth = numberPx * OPEN_NUMERAL_STROKE,
+                    fontSize   = numberFontSize,
+                    strokeWidth = numberPx * OPEN_NUMERAL_STROKE * engraveScale,
                     fill       = Brush.verticalGradient(
                         listOf(DesignTokens.tileNumberTop, DesignTokens.tileNumberBottom)
                     ),
-                    // iOS carves the numeral with a hard white highlight one point below.
+                    // iOS carves the numeral with a hard white highlight one point below
+                    // — one *point*, so the drop scales with the numeral rather than
+                    // sitting at a fixed 2px that swamps a small glyph.
                     shadow     = Shadow(
-                        color  = Color.White.copy(alpha = 0.55f),
-                        offset = Offset(0f, 2f),
+                        color  = Color.White.copy(alpha = 0.55f * engraveScale),
+                        offset = Offset(0f, numberPx * NUMERAL_HIGHLIGHT_OFFSET),
                         blurRadius = 0f
                     ),
                     modifier = Modifier.graphicsLayer {
@@ -149,8 +163,8 @@ fun TileView(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     EngravedNumeral(
                         text        = tile.number.toString(),
-                        fontSize    = numberSize * 0.74f,
-                        strokeWidth = numberPx * 0.74f * CLOSED_NUMERAL_STROKE,
+                        fontSize    = numberFontSize * 0.74f,
+                        strokeWidth = numberPx * 0.74f * CLOSED_NUMERAL_STROKE * engraveScale,
                         fill        = SolidColor(DesignTokens.closedTileNumber.copy(alpha = 0.45f)),
                         modifier    = Modifier.graphicsLayer { translationY = size.height * 0.16f }
                     )
@@ -196,18 +210,44 @@ private fun EngravedNumeral(
     }
 }
 
-/** Stroke width ÷ font size for the open-tile numeral (Bold → Heavy). */
-private const val OPEN_NUMERAL_STROKE = 0.085f
+/**
+ * Stroke width ÷ font size for the open-tile numeral (Bold → Heavy).
+ *
+ * Half of it lands outside the contour, so this widens each stem by ~2% of the em —
+ * about one weight step. The earlier 0.085 was closer to five, which on a phone-sized
+ * tile pushed the glyph past Heavy into a blob.
+ */
+private const val OPEN_NUMERAL_STROKE = 0.055f
 
 /** The closed-tile engraving is faint, so it takes a lighter share of the same trick. */
-private const val CLOSED_NUMERAL_STROKE = 0.06f
+private const val CLOSED_NUMERAL_STROKE = 0.03f
+
+/**
+ * Numeral height in device pixels at which the engraving is drawn at full strength.
+ * Roughly what a 68dp tile gives on a 3x phone — the size the effect was tuned at.
+ */
+private const val NUMERAL_FULL_WEIGHT_PX = 56f
+
+/** Engraved highlight drop ÷ font size — the iOS 1pt offset under a ~28pt numeral. */
+private const val NUMERAL_HIGHLIGHT_OFFSET = 0.035f
+
+/**
+ * Ceiling on the numeral as a fraction of tile width. iOS lands at ~0.58 on an iPhone,
+ * so this only clamps screens narrower than that — where the fixed size would spill a
+ * two-digit numeral over the tile edge.
+ */
+private const val NUMERAL_MAX_TILE_FRACTION = 0.62f
 
 // ── Open ivory tile ───────────────────────────────────────────────────────────
 
 private fun DrawScope.drawOpenTile(isSelected: Boolean) {
     val w = size.width
     val h = size.height
-    val r = w * 0.16f   // ≈ iOS 11pt on a 68pt tile
+    // iOS hard-codes every one of these in points and never scales them with the tile
+    // — an 11pt radius on a 46pt phone tile and on a 104pt iPad tile alike. Deriving
+    // them from the tile width instead (0.16 * w and friends) shrank the whole set on
+    // a phone, which is what made these tiles read boxier and flatter than the iOS ones.
+    val r = 11.dp.toPx()
 
     // Contact shadow under the tile.
     drawRoundRect(
@@ -240,37 +280,41 @@ private fun DrawScope.drawOpenTile(isSelected: Boolean) {
                 startY = h * 0.58f, endY = h
             )
         )
-        // Top specular highlight.
+        // Top specular highlight (iOS: 5pt side inset, 2pt from the top, radius 10).
         drawRoundRect(
             brush        = Brush.verticalGradient(
                 colors = listOf(Color.White.copy(alpha = 0.26f), Color.Transparent),
                 startY = 0f, endY = h * 0.26f
             ),
-            topLeft      = Offset(w * 0.07f, h * 0.02f),
-            size         = Size(w * 0.86f, h * 0.30f),
-            cornerRadius = CornerRadius(r * 0.8f)
+            topLeft      = Offset(5.dp.toPx(), 2.dp.toPx()),
+            size         = Size(w - 10.dp.toPx(), h * 0.30f),
+            cornerRadius = CornerRadius(10.dp.toPx())
         )
-        // Bottom dark thickness strip.
+        // Bottom thickness strip: iOS 5pt tall, 4pt side inset, radius 4, nudged 1 down.
+        val stripH = 5.dp.toPx()
         drawRoundRect(
             brush = Brush.verticalGradient(
                 listOf(Color(red = 0.22f, green = 0.10f, blue = 0.03f),
                        Color(red = 0.10f, green = 0.04f, blue = 0.01f))
             ),
-            topLeft      = Offset(w * 0.06f, h - h * 0.055f),
-            size         = Size(w * 0.88f, h * 0.05f),
-            cornerRadius = CornerRadius(r * 0.4f)
+            topLeft      = Offset(4.dp.toPx(), h - stripH + 1.dp.toPx()),
+            size         = Size(w - 8.dp.toPx(), stripH),
+            cornerRadius = CornerRadius(4.dp.toPx())
         )
     }
 
-    // Hinge pins near the top corners.
-    val pinR = w * 0.035f
-    val pinY = h * 0.10f
-    listOf(w * 0.16f, w * 0.84f).forEach { px ->
-        drawCircle(Color.Black.copy(alpha = 0.35f), pinR, Offset(px, pinY + pinR * 0.4f))
+    // Hinge pins: iOS 4pt circles, 5pt in from each side and 4pt down from the top.
+    val pinR = 2.dp.toPx()
+    val pinY = 4.dp.toPx() + pinR
+    val pinInset = 5.dp.toPx() + pinR
+    listOf(pinInset, w - pinInset).forEach { px ->
+        drawCircle(Color.Black.copy(alpha = 0.35f), pinR, Offset(px, pinY + 1.dp.toPx()))
         drawCircle(Color(0.50f, 0.50f, 0.50f).copy(alpha = 0.55f), pinR, Offset(px, pinY))
     }
 
-    // Sharp 2px bevel — bright upper-left, dark lower-right.
+    // Sharp 2pt bevel — bright upper-left, dark lower-right. SwiftUI strokeBorder sits
+    // wholly inside the shape, so inset by half the width to match.
+    val bevel = 2.dp.toPx()
     drawRoundRect(
         brush = Brush.linearGradient(
             colors = listOf(
@@ -281,26 +325,32 @@ private fun DrawScope.drawOpenTile(isSelected: Boolean) {
             ),
             start = Offset(0f, 0f), end = Offset(w, h)
         ),
-        cornerRadius = CornerRadius(r),
-        style = Stroke(width = w * 0.03f)
+        topLeft      = Offset(bevel / 2f, bevel / 2f),
+        size         = Size(w - bevel, h - bevel),
+        cornerRadius = CornerRadius(r - bevel / 2f),
+        style        = Stroke(width = bevel)
     )
 
-    // Cyan selection ring + glow.
+    // Cyan selection ring + glow (iOS: 2.5pt border, 9pt cyan shadow).
     if (isSelected) {
+        val glow = 9.dp.toPx()
         drawRoundRect(
             color        = DesignTokens.selectionGlow.copy(alpha = 0.45f),
-            topLeft      = Offset(-w * 0.03f, -h * 0.02f),
-            size         = Size(w * 1.06f, h * 1.04f),
-            cornerRadius = CornerRadius(r * 1.15f),
-            style        = Stroke(width = w * 0.07f)
+            topLeft      = Offset(-glow / 3f, -glow / 3f),
+            size         = Size(w + glow * 2f / 3f, h + glow * 2f / 3f),
+            cornerRadius = CornerRadius(r + glow / 3f),
+            style        = Stroke(width = glow / 2f)
         )
+        val ring = 2.5.dp.toPx()
         drawRoundRect(
             brush = Brush.linearGradient(
                 listOf(DesignTokens.selectionRingTop, DesignTokens.selectionRingBottom),
                 start = Offset(0f, 0f), end = Offset(w, h)
             ),
-            cornerRadius = CornerRadius(r),
-            style = Stroke(width = w * 0.045f)
+            topLeft      = Offset(ring / 2f, ring / 2f),
+            size         = Size(w - ring, h - ring),
+            cornerRadius = CornerRadius(r - ring / 2f),
+            style        = Stroke(width = ring)
         )
     }
 }
@@ -312,7 +362,7 @@ private fun DrawScope.drawClosedTile() {
     val h = size.height
     val faceH = h * 0.58f
     val top = h - faceH
-    val r = w * 0.11f
+    val r = 7.dp.toPx()   // iOS closedTileFace RoundedRectangle(cornerRadius: 7)
 
     clipRound(Offset(0f, top), Size(w, faceH), r) {
         drawRect(
@@ -350,7 +400,7 @@ private fun DrawScope.drawClosedTile() {
             start = Offset(0f, top), end = Offset(w, h)
         ),
         topLeft = Offset(0f, top), size = Size(w, faceH),
-        cornerRadius = CornerRadius(r), style = Stroke(width = w * 0.025f)
+        cornerRadius = CornerRadius(r), style = Stroke(width = 1.5.dp.toPx())
     )
 }
 

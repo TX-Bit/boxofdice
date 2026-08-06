@@ -96,7 +96,7 @@ fun GameActionButton(
                         // Opening throw of the game — the only manual roll (iOS flow).
                         AmberButton(
                             text     = stringResource(R.string.btn_roll),
-                            leading  = "⚄",
+                            leadingDie = true,
                             maxWidth = 260.dp,
                             onClick  = onRoll
                         )
@@ -113,12 +113,19 @@ fun GameActionButton(
                         modifier = Modifier.height(DesignTokens.mainButtonHeight).alpha(pulseAlpha),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "⚄  " + stringResource(R.string.btn_rolling),
-                            color = theme.text.copy(alpha = 0.70f),
-                            fontFamily = LabelFont, fontWeight = FontWeight.Bold,
-                            fontSize = DesignTokens.buttonTextSize
-                        )
+                        // iOS rollStatus: dice.fill at 16pt beside the label, 9pt apart.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(9.dp)
+                        ) {
+                            DiceFillIcon(tint = theme.text.copy(alpha = 0.70f), size = 16.dp)
+                            Text(
+                                text = stringResource(R.string.btn_rolling),
+                                color = theme.text.copy(alpha = 0.70f),
+                                fontFamily = LabelFont, fontWeight = FontWeight.Bold,
+                                fontSize = DesignTokens.buttonTextSize
+                            )
+                        }
                     }
                 }
 
@@ -133,7 +140,7 @@ fun GameActionButton(
                     if (isSelectionValid) {
                         AmberButton(
                             text     = stringResource(R.string.btn_confirm),
-                            leading  = null,
+                            leadingDie = false,
                             halo     = true,
                             maxWidth = 280.dp,
                             onClick  = onConfirm
@@ -178,8 +185,8 @@ fun GameActionButton(
 
 @Composable
 private fun AmberButton(
-    text:     String,
-    leading:  String?,
+    text:       String,
+    leadingDie: Boolean,
     halo:     Boolean = false,
     maxWidth: Dp = 280.dp,
     onClick:  () -> Unit
@@ -223,10 +230,13 @@ private fun AmberButton(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (leading != null) {
-                Text(leading, color = DesignTokens.buttonLabel, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                Text("  ", fontSize = 18.sp)
+        // iOS rollButton: HStack(spacing: 10) { dice.fill 18pt; label }.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(if (leadingDie) 10.dp else 0.dp)
+        ) {
+            if (leadingDie) {
+                DiceFillIcon(tint = DesignTokens.buttonLabel, size = 18.dp)
             }
             Text(
                 text = text,

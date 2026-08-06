@@ -3,10 +3,12 @@ package com.example.boxofdice.ui
 import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,8 +40,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +54,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -62,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import com.example.boxofdice.R
 import com.example.boxofdice.model.GameMode
 import com.example.boxofdice.model.GamePhase
@@ -69,6 +80,7 @@ import com.example.boxofdice.model.GameResult
 import com.example.boxofdice.model.GameState
 import com.example.boxofdice.ui.components.BoardView
 import com.example.boxofdice.ui.components.Dice3DView
+import com.example.boxofdice.ui.components.DiceFillIcon
 import com.example.boxofdice.ui.components.DiceSurface
 import com.example.boxofdice.ui.components.DiceView
 import com.example.boxofdice.ui.components.GameActionButton
@@ -84,6 +96,11 @@ import com.example.boxofdice.viewmodel.GameViewModel
 // Entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** iOS: celebration 0.45s after a won game, result card 0.7s / 1.5s after game over. */
+private const val CELEBRATION_DELAY_MS = 450L
+private const val PERFECT_RESULT_DELAY_MS = 700L
+private const val RESULT_DELAY_MS = 1_500L
+
 @Composable
 fun GameScreen(viewModel: GameViewModel) {
     val gameState   by viewModel.gameState.collectAsStateWithLifecycle()
@@ -93,7 +110,6 @@ fun GameScreen(viewModel: GameViewModel) {
     val overall     by viewModel.overallStats.collectAsStateWithLifecycle()
     val modeBests   by viewModel.modeBestScores.collectAsStateWithLifecycle()
 
-    var showPlayerCount by remember { mutableStateOf(false) }
     var showSettings    by remember { mutableStateOf(false) }
     var showStats       by remember { mutableStateOf(false) }
     var showModeSelect  by remember { mutableStateOf(false) }
@@ -114,11 +130,34 @@ fun GameScreen(viewModel: GameViewModel) {
     val pap = passAndPlay
     val playerLabel = pap?.let { "PLAYER ${it.currentPlayer} OF ${it.playerCount}" }
 
+    // iOS `presentEndOfGame` holds the result card back so the final board — the last
+    // tile going down, the dice that ended it — is still on screen for a beat before
+    // anything covers it: 0.7s after a perfect clear (the celebration is already
+    // running by then) and 1.5s after an ordinary game over.
+    var showGameOver    by remember { mutableStateOf(false) }
+    var showCelebration by remember { mutableStateOf(false) }
+    LaunchedEffect(gameResult) {
+        val result = gameResult
+        if (result == null) {
+            showGameOver = false
+            showCelebration = false
+            return@LaunchedEffect
+        }
+        if (result.isPerfect) {
+            delay(CELEBRATION_DELAY_MS)
+            showCelebration = true
+            delay(PERFECT_RESULT_DELAY_MS - CELEBRATION_DELAY_MS)
+        } else {
+            delay(RESULT_DELAY_MS)
+        }
+        showGameOver = true
+    }
+
     FeltBackground {
         if (gameState == null) {
             MenuScreen(
-                onStartGame = { mode ->
-                    if (mode.isMultiplayer) showPlayerCount = true
+                onStartGame = { mode, players ->
+                    if (mode.isMultiplayer) viewModel.startPassAndPlay(players)
                     else viewModel.startGame(mode)
                 },
                 onOpenSettings = { showSettings = true },
@@ -129,8 +168,8 @@ fun GameScreen(viewModel: GameViewModel) {
                 // The GL dice now composite in normal z-order, so this is no longer a
                 // correctness workaround — it just retires the render thread while a
                 // full-screen overlay hides the dice anyway.
-                val overlayActive = gameResult != null || showSettings || showStats ||
-                    showModeSelect || showPlayerCount ||
+                val overlayActive = showGameOver || showSettings || showStats ||
+                    showModeSelect ||
                     pap?.showRoundEnd == true || pap?.showResults == true
                 ActiveGameScreen(
                     state          = state,
@@ -138,6 +177,9 @@ fun GameScreen(viewModel: GameViewModel) {
                     overlayActive  = overlayActive,
                     showHints      = settings.showHints,
                     showDiceTotal  = settings.showDiceTotal,
+                    // iOS shows the score onboarding line only on the very first game,
+                    // and only until that game's first roll.
+                    showScoreHint  = overall.gamesPlayed == 0 && !state.hasRolled,
                     onToggle       = viewModel::toggleTile,
                     onRoll         = viewModel::rollDice,
                     onConfirm      = viewModel::confirmSelection,
@@ -152,7 +194,7 @@ fun GameScreen(viewModel: GameViewModel) {
         }
 
         AnimatedVisibility(
-            visible  = gameResult != null,
+            visible  = showGameOver,
             enter    = fadeIn() + scaleIn(initialScale = 0.9f),
             exit     = fadeOut() + scaleOut(targetScale = 0.9f),
             modifier = Modifier.fillMaxSize()
@@ -183,17 +225,7 @@ fun GameScreen(viewModel: GameViewModel) {
             }
         }
 
-        if (showPlayerCount && pap == null) {
-            PlayerCountDialog(
-                onSelect  = { count ->
-                    showPlayerCount = false
-                    viewModel.startPassAndPlay(count)
-                },
-                onDismiss = { showPlayerCount = false }
-            )
-        }
-
-        if (gameResult?.isPerfect == true || pap?.showResults == true) {
+        if (showCelebration || pap?.showResults == true) {
             CelebrationOverlay()
         }
 
@@ -215,6 +247,7 @@ fun GameScreen(viewModel: GameViewModel) {
             StatsOverlay(
                 overall   = overall,
                 modeBests = modeBests,
+                onReset   = viewModel::resetStats,
                 onClose   = { showStats = false }
             )
         }
@@ -223,12 +256,14 @@ fun GameScreen(viewModel: GameViewModel) {
         // starts it; cancelling just closes the sheet and play continues.
         if (showModeSelect) {
             ModeSelectOverlay(
-                onSelect = { mode ->
+                currentMode    = gameState?.mode ?: GameMode.CLASSIC,
+                currentPlayers = pap?.playerCount ?: 2,
+                onStart = { mode, players ->
                     showModeSelect = false
-                    if (mode.isMultiplayer) showPlayerCount = true
+                    if (mode.isMultiplayer) viewModel.startPassAndPlay(players)
                     else viewModel.startGame(mode)
                 },
-                onClose  = { showModeSelect = false }
+                onClose = { showModeSelect = false }
             )
         }
     }
@@ -242,7 +277,16 @@ fun GameScreen(viewModel: GameViewModel) {
 private fun FeltBackground(content: @Composable BoxScope.() -> Unit) {
     val theme = LocalBoardTheme.current
     Box(modifier = Modifier.fillMaxSize()) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                // The felt is three full-screen gradients and a hundred-odd grain lines,
+                // and it never changes — but every frame the GL dice publish damages the
+                // whole window, so without a compositing layer the GPU re-shades all of
+                // it at the dice's frame rate. Offscreen renders it into a texture once
+                // and blits that instead, which is what a weak GPU can actually afford.
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        ) {
             val w = size.width
             val h = size.height
 
@@ -292,11 +336,10 @@ private fun FeltBackground(content: @Composable BoxScope.() -> Unit) {
 
 @Composable
 private fun MenuScreen(
-    onStartGame:    (GameMode) -> Unit,
+    onStartGame:    (GameMode, Int) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenStats:    () -> Unit
 ) {
-    val theme = LocalBoardTheme.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -305,42 +348,100 @@ private fun MenuScreen(
             .padding(horizontal = 22.dp, vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // No app title or kicker: iOS reaches mode selection as a sheet over the board
+        // and never shows one, and dropping them here leaves the chooser itself — the
+        // only thing this screen is for — sitting where the eye lands first.
         Spacer(Modifier.height(20.dp))
-        Text(
-            text          = stringResource(R.string.menu_kicker),
-            color         = theme.text.copy(alpha = 0.5f),
-            fontSize      = 12.sp,
-            fontFamily    = LabelFont,
-            fontWeight    = FontWeight.Bold,
-            letterSpacing = 3.sp
-        )
-        Spacer(Modifier.height(8.dp))
-        GradientText(
-            text     = stringResource(R.string.menu_title),
-            colors   = theme.title,
-            fontSize = 32.sp
-        )
-        Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MenuPillButton(stringResource(R.string.menu_settings), onOpenSettings)
             MenuPillButton(stringResource(R.string.menu_stats), onOpenStats)
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(8.dp))
 
-        Column(modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth()) {
-            SectionLabel(stringResource(R.string.menu_choose_mode))
-            GroupCard {
-                GameMode.entries.forEachIndexed { i, mode ->
-                    if (i > 0) GroupDivider()
-                    ModeRow(mode = mode, onClick = { onStartGame(mode) })
-                }
-            }
+        ModeChooser(
+            modifier = Modifier.widthIn(max = 420.dp).fillMaxWidth(),
+            onStart  = onStartGame
+        )
+    }
+}
+
+/**
+ * The iOS `GameModeSelectionView` body: three labelled groups of radio rows, a player
+ * count that unfolds under Pass & Play, and the amber Start Game button. Picking a row
+ * only selects it — nothing starts until Start Game, exactly as on iOS.
+ *
+ * Shared by the launch menu and the in-game mode sheet so the two cannot drift apart.
+ */
+@Composable
+private fun ModeChooser(
+    onStart:        (GameMode, Int) -> Unit,
+    modifier:       Modifier = Modifier,
+    initialMode:    GameMode = GameMode.CLASSIC,
+    initialPlayers: Int = 2
+) {
+    // iOS binds the selection to @AppStorage, so the sheet opens on the mode that is
+    // actually being played; the launch menu has no running game and starts on Classic.
+    var selected    by rememberSaveable(initialMode) { mutableStateOf(initialMode) }
+    var playerCount by rememberSaveable(initialPlayers) { mutableIntStateOf(initialPlayers) }
+
+    Column(modifier = modifier) {
+        ModeGroup(
+            title    = stringResource(R.string.mode_group_classic),
+            modes    = listOf(GameMode.CLASSIC, GameMode.SPEED_RUN),
+            selected = selected,
+            onSelect = { selected = it }
+        )
+        ModeGroup(
+            title    = stringResource(R.string.mode_group_bigbox),
+            modes    = listOf(GameMode.BIG_BOX, GameMode.BIG_BOX_SPEED),
+            selected = selected,
+            onSelect = { selected = it }
+        )
+        ModeGroup(
+            title    = stringResource(R.string.mode_group_multiplayer),
+            modes    = listOf(GameMode.PASS_AND_PLAY),
+            selected = selected,
+            onSelect = { selected = it }
+        )
+        // iOS animates the section in with .spring(response: 0.3, dampingFraction: 0.8).
+        AnimatedVisibility(
+            visible = selected.isMultiplayer,
+            enter   = fadeIn() + expandVertically(),
+            exit    = fadeOut() + shrinkVertically()
+        ) {
+            PlayerCountGroup(count = playerCount, onSelect = { playerCount = it })
+        }
+        Spacer(Modifier.height(24.dp))
+        SheetPrimaryButton(
+            text        = stringResource(R.string.mode_start_game),
+            leadingPlay = true,
+            onClick     = { onStart(selected, playerCount) }
+        )
+    }
+}
+
+@Composable
+private fun ModeGroup(
+    title:    String,
+    modes:    List<GameMode>,
+    selected: GameMode,
+    onSelect: (GameMode) -> Unit
+) {
+    SectionLabel(title)
+    GroupCard {
+        modes.forEachIndexed { i, mode ->
+            if (i > 0) GroupDivider()
+            ModeRow(
+                mode       = mode,
+                isSelected = mode == selected,
+                onClick    = { onSelect(mode) }
+            )
         }
     }
 }
 
 @Composable
-private fun ModeRow(mode: GameMode, onClick: () -> Unit) {
+private fun ModeRow(mode: GameMode, isSelected: Boolean, onClick: () -> Unit) {
     val theme = LocalBoardTheme.current
     Row(
         modifier = Modifier
@@ -350,46 +451,122 @@ private fun ModeRow(mode: GameMode, onClick: () -> Unit) {
                 indication        = null,
                 onClick           = onClick
             )
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = mode.label(),
-                    color = theme.text,
-                    fontFamily = AppFont, fontWeight = FontWeight.Bold, fontSize = 17.sp
-                )
-                if (mode.hasTimer) {
-                    Spacer(Modifier.width(8.dp))
-                    TimedBadge()
-                }
-            }
+            // iOS: label(17) / caption(13), both AvenirNextCondensed-DemiBold.
+            Text(
+                text = mode.label(),
+                // iOS dims the unpicked titles rather than badging the picked one.
+                color = if (isSelected) theme.text else theme.text.copy(alpha = 0.70f),
+                fontFamily = LabelFont, fontWeight = FontWeight.SemiBold, fontSize = 17.sp
+            )
             Spacer(Modifier.height(3.dp))
             Text(
                 text = mode.descriptionLabel(),
                 color = theme.text.copy(alpha = 0.5f),
-                fontFamily = AppFont, fontWeight = FontWeight.Medium, fontSize = 13.sp
+                fontFamily = LabelFont, fontWeight = FontWeight.SemiBold, fontSize = 13.sp
             )
         }
-        Text("›", color = theme.accent, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.width(14.dp))
+        ModeRadio(isSelected)
+    }
+}
+
+/** iOS `checkmark.circle.fill` / empty `Circle().strokeBorder`, drawn from Canvas. */
+@Composable
+private fun ModeRadio(isSelected: Boolean) {
+    val theme = LocalBoardTheme.current
+    Canvas(Modifier.size(20.dp)) {
+        val r = size.minDimension / 2f
+        if (isSelected) {
+            drawCircle(theme.accent, r, center)
+            val tick = Path().apply {
+                moveTo(size.width * 0.27f, size.height * 0.52f)
+                lineTo(size.width * 0.43f, size.height * 0.68f)
+                lineTo(size.width * 0.74f, size.height * 0.33f)
+            }
+            drawPath(
+                path  = tick,
+                color = DesignTokens.buttonLabel,
+                style = Stroke(
+                    width = size.width * 0.12f,
+                    cap   = StrokeCap.Round,
+                    join  = StrokeJoin.Round
+                )
+            )
+        } else {
+            val stroke = 1.5.dp.toPx()
+            drawCircle(
+                color  = theme.text.copy(alpha = 0.22f),
+                radius = r - stroke / 2f,
+                center = center,
+                style  = Stroke(width = stroke)
+            )
+        }
+    }
+}
+
+/** iOS `playerCountSection` — only shown while Pass & Play is the selected mode. */
+@Composable
+private fun PlayerCountGroup(count: Int, onSelect: (Int) -> Unit) {
+    Column {
+        SectionLabel(stringResource(R.string.mode_players))
+        GroupCard {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                (2..4).forEach { n ->
+                    PlayerCountButton(
+                        count      = n,
+                        isSelected = n == count,
+                        onClick    = { onSelect(n) },
+                        modifier   = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun TimedBadge() {
+private fun PlayerCountButton(
+    count:      Int,
+    isSelected: Boolean,
+    onClick:    () -> Unit,
+    modifier:   Modifier = Modifier
+) {
     val theme = LocalBoardTheme.current
+    val shape = RoundedCornerShape(11.dp)
     Box(
-        Modifier
-            .clip(RoundedCornerShape(5.dp))
-            .background(theme.accent.copy(alpha = 0.18f))
-            .padding(horizontal = 7.dp, vertical = 3.dp)
+        modifier = modifier
+            .clip(shape)
+            .then(
+                if (isSelected) Modifier.background(
+                    Brush.verticalGradient(
+                        listOf(DesignTokens.buttonGradientTop, DesignTokens.buttonGradientBottom)
+                    )
+                ) else Modifier.background(Color.White.copy(alpha = 0.06f))
+            )
+            .border(
+                1.dp,
+                Color.White.copy(alpha = if (isSelected) 0.40f else 0.08f),
+                shape
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication        = null,
+                onClick           = onClick
+            )
+            .padding(vertical = 11.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = stringResource(R.string.badge_timed),
-            color = theme.accent,
-            fontSize = 10.sp, fontWeight = FontWeight.Black,
-            fontFamily = AppFont, letterSpacing = 1.sp
+            text  = stringResource(R.string.mode_player_count, count),
+            color = if (isSelected) DesignTokens.buttonLabel else theme.text.copy(alpha = 0.60f),
+            fontFamily = LabelFont, fontWeight = FontWeight.SemiBold, fontSize = 16.sp
         )
     }
 }
@@ -421,21 +598,24 @@ private fun MenuPillButton(label: String, onClick: () -> Unit) {
 
 @Composable
 private fun ModeSelectOverlay(
-    onSelect: (GameMode) -> Unit,
-    onClose:  () -> Unit
+    currentMode:    GameMode,
+    currentPlayers: Int,
+    onStart:        (GameMode, Int) -> Unit,
+    onClose:        () -> Unit
 ) {
     ThemedSheet(
-        title      = stringResource(R.string.menu_choose_mode),
-        onClose    = onClose,
-        closeLabel = stringResource(R.string.pass_cancel)
+        title        = stringResource(R.string.menu_choose_mode),
+        // iOS puts the only action — Cancel — in the top *leading* slot.
+        leadingLabel = stringResource(R.string.pass_cancel),
+        onLeading    = onClose,
+        onClose      = onClose,
+        closeLabel   = null
     ) {
-        Spacer(Modifier.height(10.dp))
-        GroupCard {
-            GameMode.entries.forEachIndexed { i, mode ->
-                if (i > 0) GroupDivider()
-                ModeRow(mode = mode, onClick = { onSelect(mode) })
-            }
-        }
+        ModeChooser(
+            onStart        = onStart,
+            initialMode    = currentMode,
+            initialPlayers = currentPlayers
+        )
     }
 }
 
@@ -450,6 +630,7 @@ private fun ActiveGameScreen(
     overlayActive:  Boolean,
     showHints:      Boolean,
     showDiceTotal:  Boolean,
+    showScoreHint:  Boolean,
     onToggle:       (Int) -> Unit,
     onRoll:         () -> Unit,
     onConfirm:      () -> Unit,
@@ -502,9 +683,9 @@ private fun ActiveGameScreen(
     }
 
     if (isLandscape && isPhone) {
-        LandscapeGameLayout(state, playerLabel, dieSize, scale, maxTileWidth, overlayActive, showHints, showDiceTotal, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
+        LandscapeGameLayout(state, playerLabel, dieSize, scale, maxTileWidth, overlayActive, showHints, showDiceTotal, showScoreHint, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
     } else {
-        PortraitGameLayout(state, playerLabel, dieSize, scale, boardMaxWidth, maxTileWidth, overlayActive, showHints, showDiceTotal, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
+        PortraitGameLayout(state, playerLabel, dieSize, scale, boardMaxWidth, maxTileWidth, overlayActive, showHints, showDiceTotal, showScoreHint, onToggle, onRoll, onConfirm, onModeSelect, onHint, onUndo, onUndoMove, onOpenSettings, onOpenStats)
     }
 }
 
@@ -519,6 +700,7 @@ private fun PortraitGameLayout(
     overlayActive: Boolean,
     showHints:     Boolean,
     showDiceTotal: Boolean,
+    showScoreHint: Boolean,
     onToggle:    (Int) -> Unit,
     onRoll:      () -> Unit,
     onConfirm:   () -> Unit,
@@ -548,7 +730,7 @@ private fun PortraitGameLayout(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        GameHeader(state, playerLabel, scale, onOpenStats, onOpenSettings, onModeSelect)
+        GameHeader(state, playerLabel, scale, showScoreHint, onOpenStats, onOpenSettings, onModeSelect)
         Spacer(Modifier.height(gap))
         // fill = false: the weight hands the tray the leftover height as a *ceiling*,
         // not a demand, so a tray already at its cap stays centred instead of stretching.
@@ -562,7 +744,8 @@ private fun PortraitGameLayout(
                 // widthIn must precede fillMaxWidth or the cap is ignored: fillMaxWidth
                 // pins min = max = the parent width first.
                 modifier     = Modifier.widthIn(max = boardMaxWidth).fillMaxWidth(),
-                maxTileWidth = maxTileWidth
+                maxTileWidth = maxTileWidth,
+                numberSize   = (DesignTokens.TILE_NUMBER_SIZE * scale).dp
             )
         }
         Spacer(Modifier.height(gap))
@@ -593,6 +776,7 @@ private fun LandscapeGameLayout(
     overlayActive: Boolean,
     showHints:     Boolean,
     showDiceTotal: Boolean,
+    showScoreHint: Boolean,
     onToggle:    (Int) -> Unit,
     onRoll:      () -> Unit,
     onConfirm:   () -> Unit,
@@ -613,13 +797,13 @@ private fun LandscapeGameLayout(
     ) {
         // The Row bounds the height, so the tray already fits itself to the shorter of
         // the two axes here — the same iOS `boardSizing` rule the portrait layout uses.
-        BoardView(state.tiles, onToggle, Modifier.weight(1f), maxTileWidth)
+        BoardView(state.tiles, onToggle, Modifier.weight(1f), maxTileWidth, (DesignTokens.TILE_NUMBER_SIZE * scale).dp)
         Column(
             modifier            = Modifier.weight(1f).fillMaxHeight().padding(vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceEvenly
         ) {
-            ScoreModeBlock(state, playerLabel, scale, onModeSelect)
+            ScoreModeBlock(state, playerLabel, scale, showScoreHint, onModeSelect)
             DiceArea(state, dieSize, overlayActive, showDiceTotal)
             GameActionButton(state, onRoll, onConfirm, onHint, onUndo, onUndoMove, showHint = showHints)
         }
@@ -635,6 +819,7 @@ private fun GameHeader(
     state:       GameState,
     playerLabel: String?,
     scale:       Float,
+    showScoreHint: Boolean,
     onStats:     () -> Unit,
     onSettings:  () -> Unit,
     onModeSelect: () -> Unit = {}
@@ -642,7 +827,7 @@ private fun GameHeader(
     // iOS portraitHeader is a bare ZStack(alignment: .top) — all of the top offset
     // lives in the caller's padding, so no extra nudge here.
     Box(Modifier.fillMaxWidth()) {
-        ScoreModeBlock(state, playerLabel, scale, onModeSelect)
+        ScoreModeBlock(state, playerLabel, scale, showScoreHint, onModeSelect)
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
@@ -660,6 +845,7 @@ private fun ScoreModeBlock(
     state: GameState,
     playerLabel: String?,
     scale: Float,
+    showScoreHint: Boolean,
     onModeSelect: () -> Unit = {}
 ) {
     val theme = LocalBoardTheme.current
@@ -692,6 +878,19 @@ private fun ScoreModeBlock(
                 )
             }
         }
+        // iOS onboarding line under the score: shown only on a player's very first
+        // game, and only until they roll (`gamesPlayed == 0 && !hasRolled`). The timed
+        // modes replace the score row entirely, so they never carry it.
+        if (showScoreHint && !state.mode.hasTimer) {
+            Spacer(Modifier.height((3 * scale).dp))
+            Text(
+                text       = stringResource(R.string.score_hint),
+                color      = theme.text.copy(alpha = 0.66f),
+                fontFamily = LabelFont, fontWeight = FontWeight.SemiBold,
+                fontSize   = (12 * scale).sp,
+                textAlign  = TextAlign.Center
+            )
+        }
         Spacer(Modifier.height(5.dp))
         ModePill(state.mode.label(), scale, onModeSelect)
     }
@@ -721,7 +920,7 @@ private fun ModePill(label: String, scale: Float, onClick: () -> Unit = {}) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy((5 * scale).dp)
         ) {
-            MiniDieIcon(tint = tint, size = (10 * scale).dp)
+            DiceFillIcon(tint = tint, size = (10 * scale).dp)
             Text(
                 text = label,
                 color = tint,
@@ -733,19 +932,6 @@ private fun ModePill(label: String, scale: Float, onClick: () -> Unit = {}) {
                 fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = (11 * scale).sp
             )
         }
-    }
-}
-
-/** Tiny filled die glyph (iOS `dice.fill`) — rounded square with punched pips. */
-@Composable
-private fun MiniDieIcon(tint: Color, size: Dp) {
-    Canvas(modifier = Modifier.size(size)) {
-        val s = this.size.width
-        drawRoundRect(color = tint, cornerRadius = CornerRadius(s * 0.24f))
-        val pipR = s * 0.10f
-        val hole = Color.Black.copy(alpha = 0.75f)
-        listOf(0.28f to 0.28f, 0.72f to 0.28f, 0.50f to 0.50f, 0.28f to 0.72f, 0.72f to 0.72f)
-            .forEach { (fx, fy) -> drawCircle(hole, pipR, Offset(s * fx, s * fy)) }
     }
 }
 
@@ -845,47 +1031,15 @@ private fun DiceArea(state: GameState, dieSize: Dp, overlayActive: Boolean, show
             val n = diceToShow.size.coerceAtLeast(1)
             // iOS lays out n `dieSize` frames with dieSize × 13/108 between them; the
             // GL surface reproduces that pitch and apparent die size (see DiceSurface).
-            val surfaceH = dieSize * DiceSurface.HEIGHT_FACTOR
-            val surfaceW = dieSize * DiceSurface.widthFactor(n)
-            Box(contentAlignment = Alignment.Center) {
-                // Soft elliptical contact shadows on the felt, one per die, drawn in
-                // Compose *behind* the GL surface — its transparent pixels let them
-                // show through (iOS `dieContactShadow`).
-                Canvas(
-                    modifier = Modifier
-                        .height(surfaceH)
-                        .width(surfaceW)
-                ) {
-                    val diePx = dieSize.toPx()
-                    for (i in 0 until n) {
-                        val cx = diePx * DiceSurface.centerFactor(i)
-                        val cy = size.height * 0.5f + diePx * (36f / 108f)
-                        val ew = diePx * (86f / 108f)
-                        val eh = diePx * (22f / 108f)
-                        drawOval(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    Color.Black.copy(alpha = 0.42f),
-                                    Color.Black.copy(alpha = 0.16f),
-                                    Color.Transparent
-                                ),
-                                center = Offset(cx, cy),
-                                radius = ew / 2f
-                            ),
-                            topLeft = Offset(cx - ew / 2f, cy - eh / 2f),
-                            size = Size(ew, eh)
-                        )
-                    }
-                }
-                Dice3DView(
-                    dice      = diceToShow,
-                    isRolling = state.isRolling,
-                    dieSize   = dieSize,
-                    modifier  = Modifier
-                        .height(surfaceH)
-                        .width(surfaceW)
-                )
-            }
+            // No contact shadow under the dice — they sit on the felt unshadowed.
+            Dice3DView(
+                dice      = diceToShow,
+                isRolling = state.isRolling,
+                dieSize   = dieSize,
+                modifier  = Modifier
+                    .height(dieSize * DiceSurface.HEIGHT_FACTOR)
+                    .width(dieSize * DiceSurface.widthFactor(n))
+            )
         }
         // iOS: dice total readout under the dice when the setting is on.
         if (showTotal && state.hasRolled && !state.isRolling) {

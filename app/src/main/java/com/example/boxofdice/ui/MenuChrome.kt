@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -38,8 +39,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.boxofdice.ui.components.PlayFillIcon
 import com.example.boxofdice.ui.theme.AppFont
 import com.example.boxofdice.ui.theme.DesignTokens
+import com.example.boxofdice.ui.theme.LabelFont
 import com.example.boxofdice.ui.theme.LocalBoardTheme
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,7 +62,8 @@ import com.example.boxofdice.ui.theme.LocalBoardTheme
 fun ThemedSheet(
     title:        String,
     onClose:      () -> Unit,
-    closeLabel:   String,
+    /** Trailing action label; null leaves the slot empty (iOS mode sheet: Cancel only). */
+    closeLabel:   String?,
     leadingLabel: String? = null,
     onLeading:    (() -> Unit)? = null,
     leadingDanger: Boolean = false,
@@ -117,7 +121,7 @@ fun ThemedSheet(
 @Composable
 private fun SheetHeader(
     title:         String,
-    closeLabel:    String,
+    closeLabel:    String?,
     onClose:       () -> Unit,
     leadingLabel:  String?,
     onLeading:     (() -> Unit)?,
@@ -146,13 +150,15 @@ private fun SheetHeader(
             fontSize   = 17.sp,
             modifier   = Modifier.align(Alignment.Center)
         )
-        TextAction(
-            text     = closeLabel,
-            color    = theme.accent,
-            bold     = true,
-            onClick  = onClose,
-            modifier = Modifier.align(Alignment.CenterEnd)
-        )
+        if (closeLabel != null) {
+            TextAction(
+                text     = closeLabel,
+                color    = theme.accent,
+                bold     = true,
+                onClick  = onClose,
+                modifier = Modifier.align(Alignment.CenterEnd)
+            )
+        }
     }
 }
 
@@ -184,15 +190,18 @@ fun TextAction(
     }
 }
 
-/** Uppercase section label sitting above a [GroupCard], matching iOS `section()`. */
+/**
+ * Uppercase section label sitting above a [GroupCard], matching iOS `section()` —
+ * AvenirNextCondensed-Heavy, which is [LabelFont] here, not the rounded tile face.
+ */
 @Composable
 fun SectionLabel(text: String) {
     val theme = LocalBoardTheme.current
     Text(
         text          = text.uppercase(),
         color         = theme.text.copy(alpha = 0.58f),
-        fontFamily    = AppFont,
-        fontWeight    = FontWeight.Black,
+        fontFamily    = LabelFont,
+        fontWeight    = FontWeight.Bold,
         fontSize      = 12.sp,
         letterSpacing = 1.3.sp,
         modifier      = Modifier.padding(start = 4.dp, top = 18.dp, bottom = 8.dp)
@@ -256,9 +265,12 @@ fun IosToggle(checked: Boolean, onChange: (Boolean) -> Unit) {
     }
 }
 
-/** Full-width amber sheet button (Start Game / primary), iOS `ModeStartButtonStyle`. */
+/**
+ * Full-width amber sheet button (Start Game / primary), iOS `ModeStartButtonStyle`.
+ * [leadingPlay] draws the iOS `play.fill` glyph ahead of the label, 10dp apart.
+ */
 @Composable
-fun SheetPrimaryButton(text: String, leading: String? = null, onClick: () -> Unit) {
+fun SheetPrimaryButton(text: String, leadingPlay: Boolean = false, onClick: () -> Unit) {
     val shape = RoundedCornerShape(DesignTokens.cornerRadiusMedium)
     Box(
         modifier = Modifier
@@ -274,20 +286,19 @@ fun SheetPrimaryButton(text: String, leading: String? = null, onClick: () -> Uni
             ),
         contentAlignment = Alignment.Center
     ) {
-        Box {
-            if (leading != null) {
-                Text(
-                    text = "$leading  $text",
-                    color = DesignTokens.buttonLabel,
-                    fontFamily = AppFont, fontWeight = FontWeight.Black, fontSize = 19.sp
-                )
-            } else {
-                Text(
-                    text = text,
-                    color = DesignTokens.buttonLabel,
-                    fontFamily = AppFont, fontWeight = FontWeight.Black, fontSize = 19.sp
-                )
+        // iOS startButton: HStack(spacing: 10) { play.fill 16pt; label button(19) }.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(if (leadingPlay) 10.dp else 0.dp)
+        ) {
+            if (leadingPlay) {
+                PlayFillIcon(tint = DesignTokens.buttonLabel, size = 16.dp)
             }
+            Text(
+                text = text,
+                color = DesignTokens.buttonLabel,
+                fontFamily = LabelFont, fontWeight = FontWeight.SemiBold, fontSize = 19.sp
+            )
         }
     }
 }
@@ -328,14 +339,113 @@ fun StatRow(label: String, value: String) {
         Text(
             text = label,
             color = theme.text.copy(alpha = 0.82f),
-            fontFamily = AppFont, fontWeight = FontWeight.Medium, fontSize = 16.sp
+            fontFamily = LabelFont, fontWeight = FontWeight.SemiBold, fontSize = 16.sp
         )
         androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
         Text(
             text = value,
             color = theme.text,
-            fontFamily = AppFont, fontWeight = FontWeight.Black, fontSize = 16.sp,
+            fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = 16.sp,
             textAlign = TextAlign.End
+        )
+    }
+}
+/**
+ * Destructive confirmation, standing in for the iOS `confirmationDialog`: a themed
+ * card over a scrim with the dangerous action in red. No Material AlertDialog, whose
+ * chrome would be the one Android-looking surface in an otherwise iOS-shaped app.
+ */
+@Composable
+fun ConfirmDialog(
+    title:     String,
+    confirm:   String,
+    cancel:    String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val theme = LocalBoardTheme.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.62f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication        = null,
+                onClick           = onDismiss
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 320.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp)
+                .clip(RoundedCornerShape(DesignTokens.cornerRadiusLarge))
+                .background(Brush.verticalGradient(theme.background.map { it.copy(alpha = 0.98f) }))
+                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(DesignTokens.cornerRadiusLarge))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication        = null,
+                    onClick           = {}
+                )
+                .padding(horizontal = 22.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text       = title,
+                color      = theme.text,
+                fontFamily = LabelFont,
+                fontWeight = FontWeight.Bold,
+                fontSize   = 17.sp,
+                textAlign  = TextAlign.Center
+            )
+            androidx.compose.foundation.layout.Spacer(Modifier.height(18.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                DialogButton(
+                    text     = cancel,
+                    color    = theme.text.copy(alpha = 0.80f),
+                    onClick  = onDismiss,
+                    modifier = Modifier.weight(1f)
+                )
+                DialogButton(
+                    text     = confirm,
+                    color    = Color(0.90f, 0.30f, 0.26f),
+                    onClick  = onConfirm,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DialogButton(
+    text:     String,
+    color:    Color,
+    onClick:  () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = modifier
+            .height(44.dp)
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.07f))
+            .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication        = null,
+                onClick           = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontFamily = LabelFont, fontWeight = FontWeight.Bold, fontSize = 16.sp
         )
     }
 }

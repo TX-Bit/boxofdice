@@ -120,6 +120,13 @@ object DesignTokens {
 
     const val TILE_ASPECT          = 1.5f   // height = width * 1.5
     const val TILE_TILT_DEGREES    = 7f     // board 3D rake
+
+    /**
+     * iOS `numberFontSize: 27 * scale`, passed into every tile regardless of how wide
+     * the tile came out — so a narrow phone gets a numeral filling ~0.58 of the tile
+     * where a proportional size would leave it looking undersized.
+     */
+    const val TILE_NUMBER_SIZE     = 27f
     val gridSpacing      = 11.dp            // vertical gap between tile rows
     val recessPaddingH   = 10.dp           // tile grid → recess wall, horizontal
     val recessPaddingV   = 16.dp           // tile grid → recess wall, vertical

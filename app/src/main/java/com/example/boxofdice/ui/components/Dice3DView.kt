@@ -33,33 +33,31 @@ import kotlin.random.Random
  *
  * Public surface mirrors [DiceView] so it is a drop-in replacement:
  *  - while [dice] are rolling the cubes tumble continuously,
- *  - when rolling stops each cube settles, bringing the rolled value's face to camera.
+ *  - when rolling stops each cube settles with the rolled value's face pointing up,
+ *    read from above at an angle, exactly as the iOS dice come to rest.
  *
- * On-device verification note: the per-value settle orientation signs ([faceTargets])
- * are the thing to eyeball.
+ * On-device verification note: the per-value settle orientation ([faceTargets]) is the
+ * thing to eyeball — a wrong sign shows the wrong number on top.
  */
 /**
  * Layout geometry for the shared GL dice surface, derived so the row reproduces the
  * iOS one exactly.
  *
- * iOS gives each die its own `dieSize` SCNView frame and puts `dieSize * 13/108`
- * between frames ([SPACING_FACTOR]). Inside that frame its camera (38° FOV at
- * distance 2.74) renders the 1.0-unit cube at 1.0/1.884 ≈ 0.531 of the frame.
+ * iOS gives each die its own square `dieSize` SCNView frame and puts `dieSize * 13/108`
+ * between frames ([SPACING_FACTOR]). The renderer reproduces that by drawing every die
+ * with the *same* centred camera and then sliding it sideways in clip space, so each
+ * one is projected exactly as iOS projects it — no die further from the row's centre
+ * gets a more oblique view than iOS would give it.
  *
- * Our renderer draws every die into one surface with a 30° vertical FOV at distance
- * 4.11, so the 1.2-unit cube covers 1.2/2.204 ≈ 0.544 of the surface *height*.
- * Matching the two gives [HEIGHT_FACTOR] = 0.531/0.544, and [WORLD_SPACING] is the
- * cube-centre distance that maps back to one iOS frame pitch.
+ * With the camera geometry matching iOS's (see `onSurfaceChanged`), the surface height
+ * is one die frame, so [HEIGHT_FACTOR] is 1.
  */
 object DiceSurface {
     /** iOS `diceSpacingFactor`. */
     const val SPACING_FACTOR = 13f / 108f
 
-    /** Surface height ÷ die frame, so our cube lands at the iOS apparent size. */
-    const val HEIGHT_FACTOR = 0.974f
-
-    /** Cube-centre distance in world units — one iOS frame pitch. */
-    const val WORLD_SPACING = 2.531f
+    /** Surface height ÷ die frame — the camera now matches iOS's exactly. */
+    const val HEIGHT_FACTOR = 1f
 
     /** Row width ÷ die frame for [count] dice. */
     fun widthFactor(count: Int): Float = count + SPACING_FACTOR * (count - 1)
@@ -84,6 +82,9 @@ fun Dice3DView(
         },
         update = { view ->
             (view.renderer as? DiceGLRenderer)?.update(dice, isRolling)
+            // The render thread idles once the dice have settled, so it has to be told
+            // that there is something new to draw.
+            view.requestRender()
         },
         // Stop the render thread the moment the composable leaves, rather than waiting
         // for the view to be detached.
@@ -95,10 +96,29 @@ fun Dice3DView(
 // Renderer
 // ─────────────────────────────────────────────────────────────────────────────
 
-private class DiceGLRenderer : GLSurfaceView.Renderer {
+/** Cube edge in world units; the camera rig is scaled by it to match iOS's 1.0 die. */
+private const val CUBE_EDGE = 1.2f
+
+private class DiceGLRenderer : OnDemandRenderer {
 
     @Volatile private var values: IntArray = intArrayOf(1, 1)
     @Volatile private var rolling = false
+
+    /** Set when the scene changed from outside; cleared by the frame that draws it. */
+    @Volatile private var dirty = true
+
+    /** Vsync timestamp of the frame being drawn, published by the render thread. */
+    private var frameNanos = 0L
+
+    /** True while any die is still tumbling or spinning down onto its face. */
+    private var settling = false
+
+    override val isAnimating: Boolean
+        get() = rolling || settling || dirty
+
+    override fun onFrameTime(nanos: Long) {
+        frameNanos = nanos
+    }
 
     private var program = 0
     private var aPos = 0
@@ -110,10 +130,8 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
     private var uTex = 0
     private var texId = 0
 
-    private lateinit var posBuf: FloatBuffer
-    private lateinit var uvBuf: FloatBuffer
-    private lateinit var normBuf: FloatBuffer
-    private lateinit var idxBuf: ShortBuffer
+    /** Static geometry, uploaded once: position, uv, normal, index. */
+    private val vbo = IntArray(4)
     private var indexCount = 0
 
     private val proj = FloatArray(16)
@@ -121,6 +139,7 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
     private val model = FloatArray(16)
     private val mvp = FloatArray(16)
     private val tmp = FloatArray(16)
+    private val clipShift = FloatArray(16)
 
     // Per-die animation state (rotation in degrees about X and Y).
     private var rotX = FloatArray(2)
@@ -146,6 +165,7 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
             values = v
         }
         rolling = isRolling
+        dirty = true
     }
 
     private fun ensureCapacity(n: Int) {
@@ -180,17 +200,27 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         GLES20.glViewport(0, 0, width, height)
         val aspect = width.toFloat() / height.coerceAtLeast(1)
-        Matrix.perspectiveM(proj, 0, 30f, aspect, 1f, 20f)
-        // View from slightly up and to the right so a settled die shows its value face
-        // PLUS a sliver of the top and right faces — the 3D depth the iOS dice have at
-        // rest, instead of a flat dead-on face. lookAt stays at the row centre so the
-        // dice remain horizontally centred.
-        Matrix.setLookAtM(view, 0, 0.85f, 1.0f, 3.9f, 0f, 0f, 0f, 0f, 1f, 0f)
+        // iOS: 38° camera at (0.78, 1.96, 1.72) looking at (0, -0.02, 0) — high above
+        // and in front, so a die at rest is read from above at roughly 46°. Its cube is
+        // 1.0 unit against ours at CUBE_EDGE, so the whole rig scales by that ratio and
+        // the die then covers exactly the same fraction of its frame as on iOS.
+        Matrix.perspectiveM(proj, 0, 38f, aspect, 1f, 20f)
+        val k = CUBE_EDGE
+        Matrix.setLookAtM(
+            view, 0,
+            0.78f * k, 1.96f * k, 1.72f * k,
+            0f, -0.02f * k, 0f,
+            0f, 1f, 0f
+        )
     }
 
     override fun onDrawFrame(gl: GL10?) {
-        val now = System.nanoTime()
-        val dt = ((now - lastNanos) / 1_000_000_000.0).toFloat().coerceIn(0f, 0.05f)
+        // Cleared first: an update() landing mid-frame must still win another frame.
+        dirty = false
+        val now = if (frameNanos != 0L) frameNanos else System.nanoTime()
+        // Two frames' worth is the cap: the first frame after the renderer has been
+        // idle would otherwise jump the dice by whatever the pause lasted.
+        val dt = ((now - lastNanos) / 1_000_000_000.0).toFloat().coerceIn(0f, 0.034f)
         lastNanos = now
         step(dt)
 
@@ -200,44 +230,63 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texId)
         GLES20.glUniform1i(uTex, 0)
-        GLES20.glUniform3f(uLight, -0.35f, 0.55f, 0.75f)
+        // iOS key light sits at (-1.9, 2.35, 1.45) — mostly overhead, which is what
+        // lifts the upward-facing value now that the die rests face-up.
+        GLES20.glUniform3f(uLight, -0.567f, 0.701f, 0.433f)
 
+        // Server-side geometry: with client-side arrays the driver had to re-read and
+        // validate every vertex of every die on every frame, which is most of what the
+        // GPU was being asked to do for a scene of two cubes.
         GLES20.glEnableVertexAttribArray(aPos)
-        GLES20.glVertexAttribPointer(aPos, 3, GLES20.GL_FLOAT, false, 0, posBuf)
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo[0])
+        GLES20.glVertexAttribPointer(aPos, 3, GLES20.GL_FLOAT, false, 0, 0)
         GLES20.glEnableVertexAttribArray(aUv)
-        GLES20.glVertexAttribPointer(aUv, 2, GLES20.GL_FLOAT, false, 0, uvBuf)
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo[1])
+        GLES20.glVertexAttribPointer(aUv, 2, GLES20.GL_FLOAT, false, 0, 0)
         GLES20.glEnableVertexAttribArray(aNormal)
-        GLES20.glVertexAttribPointer(aNormal, 3, GLES20.GL_FLOAT, false, 0, normBuf)
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo[2])
+        GLES20.glVertexAttribPointer(aNormal, 3, GLES20.GL_FLOAT, false, 0, 0)
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vbo[3])
 
         val n = values.size
-        // Lay the dice out along X, centered, one iOS frame pitch apart — see
-        // DiceSurface, which sizes the surface to the same geometry.
-        val spacing = DiceSurface.WORLD_SPACING
-        val x0 = -(n - 1) * spacing / 2f
+        // Every die is modelled at the origin and projected by the one centred camera,
+        // then slid sideways in clip space — the same picture iOS gets from giving each
+        // die its own square SCNView. Offsetting them in *world* space instead would
+        // hand the outer dice a more oblique view than iOS ever shows.
+        val rowFactor = DiceSurface.widthFactor(n)
         for (i in 0 until n) {
             Matrix.setIdentityM(model, 0)
-            Matrix.translateM(model, 0, x0 + i * spacing, hopY[i], 0f)
-            // Slight per-die in-plane roll — the iOS dice never rest perfectly
-            // square (stableYaw ±12°/16°); a small screen-space tilt sells that.
-            Matrix.rotateM(model, 0, restTilt(i), 0f, 0f, 1f)
+            Matrix.translateM(model, 0, 0f, hopY[i], 0f)
+            // iOS composes the rest pose as `yaw * bringFaceUp`: the value's face is
+            // turned to point straight up, then the die is spun about the vertical by a
+            // few degrees so it never sits perfectly square to the camera.
+            Matrix.rotateM(model, 0, restYaw(i, values[i]), 0f, 1f, 0f)
             Matrix.rotateM(model, 0, rotX[i], 1f, 0f, 0f)
             Matrix.rotateM(model, 0, rotY[i], 0f, 1f, 0f)
 
             Matrix.multiplyMM(tmp, 0, view, 0, model, 0)
             Matrix.multiplyMM(mvp, 0, proj, 0, tmp, 0)
+            // Clip-space x translation: x' = x + dx·w, i.e. a pure NDC slide.
+            Matrix.setIdentityM(clipShift, 0)
+            clipShift[12] = (DiceSurface.centerFactor(i) / rowFactor) * 2f - 1f
+            Matrix.multiplyMM(tmp, 0, clipShift, 0, mvp, 0)
+            System.arraycopy(tmp, 0, mvp, 0, 16)
             GLES20.glUniformMatrix4fv(uMvp, 1, false, mvp, 0)
             GLES20.glUniformMatrix4fv(uModel, 1, false, model, 0)
-            GLES20.glDrawElements(GLES20.GL_TRIANGLES, indexCount, GLES20.GL_UNSIGNED_SHORT, idxBuf)
+            GLES20.glDrawElements(GLES20.GL_TRIANGLES, indexCount, GLES20.GL_UNSIGNED_SHORT, 0)
         }
 
         GLES20.glDisableVertexAttribArray(aPos)
         GLES20.glDisableVertexAttribArray(aUv)
         GLES20.glDisableVertexAttribArray(aNormal)
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0)
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0)
     }
 
     private fun step(dt: Float) {
         val n = values.size
         ensureCapacity(n)
+        settling = false
         timeAcc += dt
         if (rolling) {
             if (!wasRolling) {
@@ -279,6 +328,7 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
                         rotY[i] = ty
                         hopY[i] = 0f
                     } else {
+                        settling = true
                         val p = settleT[i]
                         val e = easeOutCubic(p)
                         rotX[i] = startX[i] + (targX[i] - startX[i]) * e
@@ -305,12 +355,9 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
         wasRolling = rolling
     }
 
-    /** Small deterministic in-plane resting roll per die (iOS stableYaw feel). */
-    private fun restTilt(i: Int): Float = when (i % 3) {
-        0 -> -6f
-        1 -> 7f
-        else -> -4f
-    }
+    /** iOS `stableYaw(for:)` — degrees about the vertical once the die has settled. */
+    private fun restYaw(i: Int, value: Int): Float =
+        (if (i == 0) -12f else 16f) + value * 5f
 
     private fun easeOutCubic(t: Float): Float {
         val u = 1f - t
@@ -318,20 +365,20 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
     }
 
     /**
-     * Degrees (rotX, rotY) that bring the given value's face toward the camera.
+     * Degrees (rotX, rotY) that turn the given value's face to point straight **up**,
+     * the way a thrown die actually comes to rest — iOS `bringFaceUp`. The pair is
+     * applied as Rx(rotX)·Ry(rotY), so rotY turns the face into the ZY plane first and
+     * rotX then lifts it to +Y.
      *
-     * Right-hand rule about each axis (OpenGL/Matrix.rotateM convention): a
-     * POSITIVE rotation about X carries +Y onto +Z, so the top face (3) needs
-     * +90° and the bottom face (4) −90° — these were swapped originally, which
-     * made every rolled 3 display as 4 and vice versa.
+     * Atlas face normals are +Z=1, +X=2, +Y=3, −Y=4, −X=5, −Z=6.
      */
     private fun faceTargets(value: Int): Pair<Float, Float> = when (value) {
-        1 -> 0f to 0f       // +Z front
-        2 -> 0f to -90f     // +X right → front
-        3 -> 90f to 0f      // +Y top → front
-        4 -> -90f to 0f     // -Y bottom → front
-        5 -> 0f to 90f      // -X left → front
-        else -> 0f to 180f  // 6 → -Z back → front
+        1 -> -90f to 0f     // +Z front → up
+        2 -> 90f to 90f     // +X right → back → up
+        3 -> 0f to 0f       // +Y already up
+        4 -> 180f to 0f     // -Y bottom → up
+        5 -> -90f to 90f    // -X left → front → up
+        else -> 90f to 0f   // 6 → -Z back → up
     }
 
     /** Returns target +k*360 closest to current, so the spring doesn't unwind turns. */
@@ -349,10 +396,10 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
     // the edges/corners) with smooth outward normals — so the dice read as the
     // friendly rounded cubes the iOS app uses rather than sharp blocks.
     private fun buildGeometry() {
-        val s = 0.60f            // half-size
+        val s = CUBE_EDGE / 2f   // half-size
         val r = 0.246f           // corner radius — iOS chamferRadius 0.205 × edge
         val inner = s - r
-        val seg = 8              // subdivisions per face edge (smoothness)
+        val seg = 12             // subdivisions per face edge (smoothness)
         val cellW = 1f / 6f
         val inset = 0.012f
 
@@ -390,10 +437,21 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
                     var nx = px - qx; var ny = py - qy; var nz = pz - qz
                     val len = sqrt(nx * nx + ny * ny + nz * nz)
                     if (len > 1e-5f) { nx /= len; ny /= len; nz /= len }
-                    pos.add(qx + r * nx); pos.add(qy + r * ny); pos.add(qz + r * nz)
+                    val vx = qx + r * nx
+                    val vy = qy + r * ny
+                    val vz = qz + r * nz
+                    pos.add(vx); pos.add(vy); pos.add(vz)
                     nrm.add(nx); nrm.add(ny); nrm.add(nz)
-                    uv.add(u0 + (u1 - u0) * (i.toFloat() / seg))
-                    uv.add((1f - inset) - (1f - 2f * inset) * (j.toFloat() / seg))
+                    // Texture by where the vertex actually ended up on the face plane,
+                    // not by its grid index: the rounding pulls the outer ring inwards,
+                    // so an index-based UV stretched the atlas over the rim and left the
+                    // outermost pips visibly squashed against the die's edges.
+                    val fuOut = vx * face.du[0] + vy * face.du[1] + vz * face.du[2]
+                    val fvOut = vx * face.dv[0] + vy * face.dv[1] + vz * face.dv[2]
+                    val tu = (fuOut / (2f * s) + 0.5f).coerceIn(0f, 1f)
+                    val tv = (fvOut / (2f * s) + 0.5f).coerceIn(0f, 1f)
+                    uv.add(u0 + (u1 - u0) * tu)
+                    uv.add((1f - inset) - (1f - 2f * inset) * (1f - tv))
                 }
             }
             val row = seg + 1
@@ -410,11 +468,23 @@ private class DiceGLRenderer : GLSurfaceView.Renderer {
             base += row * row
         }
 
-        posBuf = floatBuf(pos.toFloatArray())
-        uvBuf = floatBuf(uv.toFloatArray())
-        normBuf = floatBuf(nrm.toFloatArray())
-        idxBuf = shortBuf(idx.toShortArray())
         indexCount = idx.size
+        GLES20.glGenBuffers(4, vbo, 0)
+        uploadArray(vbo[0], floatBuf(pos.toFloatArray()), pos.size * 4)
+        uploadArray(vbo[1], floatBuf(uv.toFloatArray()), uv.size * 4)
+        uploadArray(vbo[2], floatBuf(nrm.toFloatArray()), nrm.size * 4)
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vbo[3])
+        GLES20.glBufferData(
+            GLES20.GL_ELEMENT_ARRAY_BUFFER, idx.size * 2, shortBuf(idx.toShortArray()),
+            GLES20.GL_STATIC_DRAW
+        )
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0)
+        GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0)
+    }
+
+    private fun uploadArray(id: Int, data: FloatBuffer, sizeBytes: Int) {
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, id)
+        GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, sizeBytes, data, GLES20.GL_STATIC_DRAW)
     }
 
     // ── Pip atlas (white rounded faces with black pips, drawn at runtime) ─────────
