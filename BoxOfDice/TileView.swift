@@ -10,14 +10,26 @@ struct TileView: View {
     let isOpen: Bool
     let isSelected: Bool
     let isEnabled: Bool
+    /// True when this tile is selected AND the current selection's total
+    /// exactly matches the dice roll — distinct from `isSelected` alone, so
+    /// a wrong-sum selection never reads as "accepted" at the tile level
+    /// either (only the confirm button/status text distinguished this
+    /// before). Drives a brief, restrained edge highlight rather than a
+    /// second glow color.
+    var isMatched: Bool = false
     // Open-tile numeral size; the closed-tile numeral derives from it. Defaults to
     // the iPhone size so larger layouts (iPad) can pass a scaled-up value.
     var numberFontSize: CGFloat = 27
+    /// Staggers this tile's close animation start when several tiles close
+    /// from the same confirmed move — purely cosmetic; the engine has
+    /// already closed the tile synchronously regardless of this delay.
+    var closeDelay: TimeInterval = 0
     let onTap: () -> Void
 
     @State private var visualIsOpen = true
     @State private var showsNumber = true
     @State private var flipTask: Task<Void, Never>?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: onTap) {
@@ -26,7 +38,7 @@ struct TileView: View {
 
                 tileFace
                     .rotation3DEffect(
-                        .degrees(visualIsOpen ? 0 : -8),
+                        .degrees(reduceMotion ? 0 : (visualIsOpen ? 0 : -8)),
                         axis: (x: 1, y: 0, z: 0),
                         anchor: .bottom,
                         perspective: 0.20
@@ -42,11 +54,21 @@ struct TileView: View {
             visualIsOpen = isOpen
             showsNumber = isOpen
         }
-        .onChange(of: isOpen, perform: { newValue in
+        .onChange(of: isOpen) { _, newValue in
             animateOpenState(newValue)
-        })
+        }
+        .onDisappear { flipTask?.cancel() }
         .animation(.spring(response: 0.24, dampingFraction: 0.62), value: isSelected)
-        .accessibilityLabel(isOpen ? "Tile \(number)" : "Closed tile \(number)")
+        // Must go through L10n with the keys that actually exist in the
+        // .strings files. The previous literals produced the keys
+        // "Tile %lld" / "Closed tile %lld", which are translated nowhere, so
+        // VoiceOver read every tile in English in all six other languages
+        // (docs/KIELITARKISTUS_2026-09-10.md).
+        .accessibilityLabel(
+            isOpen
+                ? L10n.format("Tile %lld, open", number)
+                : L10n.format("Tile %lld, closed", number)
+        )
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -187,7 +209,12 @@ struct TileView: View {
                 .opacity(showsNumber ? 1 : 0)
                 .scaleEffect(showsNumber ? 1 : 0.86)
 
-            // Selection ring + outer glow
+            // Selection ring — clearly distinct without a strong glow. A
+            // selection whose total doesn't yet match the roll gets a thin,
+            // calm ring; once it matches exactly, the ring briefly sharpens
+            // and brightens (the "edge highlight"), then settles to a still
+            // visible but restrained state — never a wrong sum showing as
+            // "accepted" the way a bright, unconditional glow would.
             if isSelected {
                 RoundedRectangle(cornerRadius: 11)
                     .strokeBorder(
@@ -196,9 +223,13 @@ struct TileView: View {
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 2.5
+                        lineWidth: isMatched ? 2.5 : 1.75
                     )
-                    .shadow(color: Color(red: 0.18, green: 0.88, blue: 1.0).opacity(0.72), radius: 9, x: 0, y: 0)
+                    .shadow(
+                        color: Color(red: 0.18, green: 0.88, blue: 1.0).opacity(isMatched ? 0.40 : 0.20),
+                        radius: isMatched ? 4 : 2, x: 0, y: 0
+                    )
+                    .animation(.easeOut(duration: 0.18), value: isMatched)
             }
         }
     }
@@ -325,6 +356,18 @@ struct TileView: View {
     private func animateOpenState(_ newValue: Bool) {
         flipTask?.cancel()
 
+        // Reduce Motion: a calm, short cross-fade — no 3D pivot, no stagger
+        // delay — instead of the spin/flap. The engine's tile state is
+        // already correct the instant this fires either way; only the
+        // cosmetic transition changes.
+        if reduceMotion {
+            withAnimation(.easeOut(duration: 0.12)) {
+                visualIsOpen = newValue
+                showsNumber = newValue
+            }
+            return
+        }
+
         if newValue {
             showsNumber = false
             withAnimation(.interpolatingSpring(stiffness: 270, damping: 20)) {
@@ -339,12 +382,19 @@ struct TileView: View {
                 }
             }
         } else {
-            // Physical flap: number fades fast, tile pivots forward with a spring bounce
-            withAnimation(.easeOut(duration: 0.07)) {
-                showsNumber = false
-            }
-
+            // Physical flap: number fades fast, tile pivots forward with a
+            // spring bounce. `closeDelay` staggers when this starts when
+            // several tiles close from the same confirmed move — capped by
+            // the caller so a large close (e.g. Big Box) never drags the
+            // whole flap out.
             flipTask = Task { @MainActor in
+                if closeDelay > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(closeDelay * 1_000_000_000))
+                    guard !Task.isCancelled else { return }
+                }
+                withAnimation(.easeOut(duration: 0.07)) {
+                    showsNumber = false
+                }
                 try? await Task.sleep(nanoseconds: 50_000_000)
                 guard !Task.isCancelled else { return }
                 withAnimation(.spring(response: 0.22, dampingFraction: 0.70)) {

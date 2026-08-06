@@ -5,7 +5,9 @@
 
 import SwiftUI
 
-private struct WatchGameplayLayoutMetrics {
+// Internal (not private) so its height-budget math is directly unit-testable
+// — see WatchLayoutBudgetTests.swift.
+struct WatchGameplayLayoutMetrics {
     let size: CGSize
     let showsUtilityRow: Bool
 
@@ -48,10 +50,23 @@ private struct WatchGameplayLayoutMetrics {
         return max(1, compactWidth)
     }
 
+    /// Rows actually on screen right now: the utility (hint/undo) row only
+    /// occupies space — and must only be *budgeted* space — when this
+    /// session could ever show it (`showsUtilityRow`, from
+    /// `reserveUtilitySpace`); the gameplay VStack mirrors this by only
+    /// including that row at all when the same condition holds (see `body`).
+    /// Reserving space for a row that's never rendered previously forced the
+    /// board shorter than it needed to be.
+    private var reservedRowCount: CGFloat { showsUtilityRow ? 3 : 2 }
+
     func boardHeight(columns: Int, rows: Int) -> CGFloat {
-        let utility = utilityHeight + verticalSpacing
+        let utility = showsUtilityRow ? (utilityHeight + verticalSpacing) : 0
         let reserved = topPadding + bottomPadding + headerHeight + diceRowHeight
-                     + primaryHeight + utility + verticalSpacing * 3
+                     + primaryHeight + utility + verticalSpacing * reservedRowCount
+        // However small the remaining space is, the board must never claim
+        // more than this — doing so pushes the primary action button (and,
+        // on the smallest screens, the utility row) outside the visible
+        // area instead of just rendering undersized tiles.
         let available = max(1, size.height - reserved)
         let width = boardWidth(columns: columns)
         let tileWidth = (width - (trayInset + tileInset) * 2
@@ -59,17 +74,9 @@ private struct WatchGameplayLayoutMetrics {
         let widthBasedHeight = tileWidth * CGFloat(rows)
                              + CGFloat(rows - 1) * tileSpacing
                              + (trayInset + tileInset) * 2
-        let minimumTileHeight = min(max(19, size.height * 0.102), 27)
-        let minimumBoardHeight = minimumTileHeight * CGFloat(rows)
-                               + CGFloat(rows - 1) * tileSpacing
-                               + (trayInset + tileInset) * 2
         let idealHeight = min(widthBasedHeight, size.height * 0.50)
 
-        if available >= minimumBoardHeight {
-            return min(idealHeight, available)
-        }
-
-        return min(idealHeight, minimumBoardHeight)
+        return min(idealHeight, available)
     }
 }
 
@@ -92,40 +99,79 @@ struct WatchContentView: View {
     @AppStorage(SettingsStorageKey.soundsEnabled)       private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed)  private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
     @AppStorage(SettingsStorageKey.showHints)           private var showHints = true
+    // BOD-012: new installs show the dice sum by default; a previous user's
+    // explicit `false` still wins (@AppStorage only falls back to this when
+    // the key was never written). Same default as iOS.
+    @AppStorage(SettingsStorageKey.showDiceTotal)       private var showDiceTotal = true
     @AppStorage("hasSelectedInitialGameMode") private var hasSelectedInitialGameMode = false
+    @AppStorage(SettingsStorageKey.onboardingCompletedOrSkipped) private var onboardingCompletedOrSkipped = false
+
+    // BOD-012: `OnboardingContext` is the shared type from
+    // OnboardingViewModel.swift (same rule on both platforms) — kept entirely
+    // separate from the normal game's state.
+    @State private var onboardingContext: OnboardingContext?
 
     @AppStorage(StatisticsStorageKey.gamesPlayed)       private var gamesPlayed = 0
     @AppStorage(StatisticsStorageKey.gamesWon)          private var gamesWon = 0
-    @AppStorage(StatisticsStorageKey.bestScore)         private var bestScore = 0
-    @AppStorage(StatisticsStorageKey.totalScore)        private var totalScore = 0
     @AppStorage(StatisticsStorageKey.perfectClears)     private var perfectClears = 0
     @AppStorage(StatisticsStorageKey.currentWinStreak)  private var currentWinStreak = 0
     @AppStorage(StatisticsStorageKey.bestWinStreak)     private var bestWinStreak = 0
-    @AppStorage(StatisticsStorageKey.winningScoreTotal) private var winningScoreTotal = 0
-    @AppStorage(StatisticsStorageKey.losingScoreTotal)  private var losingScoreTotal = 0
     @AppStorage(StatisticsStorageKey.losses)            private var losses = 0
     @AppStorage(StatisticsStorageKey.longestGameTurns)  private var longestGameTurns = 0
     @AppStorage(StatisticsStorageKey.shortestClearTurns) private var shortestClearTurns = 0
     @AppStorage(StatisticsStorageKey.remainingTileCounts) private var remainingTileCounts = ""
+    @AppStorage(StatisticsStorageKey.bestScoreQuickGame)    private var bestScoreQuickGame = 0
     @AppStorage(StatisticsStorageKey.bestScoreClassic)      private var bestScoreClassic = 0
     @AppStorage(StatisticsStorageKey.bestScoreSpeedRun)     private var bestScoreSpeedRun = 0
     @AppStorage(StatisticsStorageKey.bestScoreBigBox)       private var bestScoreBigBox = 0
     @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed)  private var bestScoreBigBoxSpeed = 0
 
+    // Per-mode score totals/counts (BOD-005) — see GameStatistics.swift/
+    // WatchGameCore.swift's StatisticsStorageKey for why these replace the
+    // old combined totalScore/bestScore/winningScoreTotal/losingScoreTotal.
+    @AppStorage(StatisticsStorageKey.modeScoreTotalQuickGame) private var modeScoreTotalQuickGame = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalClassic) private var modeScoreTotalClassic = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalSpeedRun) private var modeScoreTotalSpeedRun = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalBigBox) private var modeScoreTotalBigBox = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalBigBoxSpeed) private var modeScoreTotalBigBoxSpeed = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountQuickGame) private var modeScoreCountQuickGame = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountClassic) private var modeScoreCountClassic = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountSpeedRun) private var modeScoreCountSpeedRun = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountBigBox) private var modeScoreCountBigBox = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountBigBoxSpeed) private var modeScoreCountBigBoxSpeed = 0
+
+    // Guards against recording the same finished game's stats twice.
+    // Reset whenever a fresh game begins. See GameResultRecordGuard.swift
+    // (R3 in docs/KORJAUSTEN_TARKISTUS_2026-09-09.md).
+    @State private var resultRecordGuard = GameResultRecordGuard()
+
+    @Environment(\.scenePhase) private var scenePhase
+
     // MARK: - Computed
 
     private var activeThemeName: GameThemeName {
-        GameThemeName(rawValue: watchThemeRaw) ?? .classicWood
+        GameThemeName(rawValue: watchThemeRaw) ?? .greenFelt
     }
     private var theme: GameTheme            { GameTheme.palette(for: activeThemeName) }
     private var currentGameMode: GameMode {
-        let mode = GameMode(rawValue: gameModeRaw) ?? .classic
-        return (mode == .bigBox || mode == .bigBoxSpeed) ? .classic : mode
+        GameMode.normalizedForWatch(rawValue: gameModeRaw)
     }
-    private var currentSettings: GameSettings { GameSettings.from(mode: currentGameMode) }
+    private var currentSettings: GameSettings {
+        GameSettings.from(mode: currentGameMode, diceMode: currentGameMode.diceMode, moveRule: .anyCombination)
+    }
     private var diceAnimationSpeed: DiceAnimationSpeed { DiceAnimationSpeed(rawValue: diceAnimationSpeedRawValue) ?? .normal }
 
-    private var colCount: Int { viewModel.tiles.count > 12 ? 6 : 4 }
+    // 9 tiles (Quick Game) reads as a 3x3 grid; every other Watch-supported
+    // mode is 12 tiles as 4x3. (Big Box's 18 tiles never reaches the Watch
+    // UI — see GameMode.supportedOnWatch — but the >12 fallback is kept as a
+    // defensive floor rather than assuming that invariant here too.)
+    private var colCount: Int {
+        switch viewModel.tiles.count {
+        case ...9:  return 3
+        case 10...12: return 4
+        default: return 6
+        }
+    }
     private var rowCount: Int { max(1, Int(ceil(Double(viewModel.tiles.count) / Double(colCount)))) }
 
     private var showUtility: Bool {
@@ -164,10 +210,19 @@ struct WatchContentView: View {
                     primaryActionButton(metrics: metrics)
                         .frame(height: metrics.primaryHeight)
 
-                    utilityControls(metrics: metrics)
-                        .frame(height: metrics.utilityHeight)
-                        .opacity(showUtility ? 1 : 0)
-                        .allowsHitTesting(showUtility)
+                    // Reserved (and given a fixed slot) only when this session
+                    // could ever show it (`reserveUtilitySpace`); within that,
+                    // moment-to-moment presence just fades — keeping the
+                    // primary button's position stable — rather than
+                    // reflowing the layout. Not reserving the row at all when
+                    // it can never appear matches `boardHeight`'s own budget
+                    // (`showsUtilityRow`), so the board can use that space.
+                    if reserveUtilitySpace {
+                        utilityControls(metrics: metrics)
+                            .frame(height: metrics.utilityHeight)
+                            .opacity(showUtility ? 1 : 0)
+                            .allowsHitTesting(showUtility)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .padding(.horizontal, metrics.outerPadding)
@@ -198,21 +253,36 @@ struct WatchContentView: View {
                     .transition(.opacity)
                     .animation(.easeOut(duration: 0.12), value: magnifiedTileId)
                 }
+
+                if let context = onboardingContext {
+                    WatchOnboardingView(
+                        theme: theme,
+                        isReplay: context == .replay,
+                        onFinish: { finishOnboarding(context: context) }
+                    )
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(3)
+                }
             }
         }
         .onAppear {
             guard !didApplyInitialSettings else { return }
             didApplyInitialSettings = true
             configureViewModel()
-            viewModel.newGame(settings: currentSettings, isTimed: currentGameMode.isTimed)
-            if !hasSelectedInitialGameMode {
-                activeSheet = .mode
+            beginAppLaunchFlow()
+        }
+        .onChange(of: viewModel.gameState) { _, newState in handleGameStateChange(newState) }
+        .onChange(of: viewModel.revision) { persistCurrentGame() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background {
+                viewModel.handleScenePhaseBackground()
+                persistCurrentGame()
             }
         }
-        .onChange(of: viewModel.gameState, perform: handleGameStateChange)
-        .onChange(of: diceAnimationSpeedRawValue) { _ in configureViewModel() }
-        .onChange(of: hapticsEnabled)  { _ in configureViewModel() }
-        .onChange(of: soundsEnabled)   { _ in configureViewModel() }
+        .onChange(of: diceAnimationSpeedRawValue) { configureViewModel() }
+        .onChange(of: hapticsEnabled)  { configureViewModel() }
+        .onChange(of: soundsEnabled)   { configureViewModel() }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .mode:
@@ -221,10 +291,16 @@ struct WatchContentView: View {
                     activeSheet = nil
                 }
             case .settings:
-                WatchSettingsView(onModeChanged: { mode in
-                    configureViewModel()
-                    viewModel.newGame(settings: currentSettings, isTimed: mode.isTimed)
-                })
+                WatchSettingsView(
+                    onModeChanged: { mode in
+                        configureViewModel()
+                        beginNewViewModelGame(settings: currentSettings, isTimed: mode.isTimed)
+                    },
+                    onShowHowToPlay: {
+                        activeSheet = nil
+                        onboardingContext = .replay
+                    }
+                )
             case .stats:
                 WatchStatsView()
             case .gameOver(let won):
@@ -260,15 +336,27 @@ struct WatchContentView: View {
     private func compactHeader(metrics: WatchGameplayLayoutMetrics) -> some View {
         HStack(alignment: .center, spacing: 0) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(L10n.string("Box of Dice"))
-                    .font(.custom("AmericanTypewriter-Bold", size: metrics.titleFontSize))
-                    .foregroundStyle(
-                        LinearGradient(colors: theme.title, startPoint: .leading, endPoint: .trailing)
-                    )
+                // The Watch app's own name/icon is already shown at launch
+                // (and again if the user swipes back to the app list), so
+                // repeating "Box of Dice" here on every gameplay frame is
+                // pure noise — the mode name is what's actually useful to
+                // see at a glance while playing.
+                Text(currentGameMode.title)
+                    .font(.system(size: metrics.titleFontSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.title.first ?? theme.text)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.7) // longer localized mode names (e.g. German "Reihum spielen") must shrink, not clip
 
                 HStack(spacing: 5) {
-                    Text("Score \(viewModel.score)")
+                    // "Remaining" for untimed modes (BOD-012 — an unqualified
+                    // "Score" reads as something to grow in a lowest-wins
+                    // game); timed modes keep "Score" since the appended
+                    // timer text already separates tile score from time.
+                    // Timed modes say "Tile score", not "Score": the number is
+                    // the open tiles' sum, and the final score is this plus
+                    // the elapsed time shown right below it
+                    // (docs/KIELITARKISTUS_2026-09-10.md).
+                    Text(currentGameMode.isTimed ? L10n.format("Tile score %lld", viewModel.score) : L10n.format("Remaining %lld", viewModel.score))
                         .font(.system(size: metrics.scoreFontSize, weight: .bold, design: .rounded))
                         .foregroundStyle(theme.text)
                         .lineLimit(1)
@@ -320,40 +408,16 @@ struct WatchContentView: View {
             let tileH = max(1, (traySize.height - gridInset * 2 - CGFloat(rowCount - 1) * gridSpacing) / CGFloat(rowCount))
 
             ZStack {
-                // Outer tray frame
+                // Flat tray frame — a single matte fill, no gloss/edge
+                // highlight, so it reads as a calm board rather than a
+                // glossy widget.
                 RoundedRectangle(cornerRadius: metrics.trayCornerRadius)
-                    .fill(LinearGradient(
-                        colors: theme.tray,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
+                    .fill(theme.tray.first ?? Color.black)
 
-                // Tray edge highlight
-                RoundedRectangle(cornerRadius: metrics.trayCornerRadius)
-                    .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.7)
-
-                // Inner playing surface
+                // Inner playing surface — likewise a single flat fill.
                 RoundedRectangle(cornerRadius: metrics.surfaceCornerRadius)
-                    .fill(LinearGradient(
-                        colors: theme.surface,
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ))
+                    .fill(theme.surface.first ?? Color.black)
                     .padding(frameInset)
-                    .overlay(
-                        // Subtle top shadow inside the recess
-                        VStack(spacing: 0) {
-                            LinearGradient(
-                                colors: [Color.black.opacity(0.22), Color.clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                            .frame(height: 6)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(frameInset)
-                        .clipShape(RoundedRectangle(cornerRadius: metrics.surfaceCornerRadius))
-                    )
 
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.fixed(tileW), spacing: gridSpacing), count: colCount),
@@ -429,11 +493,28 @@ struct WatchContentView: View {
                 .opacity((viewModel.isRolling || viewModel.hasRolled) ? 1.0 : 0.34)
             }
 
-
+            // BOD-012 follow-up (docs/UUDISTUSTEN_TARKISTUS_2026-09-10.md §2):
+            // the Watch had no dice-total display at all, so the new
+            // `showDiceTotal = true` default did nothing here. Shown beside
+            // the dice rather than below them — vertical space is the scarce
+            // one on this screen. Only once the dice have settled, so it
+            // can't flicker through the roll animation.
+            if showDiceTotal && viewModel.hasRolled && !viewModel.isRolling {
+                Text("\(viewModel.diceTotal)")
+                    .font(.system(size: metrics.diceSize * 0.52, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.text.opacity(0.88))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(viewModel.hasRolled ? L10n.string("Dice rolled") : L10n.string("Dice, not rolled yet"))
+        .accessibilityLabel(
+            viewModel.hasRolled
+                ? L10n.format("Dice total %lld", viewModel.diceTotal)
+                : L10n.string("Dice, not rolled yet")
+        )
     }
 
     private func dieRestingAngle(_ index: Int) -> CGFloat {
@@ -479,11 +560,15 @@ struct WatchContentView: View {
                 }
                 .buttonStyle(WatchPrimaryButtonStyle(theme: theme, enabled: true))
             } else {
-                // Inactive: show selection progress instead of a disabled button
-                Text("Selected \(viewModel.selectionTotal)")
-                    .font(.system(size: max(9, metrics.buttonFontSize - 1.5), weight: .medium, design: .rounded))
-                    .foregroundStyle(theme.text.opacity(0.60))
+                // Inactive: show selection progress toward the roll's target
+                // instead of a disabled button — and say clearly whether
+                // that's "not enough yet" or "too much", rather than a bare
+                // total that reads the same either way.
+                Text(selectionProgressText)
+                    .font(.system(size: max(9, metrics.buttonFontSize - 1.5), weight: .semibold, design: .rounded))
+                    .foregroundStyle(isSelectionOverTarget ? Color(red: 1.0, green: 0.46, blue: 0.36) : theme.text.opacity(0.68))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .frame(width: metrics.primaryButtonWidth, height: metrics.primaryHeight)
             }
 
@@ -532,6 +617,17 @@ struct WatchContentView: View {
 
     // MARK: - Helpers
 
+    private var isSelectionOverTarget: Bool {
+        viewModel.selectionTotal > viewModel.diceTotal
+    }
+
+    private var selectionProgressText: String {
+        if isSelectionOverTarget {
+            return L10n.format("Over by %lld", viewModel.selectionTotal - viewModel.diceTotal)
+        }
+        return L10n.format("%lld of %lld", viewModel.selectionTotal, viewModel.diceTotal)
+    }
+
     private var formattedElapsedTime: String {
         let s = viewModel.elapsedSeconds
         let m = s / 60
@@ -556,7 +652,7 @@ struct WatchContentView: View {
             isShowingPassAndPlayResults = false
         }
         configureViewModel()
-        viewModel.newGame(settings: currentSettings, isTimed: mode.isTimed)
+        beginNewViewModelGame(settings: currentSettings, isTimed: mode.isTimed)
     }
 
     private func restartCurrentGame() {
@@ -569,7 +665,112 @@ struct WatchContentView: View {
         currentPassAndPlayPlayer += 1
         activeSheet = nil
         configureViewModel()
-        viewModel.newGame(settings: currentSettings, isTimed: false)
+        beginNewViewModelGame(settings: currentSettings, isTimed: false)
+    }
+
+    // MARK: - Launch routing (BOD-012)
+
+    /// Same priority order as ContentView.beginAppLaunchFlow() on iOS —
+    /// see that comment for the full rationale.
+    private func beginAppLaunchFlow() {
+        if restoreSavedGameIfAny() {
+            return
+        }
+        let isReturningUser = hasSelectedInitialGameMode || gamesPlayed > 0
+        if isReturningUser || onboardingCompletedOrSkipped {
+            onboardingCompletedOrSkipped = true
+            beginNewViewModelGame(settings: currentSettings, isTimed: currentGameMode.isTimed)
+        } else {
+            onboardingContext = .firstLaunch
+        }
+    }
+
+    private func finishOnboarding(context: OnboardingContext) {
+        onboardingContext = nil
+        guard context == .firstLaunch else { return }
+        onboardingCompletedOrSkipped = true
+        hasSelectedInitialGameMode = true
+        gameModeRaw = GameMode.quickGame.rawValue
+        configureViewModel()
+        beginNewViewModelGame(
+            settings: GameSettings.from(mode: .quickGame, diceMode: GameMode.quickGame.diceMode, moveRule: .anyCombination),
+            isTimed: false
+        )
+    }
+
+    /// Starts a fresh game on the view model and clears the "already
+    /// recorded this game's result" guard. All `viewModel.newGame(...)`
+    /// calls should go through here.
+    private func beginNewViewModelGame(settings: GameSettings, isTimed: Bool) {
+        resultRecordGuard.reset()
+        viewModel.newGame(settings: settings, isTimed: isTimed)
+        persistCurrentGame()
+    }
+
+    // MARK: - Save/restore (BOD-006)
+
+    /// Attempts to resume a previously saved in-progress game. Returns
+    /// `true` if a game was restored — the caller must not also start a
+    /// fresh one. `GameSaveStore.load()` already turns any failure (no
+    /// save, unreadable file, corrupt/unrecognized JSON) into `nil`.
+    private func restoreSavedGameIfAny() -> Bool {
+        guard let saved = GameSaveStore.load() else { return false }
+
+        // The save could in principle carry a mode this Watch build doesn't
+        // present (e.g. Big Box, or phone-synced data) — normalize it the
+        // same way every other Watch mode read does. But normalizing the
+        // *mode* alone isn't enough: if the saved *engine* doesn't actually
+        // match what the normalized mode implies (its tile count above all),
+        // labeling it with the normalized mode would misrepresent the game
+        // — an 18-tile Big Box engine must never be shown or scored as a
+        // 12-tile Classic game. Such a save can't be resumed correctly on
+        // this build, so it's discarded (controlled fallback) rather than
+        // restored with a mismatched label.
+        let normalizedMode = GameMode.normalizedForWatch(saved.gameMode)
+        guard saved.engine.settings.tileCount == normalizedMode.tileCount else {
+            GameSaveStore.clear()
+            return false
+        }
+
+        gameModeRaw = normalizedMode.rawValue
+        passAndPlayPlayerCount = saved.passAndPlayPlayerCount
+        currentPassAndPlayPlayer = saved.currentPassAndPlayPlayer
+        passAndPlayScores = saved.passAndPlayScores
+        hasSelectedInitialGameMode = true
+        resultRecordGuard.reset()
+
+        viewModel.restore(
+            engine: saved.engine,
+            pendingRollDice: saved.pendingRollDice,
+            gameStartTime: saved.gameStartTime,
+            isTimed: normalizedMode.isTimed
+        )
+        return true
+    }
+
+    /// Persists the current in-progress game — see the identical iOS
+    /// counterpart in `ContentView.swift` for the full rationale. A
+    /// finished game has nothing to resume and its stats are already
+    /// recorded, so its save is cleared instead.
+    private func persistCurrentGame() {
+        // BOD-012 follow-up (docs/UUDISTUSTEN_TARKISTUS_2026-09-10.md §1):
+        // never write the untouched Classic game sitting underneath the
+        // first-launch tutorial — see `OnboardingContext`.
+        if let onboardingContext, !onboardingContext.allowsPersistingUnderlyingGame { return }
+
+        if case .gameOver = viewModel.gameState {
+            GameSaveStore.clear()
+            return
+        }
+        GameSaveStore.save(SavedGame(
+            gameMode: currentGameMode,
+            engine: viewModel.engineSnapshot,
+            pendingRollDice: viewModel.pendingRollDiceForSaving,
+            gameStartTime: viewModel.gameStartTimeForSaving,
+            passAndPlayPlayerCount: passAndPlayPlayerCount,
+            currentPassAndPlayPlayer: currentPassAndPlayPlayer,
+            passAndPlayScores: passAndPlayScores
+        ))
     }
 
     private func showPassAndPlayResults() {
@@ -586,7 +787,10 @@ struct WatchContentView: View {
                 activeSheet = isShowingPassAndPlayResults ? .results : .roundEnd
             }
         } else {
-            recordCompletedGame(won: won)
+            // Never record the same finished game's stats twice.
+            if resultRecordGuard.recordIfNeeded() {
+                recordCompletedGame(won: won)
+            }
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: won ? 500_000_000 : 900_000_000)
                 presentGameOver()
@@ -602,18 +806,15 @@ struct WatchContentView: View {
     private func recordCompletedGame(won: Bool) {
         let baseScore  = viewModel.score
         let finalScore = currentGameMode.finalScore(baseScore: baseScore, elapsedSeconds: viewModel.elapsedSeconds)
-        let isFirst    = gamesPlayed == 0
 
         gamesPlayed    += 1
-        totalScore     += finalScore
-        bestScore       = isFirst ? finalScore : min(bestScore, finalScore)
         longestGameTurns = max(longestGameTurns, viewModel.turnCount)
         updateBestScoreByMode(finalScore)
+        updateModeScoreAverage(finalScore)
         updateRemainingTileCounts(viewModel.remainingOpenTiles)
 
         if won {
             gamesWon         += 1
-            winningScoreTotal += finalScore
             perfectClears    += baseScore == 0 ? 1 : 0
             currentWinStreak += 1
             bestWinStreak     = max(bestWinStreak, currentWinStreak)
@@ -622,19 +823,35 @@ struct WatchContentView: View {
                 : min(shortestClearTurns, viewModel.turnCount)
         } else {
             losses           += 1
-            losingScoreTotal += finalScore
             currentWinStreak  = 0
         }
     }
 
     private func updateBestScoreByMode(_ score: Int) {
         switch currentGameMode {
-        case .classic:     bestScoreClassic     = bestScoreClassic     == 0 ? score : min(bestScoreClassic, score)
-        case .speedRun:    bestScoreSpeedRun    = bestScoreSpeedRun    == 0 ? score : min(bestScoreSpeedRun, score)
-        case .bigBox:      bestScoreBigBox      = bestScoreBigBox      == 0 ? score : min(bestScoreBigBox, score)
-        case .bigBoxSpeed: bestScoreBigBoxSpeed = bestScoreBigBoxSpeed == 0 ? score : min(bestScoreBigBoxSpeed, score)
+        case .quickGame:   bestScoreQuickGame   = updatedBestScore(bestScoreQuickGame, key: StatisticsStorageKey.bestScoreQuickGame, candidate: score)
+        case .classic:     bestScoreClassic     = updatedBestScore(bestScoreClassic, key: StatisticsStorageKey.bestScoreClassic, candidate: score)
+        case .speedRun:    bestScoreSpeedRun    = updatedBestScore(bestScoreSpeedRun, key: StatisticsStorageKey.bestScoreSpeedRun, candidate: score)
+        case .bigBox:      bestScoreBigBox      = updatedBestScore(bestScoreBigBox, key: StatisticsStorageKey.bestScoreBigBox, candidate: score)
+        case .bigBoxSpeed: bestScoreBigBoxSpeed = updatedBestScore(bestScoreBigBoxSpeed, key: StatisticsStorageKey.bestScoreBigBoxSpeed, candidate: score)
         case .passAndPlay: break
         }
+    }
+
+    /// Per-mode running total/count for "average score by mode" (BOD-005).
+    private func updateModeScoreAverage(_ finalScore: Int) {
+        switch currentGameMode {
+        case .quickGame:   modeScoreTotalQuickGame   += finalScore; modeScoreCountQuickGame   += 1
+        case .classic:     modeScoreTotalClassic     += finalScore; modeScoreCountClassic     += 1
+        case .speedRun:    modeScoreTotalSpeedRun    += finalScore; modeScoreCountSpeedRun    += 1
+        case .bigBox:      modeScoreTotalBigBox      += finalScore; modeScoreCountBigBox      += 1
+        case .bigBoxSpeed: modeScoreTotalBigBoxSpeed += finalScore; modeScoreCountBigBoxSpeed += 1
+        case .passAndPlay: break
+        }
+    }
+
+    private func updatedBestScore(_ current: Int, key: String, candidate: Int) -> Int {
+        UserDefaults.standard.object(forKey: key) == nil ? candidate : min(current, candidate)
     }
 
     private func updateRemainingTileCounts(_ tiles: [Int]) {
@@ -681,52 +898,33 @@ private struct WatchPipDieView: View {
     @State private var displayValue: Int = 1
     @State private var shakeLeft = false
     @State private var animTask: Task<Void, Never>?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
-            // Die body — warm ivory fill
+            // Flat matte cream die — no bevel/specular layers.
             RoundedRectangle(cornerRadius: size * 0.18)
-                .fill(LinearGradient(
-                    colors: [Color(white: 0.97), Color(red: 0.92, green: 0.87, blue: 0.78)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-            // Top-left specular highlight (bevel)
-            LinearGradient(
-                colors: [Color.white.opacity(0.72), Color.clear],
-                startPoint: .top,
-                endPoint: UnitPoint(x: 0.5, y: 0.50)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.18))
-            // Subtle bottom darkening for physical depth
-            LinearGradient(
-                colors: [Color.clear, Color.black.opacity(0.12)],
-                startPoint: UnitPoint(x: 0.5, y: 0.55),
-                endPoint: .bottom
-            )
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.18))
-            // Border — lighter top, darker bottom for bevel effect
+                .fill(Color(red: 0.97, green: 0.95, blue: 0.88))
             RoundedRectangle(cornerRadius: size * 0.18)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [Color(white: 0.72), Color(white: 0.44)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.7
-                )
+                .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.7)
             // Pips
             PipLayout(value: displayValue, size: size)
                 .animation(.easeInOut(duration: 0.04), value: displayValue)
         }
         .frame(width: size, height: size)
-        .rotationEffect(.degrees(isRolling ? (shakeLeft ? -7 : 7) : restingAngle))
-        .animation(.easeInOut(duration: 0.09), value: shakeLeft)
-        .animation(.easeInOut(duration: 0.15), value: isRolling)
+        .rotationEffect(.degrees(isRolling && !reduceMotion ? (shakeLeft ? -7 : 7) : restingAngle))
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.09), value: shakeLeft)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isRolling)
         .onAppear { displayValue = max(1, value) }
-        .onChange(of: value) { v in if !isRolling { displayValue = max(1, v) } }
-        .onChange(of: isRolling) { rolling in
+        .onChange(of: value) { _, newValue in if !isRolling { displayValue = max(1, newValue) } }
+        .onChange(of: isRolling) { _, rolling in
             if rolling {
                 animTask?.cancel()
+                // Reduce Motion: skip the cosmetic pip-cycling/shake loop
+                // entirely — the die just holds its last resting value
+                // until the real result lands and this branch's `else`
+                // below assigns it, rather than flashing random faces.
+                guard !reduceMotion else { return }
                 animTask = Task { @MainActor in
                     while !Task.isCancelled {
                         displayValue = Int.random(in: 1...6)
@@ -740,7 +938,7 @@ private struct WatchPipDieView: View {
                 shakeLeft = false
             }
         }
-        .onDisappear { animTask?.cancel() }
+        .onDisappear { animTask?.cancel(); animTask = nil }
     }
 }
 
@@ -748,27 +946,10 @@ private struct PipLayout: View {
     let value: Int
     let size: CGFloat
 
-    private var positions: [CGPoint] {
-        let d: CGFloat = 0.28
-        let tl = CGPoint(x: -d, y: -d), tr = CGPoint(x:  d, y: -d)
-        let ml = CGPoint(x: -d, y:  0), mr = CGPoint(x:  d, y:  0)
-        let bl = CGPoint(x: -d, y:  d), br = CGPoint(x:  d, y:  d)
-        let c  = CGPoint.zero
-        switch value {
-        case 1: return [c]
-        case 2: return [tr, bl]
-        case 3: return [tr, c, bl]
-        case 4: return [tl, tr, bl, br]
-        case 5: return [tl, tr, c, bl, br]
-        case 6: return [tl, ml, bl, tr, mr, br]
-        default: return []
-        }
-    }
-
     var body: some View {
         let pip = size * 0.118
         ZStack {
-            ForEach(Array(positions.enumerated()), id: \.offset) { _, pos in
+            ForEach(Array(DicePipLayout.positions(for: value).enumerated()), id: \.offset) { _, pos in
                 Circle()
                     .fill(
                         LinearGradient(
@@ -801,48 +982,17 @@ private struct WatchTileButton: View {
                 let cr = max(4.5, h * 0.22)
 
                 ZStack {
-                    // Base fill — ivory for open, recessed dark for closed
+                    // Flat matte fill — cream for an open tile, the theme's
+                    // own (already dark) surface color for a closed one.
+                    // Selection is shown only by the accent ring below, not
+                    // by swapping the fill to a second bright color — one
+                    // restrained accent color, not two competing ones.
                     RoundedRectangle(cornerRadius: cr)
                         .fill(baseFill)
 
-                    // Top bevel highlight — strong on open tiles, ghost on closed
-                    LinearGradient(
-                        colors: [Color.white.opacity(tile.isOpen ? 0.70 : 0.07), Color.clear],
-                        startPoint: .top,
-                        endPoint: UnitPoint(x: 0.5, y: 0.44)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: cr))
-
-                    // Bottom depth edge — gives physical thickness
-                    VStack(spacing: 0) {
-                        Spacer()
-                        LinearGradient(
-                            colors: [Color.clear, Color.black.opacity(tile.isOpen ? 0.22 : 0.40)],
-                            startPoint: UnitPoint(x: 0.5, y: 0.0),
-                            endPoint: .bottom
-                        )
-                        .frame(height: max(5, h * 0.34))
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: cr))
-
-                    // Border: thick accent ring when selected, bevel stroke otherwise
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: cr)
-                            .strokeBorder(Color(red: 1.0, green: 0.72, blue: 0.0), lineWidth: 2.5)
-                    } else {
-                        RoundedRectangle(cornerRadius: cr)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(tile.isOpen ? 0.58 : 0.12),
-                                        Color.black.opacity(tile.isOpen ? 0.20 : 0.34)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 0.75
-                            )
-                    }
+                    RoundedRectangle(cornerRadius: cr)
+                        .strokeBorder(isSelected ? theme.accent : theme.text.opacity(tile.isOpen ? 0.16 : 0.10),
+                                      lineWidth: isSelected ? 2 : 0.75)
 
                     // Number — scales with tile height, always readable
                     Text("\(tile.id)")
@@ -857,8 +1007,9 @@ private struct WatchTileButton: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.65)
                 }
-                // Strong glow on selected tiles
-                .shadow(color: isSelected ? Color(red: 1.0, green: 0.72, blue: 0.0).opacity(0.75) : .clear, radius: 4)
+                // A soft glow (not a hard shadow) marks the current
+                // selection without adding a frame.
+                .shadow(color: isSelected ? theme.accent.opacity(0.55) : .clear, radius: 3)
             }
         }
         .buttonStyle(.plain)
@@ -867,26 +1018,14 @@ private struct WatchTileButton: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    // Open: warm ivory (selected = bright amber); Closed: dark recessed surface
-    private var baseFill: LinearGradient {
-        if tile.isOpen {
-            return isSelected
-                ? LinearGradient(
-                    colors: [Color(red: 1.00, green: 0.88, blue: 0.20),
-                             Color(red: 0.96, green: 0.58, blue: 0.02)],
-                    startPoint: .top, endPoint: .bottom)
-                : LinearGradient(
-                    colors: [Color(red: 1.00, green: 0.97, blue: 0.88),
-                             Color(red: 0.90, green: 0.76, blue: 0.52)],
-                    startPoint: .top, endPoint: .bottom)
-        }
-        // Closed: use theme surface (darker top = recessed look)
-        return LinearGradient(colors: theme.surface, startPoint: .bottom, endPoint: .top)
+    private var baseFill: Color {
+        guard tile.isOpen else { return theme.surface.last ?? Color.black }
+        return Color(red: 0.97, green: 0.95, blue: 0.88) // matte cream, every theme
     }
 
     private var numberColor: Color {
         tile.isOpen
-            ? Color(red: 0.14, green: 0.08, blue: 0.02)
+            ? Color(red: 0.16, green: 0.12, blue: 0.06)
             : theme.text.opacity(0.45)
     }
 }
@@ -935,4 +1074,80 @@ private struct WatchUtilityButtonStyle: ButtonStyle {
             .overlay(Capsule().strokeBorder(theme.accent.opacity(0.20), lineWidth: 0.5))
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
     }
+}
+
+// MARK: - Deterministic Previews (fixtures, not live gameplay)
+
+/// A static tile grid at a given tile count — the same shape `gameTray(...)`
+/// renders, but with fixture tile/selection state instead of a live
+/// `GameViewModel`, so every state below is reproducible in the canvas.
+private struct WatchTileGridFixture: View {
+    let tileCount: Int
+    let closedTileIds: Set<Int>
+    let selectedTileIds: Set<Int>
+    let theme: GameTheme
+
+    private var colCount: Int { tileCount <= 9 ? 3 : 4 }
+    private var rowCount: Int { Int(ceil(Double(tileCount) / Double(colCount))) }
+
+    var body: some View {
+        let tiles = (1...tileCount).map { Tile(id: $0, isOpen: !closedTileIds.contains($0)) }
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: colCount), spacing: 3) {
+            ForEach(tiles) { tile in
+                WatchTileButton(
+                    tile: tile,
+                    isSelected: selectedTileIds.contains(tile.id),
+                    isEnabled: true,
+                    theme: theme,
+                    action: {}
+                )
+                .frame(height: 30)
+            }
+        }
+        .padding(10)
+        .background(theme.surface.first ?? .black)
+    }
+}
+
+#Preview("Tiles — 3x3 Quick Game, waiting") {
+    WatchTileGridFixture(tileCount: 9, closedTileIds: [], selectedTileIds: [],
+                          theme: .palette(for: .greenFelt))
+}
+
+#Preview("Tiles — 4x3 Classic, partial selection") {
+    WatchTileGridFixture(tileCount: 12, closedTileIds: [11, 12], selectedTileIds: [3, 4],
+                          theme: .palette(for: .greenFelt))
+}
+
+#Preview("Tiles — 4x3 Classic, near win") {
+    WatchTileGridFixture(tileCount: 12, closedTileIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                          selectedTileIds: [11, 12], theme: .palette(for: .greenFelt))
+}
+
+#Preview("Tiles — every theme") {
+    VStack(spacing: 8) {
+        ForEach(GameThemeName.allCases) { name in
+            WatchTileGridFixture(tileCount: 9, closedTileIds: [3, 7], selectedTileIds: [2],
+                                  theme: .palette(for: name))
+        }
+    }
+}
+
+#Preview("Dice — resting faces 1-6") {
+    HStack(spacing: 6) {
+        ForEach(1...6, id: \.self) { face in
+            WatchPipDieView(value: face, isRolling: false, size: 26)
+        }
+    }
+    .padding()
+    .background(GameTheme.palette(for: .greenFelt).surface.first ?? .black)
+}
+
+#Preview("Dice — rolling") {
+    HStack(spacing: 6) {
+        WatchPipDieView(value: 3, isRolling: true, size: 26)
+        WatchPipDieView(value: 5, isRolling: true, size: 26)
+    }
+    .padding()
+    .background(GameTheme.palette(for: .greenFelt).surface.first ?? .black)
 }

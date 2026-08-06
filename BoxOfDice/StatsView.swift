@@ -10,31 +10,38 @@ struct StatsView: View {
 
     @AppStorage(StatisticsStorageKey.gamesPlayed) private var gamesPlayed = 0
     @AppStorage(StatisticsStorageKey.gamesWon) private var gamesWon = 0
-    // -1, not 0, means "nothing recorded yet": a perfect clear scores 0, and treating
-    // that as "unset" hid the best score a player had just earned.
-    @AppStorage(StatisticsStorageKey.bestScore) private var bestScore = -1
-    @AppStorage(StatisticsStorageKey.totalScore) private var totalScore = 0
     @AppStorage(StatisticsStorageKey.perfectClears) private var perfectClears = 0
     @AppStorage(StatisticsStorageKey.currentWinStreak) private var currentWinStreak = 0
     @AppStorage(StatisticsStorageKey.bestWinStreak) private var bestWinStreak = 0
-    @AppStorage(StatisticsStorageKey.winningScoreTotal) private var winningScoreTotal = 0
-    @AppStorage(StatisticsStorageKey.losingScoreTotal) private var losingScoreTotal = 0
     @AppStorage(StatisticsStorageKey.losses) private var losses = 0
     @AppStorage(StatisticsStorageKey.longestGameTurns) private var longestGameTurns = 0
     @AppStorage(StatisticsStorageKey.shortestClearTurns) private var shortestClearTurns = 0
     @AppStorage(StatisticsStorageKey.remainingTileCounts) private var remainingTileCounts = ""
 
-    @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = -1
-    @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = -1
-    @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = -1
-    @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = -1
+    @AppStorage(StatisticsStorageKey.bestScoreQuickGame) private var bestScoreQuickGame = 0
+    @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = 0
+    @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = 0
+    @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = 0
+    @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = 0
+
+    // Per-mode score totals/counts (BOD-005) — see GameStatistics.swift.
+    @AppStorage(StatisticsStorageKey.modeScoreTotalQuickGame) private var modeScoreTotalQuickGame = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalClassic) private var modeScoreTotalClassic = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalSpeedRun) private var modeScoreTotalSpeedRun = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalBigBox) private var modeScoreTotalBigBox = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalBigBoxSpeed) private var modeScoreTotalBigBoxSpeed = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountQuickGame) private var modeScoreCountQuickGame = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountClassic) private var modeScoreCountClassic = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountSpeedRun) private var modeScoreCountSpeedRun = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountBigBox) private var modeScoreCountBigBox = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountBigBoxSpeed) private var modeScoreCountBigBoxSpeed = 0
 
     @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
 
     @State private var showResetConfirm = false
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .classicWood)
+        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .greenFelt)
     }
 
     var body: some View {
@@ -43,14 +50,8 @@ struct StatsView: View {
                 VStack(spacing: 22) {
                     summaryGrid
 
-                    statsSection(title: "Scores", rows: [
-                        ("Average score",         averageScoreText),
-                        ("Average winning score", averageWinningScoreText),
-                        ("Average losing score",  averageLosingScoreText),
-                        ("Perfect clears",        "\(perfectClears)"),
-                    ])
-
                     bestScoresByModeSection
+                    averageScoresByModeSection
 
                     statsSection(title: "Streaks & Length", rows: [
                         ("Current win streak", "\(currentWinStreak)"),
@@ -94,22 +95,51 @@ struct StatsView: View {
             columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())],
             spacing: 12
         ) {
-            StatCard(title: "Played",     value: "\(gamesPlayed)", theme: theme)
-            StatCard(title: "Won",        value: "\(gamesWon)",    theme: theme)
-            StatCard(title: "Lost",       value: "\(losses)",      theme: theme)
-            StatCard(title: "Best Score", value: bestScoreText,    theme: theme)
+            StatCard(title: "Played",  value: "\(gamesPlayed)",  theme: theme)
+            StatCard(title: "Won",     value: "\(gamesWon)",     theme: theme)
+            StatCard(title: "Lost",    value: "\(losses)",       theme: theme)
+            StatCard(title: "Perfect", value: "\(perfectClears)", theme: theme)
         }
     }
 
-    // MARK: - Best scores by mode
+    // MARK: - Best / average scores by mode
+
+    /// A mode label that always makes clear whether its score includes time,
+    /// since Speed Run / Big Box Speed scores are not comparable to the
+    /// untimed modes.
+    private func modeLabel(_ mode: GameMode) -> String {
+        mode.isTimed ? L10n.format("%@ (+ time)", mode.title) : mode.title
+    }
 
     private var bestScoresByModeSection: some View {
         statsSection(title: "Best Score by Mode", rows: [
-            (GameMode.classic.title,     bestText(bestScoreClassic)),
-            (GameMode.speedRun.title,    bestText(bestScoreSpeedRun)),
-            (GameMode.bigBox.title,      bestText(bestScoreBigBox)),
-            (GameMode.bigBoxSpeed.title, bestText(bestScoreBigBoxSpeed)),
+            (modeLabel(.quickGame),   bestText(bestScoreQuickGame, storageKey: StatisticsStorageKey.bestScoreQuickGame)),
+            (modeLabel(.classic),     bestText(bestScoreClassic, storageKey: StatisticsStorageKey.bestScoreClassic)),
+            (modeLabel(.speedRun),    bestText(bestScoreSpeedRun, storageKey: StatisticsStorageKey.bestScoreSpeedRun)),
+            (modeLabel(.bigBox),      bestText(bestScoreBigBox, storageKey: StatisticsStorageKey.bestScoreBigBox)),
+            (modeLabel(.bigBoxSpeed), bestText(bestScoreBigBoxSpeed, storageKey: StatisticsStorageKey.bestScoreBigBoxSpeed)),
         ])
+    }
+
+    /// Per-mode average score. Unlike the old combined average (removed —
+    /// it mixed board sizes and timed/untimed modes), these start counting
+    /// from games recorded after this update; a caption below the section
+    /// says so, since old combined totals can't be split by mode after
+    /// the fact.
+    private var averageScoresByModeSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            statsSection(title: "Average Score by Mode", rows: [
+                (modeLabel(.quickGame),   averageText(total: modeScoreTotalQuickGame, count: modeScoreCountQuickGame)),
+                (modeLabel(.classic),     averageText(total: modeScoreTotalClassic, count: modeScoreCountClassic)),
+                (modeLabel(.speedRun),    averageText(total: modeScoreTotalSpeedRun, count: modeScoreCountSpeedRun)),
+                (modeLabel(.bigBox),      averageText(total: modeScoreTotalBigBox, count: modeScoreCountBigBox)),
+                (modeLabel(.bigBoxSpeed), averageText(total: modeScoreTotalBigBoxSpeed, count: modeScoreCountBigBoxSpeed)),
+            ])
+            Text(L10n.string("Averages count games played after this update."))
+                .font(GameTypography.caption(size: 11))
+                .foregroundStyle(theme.text.opacity(0.48))
+                .padding(.horizontal, 4)
+        }
     }
 
     // MARK: - Generic section
@@ -198,29 +228,30 @@ struct StatsView: View {
 
     // MARK: - Computed values
 
-    private var bestScoreText: String { bestText(bestScore) }
-
-    private var averageScoreText: String {
-        guard gamesPlayed > 0 else { return "-" }
-        return formattedAverage(totalScore, count: gamesPlayed)
-    }
-
-    private var averageWinningScoreText: String {
-        guard gamesWon > 0 else { return "-" }
-        return formattedAverage(winningScoreTotal, count: gamesWon)
-    }
-
-    private var averageLosingScoreText: String {
-        guard losses > 0 else { return "-" }
-        return formattedAverage(losingScoreTotal, count: losses)
+    private func averageText(total: Int, count: Int) -> String {
+        guard count > 0 else { return "-" }
+        return formattedAverage(total, count: count)
     }
 
     private func resetStats() {
-        gamesPlayed = 0; gamesWon = 0; totalScore = 0
-        perfectClears = 0; currentWinStreak = 0; bestWinStreak = 0; bestScore = -1
-        winningScoreTotal = 0; losingScoreTotal = 0; losses = 0
+        gamesPlayed = 0; gamesWon = 0
+        perfectClears = 0; currentWinStreak = 0; bestWinStreak = 0
+        losses = 0
         longestGameTurns = 0; shortestClearTurns = 0; remainingTileCounts = ""
-        bestScoreClassic = -1; bestScoreSpeedRun = -1; bestScoreBigBox = -1; bestScoreBigBoxSpeed = -1
+        bestScoreQuickGame = 0; bestScoreClassic = 0; bestScoreSpeedRun = 0; bestScoreBigBox = 0; bestScoreBigBoxSpeed = 0
+        modeScoreTotalQuickGame = 0; modeScoreTotalClassic = 0; modeScoreTotalSpeedRun = 0; modeScoreTotalBigBox = 0; modeScoreTotalBigBoxSpeed = 0
+        modeScoreCountQuickGame = 0; modeScoreCountClassic = 0; modeScoreCountSpeedRun = 0; modeScoreCountBigBox = 0; modeScoreCountBigBoxSpeed = 0
+        [StatisticsStorageKey.bestScoreQuickGame,
+         StatisticsStorageKey.bestScoreClassic,
+         StatisticsStorageKey.bestScoreSpeedRun,
+         StatisticsStorageKey.bestScoreBigBox,
+         StatisticsStorageKey.bestScoreBigBoxSpeed,
+         // Old combined fields are no longer read or written by this view,
+         // but "Reset" is an explicit user action and should still clear them.
+         StatisticsStorageKey.bestScore,
+         StatisticsStorageKey.totalScore,
+         StatisticsStorageKey.winningScoreTotal,
+         StatisticsStorageKey.losingScoreTotal].forEach { UserDefaults.standard.removeObject(forKey: $0) }
     }
 
     private var commonRemainingTiles: [(tile: Int, count: Int)] {
@@ -239,13 +270,16 @@ struct StatsView: View {
             .map { (tile: $0.0, count: $0.1) }
     }
 
-    private func bestText(_ score: Int) -> String {
-        score < 0 ? "-" : "\(score)"
+    private func bestText(_ score: Int, storageKey: String) -> String {
+        UserDefaults.standard.object(forKey: storageKey) == nil ? "-" : "\(score)"
     }
 
     private func formattedAverage(_ total: Int, count: Int) -> String {
         let average = Double(total) / Double(count)
-        return average.formatted(.number.precision(.fractionLength(1)))
+        // BOD-013: honor the in-app language override (L10n.locale), not just
+        // the device locale — otherwise a manually selected language would
+        // still show the device's decimal separator.
+        return average.formatted(.number.precision(.fractionLength(1)).locale(L10n.locale))
     }
 
     private func turnsText(_ turns: Int) -> String {

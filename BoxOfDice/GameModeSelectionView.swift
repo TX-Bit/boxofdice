@@ -8,24 +8,31 @@ import SwiftUI
 struct GameModeSelectionView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage(SettingsStorageKey.gameMode) private var gameModeRaw = GameMode.classic.rawValue
-    @AppStorage(SettingsStorageKey.passAndPlayPlayerCount) private var playerCount = 2
     @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
+
+    @State private var selectedMode: GameMode
+    @State private var playerCount: Int
 
     let onStart: (GameMode, Int) -> Void
 
-    private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .classicWood)
+    init(onStart: @escaping (GameMode, Int) -> Void) {
+        self.onStart = onStart
+        let defaults = UserDefaults.standard
+        let rawMode = defaults.string(forKey: SettingsStorageKey.gameMode) ?? GameMode.classic.rawValue
+        _selectedMode = State(initialValue: GameMode(rawValue: rawMode) ?? .classic)
+        let savedPlayerCount = defaults.object(forKey: SettingsStorageKey.passAndPlayPlayerCount) as? Int ?? 2
+        _playerCount = State(initialValue: min(4, max(2, savedPlayerCount)))
     }
 
-    private var selectedMode: GameMode {
-        GameMode(rawValue: gameModeRaw) ?? .classic
+    private var theme: GameTheme {
+        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .greenFelt)
     }
 
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
+                    modeGroup("Quick", modes: [.quickGame])
                     modeGroup("Classic", modes: [.classic, .speedRun])
                     modeGroup("Big Box", modes: [.bigBox, .bigBoxSpeed])
                     modeGroup("Multiplayer", modes: [.passAndPlay])
@@ -86,7 +93,7 @@ struct GameModeSelectionView: View {
     private func modeRow(_ mode: GameMode) -> some View {
         let isSelected = selectedMode == mode
         return Button {
-            gameModeRaw = mode.rawValue
+            selectedMode = mode
         } label: {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -176,6 +183,7 @@ struct GameModeSelectionView: View {
 
     private var startButton: some View {
         Button {
+            UserDefaults.standard.set(playerCount, forKey: SettingsStorageKey.passAndPlayPlayerCount)
             onStart(selectedMode, playerCount)
             dismiss()
         } label: {

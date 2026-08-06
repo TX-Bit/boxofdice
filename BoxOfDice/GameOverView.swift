@@ -42,6 +42,8 @@ struct GameOverView: View {
     let onSettings: () -> Void
     let onStats: () -> Void
 
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
     var won: Bool { kind == .boardCleared || kind == .perfectClear }
     var finalScore: Int { isTimed ? tileScore + elapsedSeconds : tileScore }
 
@@ -53,29 +55,71 @@ struct GameOverView: View {
     private var sectionLabel: Color { isLight ? WarmLight.label : theme.accent.opacity(0.82) }
 
     var body: some View {
-        VStack(spacing: 20) {
-            iconBar
-            header
-            scorePanel
-            bestPanel
-            remainingTilesSection
-            actionButtons
+        GeometryReader { proxy in
+            let isLandscape = proxy.size.width > proxy.size.height
+            let isCompactLandscape = isLandscape && (proxy.size.height < 560 || verticalSizeClass == .compact)
+
+            ScrollView(.vertical, showsIndicators: false) {
+                Group {
+                    if isCompactLandscape {
+                        compactLandscapeCard
+                    } else {
+                        portraitCard
+                    }
+                }
+                .padding(.horizontal, isCompactLandscape ? 20 : 26)
+                .padding(.vertical, isCompactLandscape ? 16 : 28)
+                .frame(maxWidth: isCompactLandscape ? min(640, proxy.size.width - 32) : 350)
+                .background(cardBackground)
+                .overlay(cardBorder)
+                .shadow(color: isLight ? WarmLight.walnut.opacity(0.24) : .black.opacity(0.48),
+                        radius: isLight ? 24 : 28, x: 0, y: isLight ? 14 : 16)
+                .padding(.horizontal, isCompactLandscape ? 16 : 28)
+                .padding(.vertical, isCompactLandscape ? 10 : 20)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .center)
+            }
         }
-        .padding(.horizontal, 26)
-        .padding(.vertical, 28)
-        .frame(maxWidth: 350)
-        .background(cardBackground)
-        .overlay(cardBorder)
-        .padding(.horizontal, 28)
-        .shadow(color: isLight ? WarmLight.walnut.opacity(0.24) : .black.opacity(0.48),
-                radius: isLight ? 24 : 28, x: 0, y: isLight ? 14 : 16)
         .accessibilityElement(children: .contain)
     }
 
-    private var iconBar: some View {
+    // MARK: - Layout Variants
+
+    private var portraitCard: some View {
+        VStack(spacing: 20) {
+            iconBar(isCompact: false)
+            header(isCompact: false)
+            scorePanel(isCompact: false)
+            bestPanel(isCompact: false)
+            remainingTilesSection(isCompact: false)
+            actionButtons(isCompact: false)
+        }
+    }
+
+    private var compactLandscapeCard: some View {
+        HStack(alignment: .top, spacing: 20) {
+            VStack(spacing: 10) {
+                iconBar(isCompact: true)
+                header(isCompact: true)
+                scorePanel(isCompact: true)
+                bestPanel(isCompact: true)
+            }
+            .frame(maxWidth: .infinity)
+
+            VStack(spacing: 12) {
+                remainingTilesSection(isCompact: true)
+                Spacer(minLength: 4)
+                actionButtons(isCompact: true)
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    // MARK: - Card Sections
+
+    private func iconBar(isCompact: Bool) -> some View {
         HStack {
             Button(action: onStats) {
-                iconButtonLabel("chart.bar.fill")
+                iconButtonLabel("chart.bar.fill", isCompact: isCompact)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Statistics")
@@ -83,26 +127,26 @@ struct GameOverView: View {
             Spacer()
 
             Button(action: onSettings) {
-                iconButtonLabel("gearshape.fill")
+                iconButtonLabel("gearshape.fill", isCompact: isCompact)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Settings")
         }
     }
 
-    private func iconButtonLabel(_ systemName: String) -> some View {
+    private func iconButtonLabel(_ systemName: String, isCompact: Bool) -> some View {
         Image(systemName: systemName)
-            .font(.system(size: 16, weight: .bold))
+            .font(.system(size: isCompact ? 14 : 16, weight: .bold))
             .foregroundStyle(isLight ? WarmLight.walnut : theme.text.opacity(0.70))
-            .frame(width: 36, height: 36)
+            .frame(width: isCompact ? 32 : 36, height: isCompact ? 32 : 36)
             .background(isLight ? WarmLight.secondaryFill : Color.black.opacity(0.20), in: Circle())
             .overlay(Circle().strokeBorder(isLight ? WarmLight.secondaryBorder : Color.white.opacity(0.14), lineWidth: 1))
     }
 
-    private var header: some View {
-        VStack(spacing: 8) {
+    private func header(isCompact: Bool) -> some View {
+        VStack(spacing: isCompact ? 4 : 8) {
             Text(L10n.string(titleText))
-                .font(GameTypography.title(size: kind == .gameOver ? 34 : 31))
+                .font(GameTypography.title(size: isCompact ? (kind == .gameOver ? 25 : 23) : (kind == .gameOver ? 34 : 31)))
                 .foregroundStyle(titleGradient)
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.78)
@@ -110,120 +154,118 @@ struct GameOverView: View {
                         radius: isLight ? 1 : 0, x: 0, y: isLight ? 1 : 0)
 
             Text(L10n.string(subtitleText))
-                .font(GameTypography.label(size: 16))
+                .font(GameTypography.label(size: isCompact ? 13 : 16))
                 .foregroundStyle(secondaryText)
                 .multilineTextAlignment(.center)
 
             if !modeName.isEmpty {
-                modePill
+                modePill(isCompact: isCompact)
             }
         }
     }
 
-    private var modePill: some View {
+    private func modePill(isCompact: Bool) -> some View {
         Text(modeName)
-            .font(GameTypography.caption(size: 12))
+            .font(GameTypography.caption(size: isCompact ? 11 : 12))
             .tracking(0.4)
             .foregroundStyle(isLight ? WarmLight.warmBrown : theme.text.opacity(0.78))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            .padding(.horizontal, isCompact ? 10 : 12)
+            .padding(.vertical, isCompact ? 3 : 4)
             .background(Capsule().fill(isLight ? WarmLight.cream : Color.black.opacity(0.22)))
             .overlay(Capsule().strokeBorder(isLight ? WarmLight.goldBorder : Color.white.opacity(0.12), lineWidth: 1))
             .padding(.top, 2)
     }
 
-    private var scorePanel: some View {
-        VStack(spacing: 6) {
+    private func scorePanel(isCompact: Bool) -> some View {
+        VStack(spacing: isCompact ? 3 : 6) {
             Text("FINAL SCORE")
-                .font(GameTypography.section(size: 12))
-                .tracking(1.8)
+                .font(GameTypography.section(size: isCompact ? 10 : 12))
+                .tracking(isCompact ? 1.4 : 1.8)
                 .foregroundStyle(sectionLabel)
 
             Text("\(finalScore)")
-                .font(GameTypography.display(size: 64))
+                .font(GameTypography.display(size: isCompact ? 44 : 64))
                 .foregroundStyle(primaryText)
 
             if isTimed && elapsedSeconds > 0 {
                 HStack(spacing: 6) {
-                    Text("Tiles \(tileScore)")
+                    Text("Tile score \(tileScore)")
                     Text("+")
                     Label("\(elapsedSeconds)s", systemImage: "timer")
                 }
-                .font(GameTypography.caption(size: 13))
+                .font(GameTypography.caption(size: isCompact ? 11 : 13))
                 .foregroundStyle(isLight ? WarmLight.label : theme.accent.opacity(0.76))
             } else {
                 Text("Lower is better")
-                    .font(GameTypography.caption(size: 12))
+                    .font(GameTypography.caption(size: isCompact ? 11 : 12))
                     .foregroundStyle(mutedText)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(.vertical, isCompact ? 8 : 16)
         .background(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: isCompact ? 14 : 18)
                 .fill(isLight ? WarmLight.cream : Color.black.opacity(0.18))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 18)
+                    RoundedRectangle(cornerRadius: isCompact ? 14 : 18)
                         .strokeBorder(isLight ? WarmLight.creamBorder : Color.white.opacity(0.10), lineWidth: 1)
                 )
         )
     }
 
-    // A gold "New Best!" / "First Score!" strip with the previous best, shown
-    // when the score earned a record. When the whole result is a New Best the
-    // header already carries the title, so only the previous best is repeated.
     @ViewBuilder
-    private var bestPanel: some View {
+    private func bestPanel(isCompact: Bool) -> some View {
         if isNewBest {
-            VStack(spacing: 4) {
+            VStack(spacing: isCompact ? 2 : 4) {
                 if kind != .newBest {
                     HStack(spacing: 6) {
                         Image(systemName: "star.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: isCompact ? 11 : 13, weight: .bold))
                         Text(L10n.string(isFirstScore ? "First Score!" : "New Best!"))
-                            .font(GameTypography.button(size: 16))
+                            .font(GameTypography.button(size: isCompact ? 14 : 16))
                     }
                     .foregroundStyle(isLight ? lightGoldTitle : goldGradient)
                 }
 
                 if let previousBest {
                     Text(L10n.format("Previous best %lld", previousBest))
-                        .font(GameTypography.caption(size: 13))
+                        .font(GameTypography.caption(size: isCompact ? 11 : 13))
                         .foregroundStyle(secondaryText)
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .padding(.vertical, isCompact ? 6 : 10)
             .background(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: isCompact ? 11 : 14)
                     .fill((isLight ? WarmLight.gold : Color(red: 1.0, green: 0.82, blue: 0.37)).opacity(isLight ? 0.14 : 0.10))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14)
+                        RoundedRectangle(cornerRadius: isCompact ? 11 : 14)
                             .strokeBorder((isLight ? WarmLight.gold : Color(red: 1.0, green: 0.82, blue: 0.37)).opacity(isLight ? 0.55 : 0.45), lineWidth: 1)
                     )
             )
         }
     }
 
-    private var remainingTilesSection: some View {
-        VStack(spacing: 10) {
+    private func remainingTilesSection(isCompact: Bool) -> some View {
+        VStack(spacing: isCompact ? 6 : 10) {
             Text("REMAINING OPEN TILES")
-                .font(GameTypography.section(size: 12))
-                .tracking(1.4)
+                .font(GameTypography.section(size: isCompact ? 11 : 12))
+                .tracking(isCompact ? 1.2 : 1.4)
                 .foregroundStyle(isLight ? WarmLight.label : theme.accent.opacity(0.78))
 
             if remainingOpenTiles.isEmpty {
                 Text("None")
-                    .font(GameTypography.button(size: 18))
+                    .font(GameTypography.button(size: isCompact ? 16 : 18))
                     .foregroundStyle(isLight ? WarmLight.readableGreen : Color(red: 0.58, green: 1.0, blue: 0.50))
-                    .padding(.vertical, 4)
+                    .padding(.vertical, isCompact ? 2 : 4)
             } else {
-                LazyVGrid(columns: tileColumns, spacing: 8) {
+                let columns = tileColumns(isCompact: isCompact)
+                LazyVGrid(columns: columns, spacing: isCompact ? 6 : 8) {
                     ForEach(remainingOpenTiles, id: \.self) { tile in
                         Text("\(tile)")
-                            .font(GameTypography.tileNumber(size: 18))
+                            .font(GameTypography.tileNumber(size: isCompact ? 15 : 18))
                             .foregroundStyle(Color(red: 0.16, green: 0.08, blue: 0.03))
-                            .frame(width: 36, height: 34)
+                            .frame(width: isCompact ? 32 : 36, height: isCompact ? 30 : 34)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(
@@ -247,26 +289,26 @@ struct GameOverView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var actionButtons: some View {
-        VStack(spacing: 10) {
+    private func actionButtons(isCompact: Bool) -> some View {
+        VStack(spacing: isCompact ? 8 : 10) {
             Button(action: onNewGame) {
                 Text("New Game")
-                    .font(GameTypography.button(size: 18))
+                    .font(GameTypography.button(size: isCompact ? 16 : 18))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
+                    .padding(.vertical, isCompact ? 11 : 15)
             }
             .buttonStyle(ModalButtonStyle(theme: theme, isLight: isLight))
 
             ShareLink(item: shareMessage) {
                 HStack(spacing: 7) {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: isCompact ? 13 : 14, weight: .semibold))
                     Text("Share")
-                        .font(GameTypography.button(size: 16))
+                        .font(GameTypography.button(size: isCompact ? 14 : 16))
                 }
                 .foregroundStyle(isLight ? WarmLight.secondaryText : theme.text.opacity(0.82))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .padding(.vertical, isCompact ? 9 : 12)
                 .background(isLight ? WarmLight.secondaryFill : Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 13))
                 .overlay(
                     RoundedRectangle(cornerRadius: 13)
@@ -299,8 +341,8 @@ struct GameOverView: View {
         }
     }
 
-    private var tileColumns: [GridItem] {
-        Array(repeating: GridItem(.fixed(36), spacing: 8), count: 6)
+    private func tileColumns(isCompact: Bool) -> [GridItem] {
+        Array(repeating: GridItem(.fixed(isCompact ? 32 : 36), spacing: isCompact ? 6 : 8), count: 6)
     }
 
     private var titleGradient: LinearGradient {

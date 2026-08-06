@@ -29,6 +29,18 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "77F3A099333D55309A06AD7B"
+               BuildableName = "BoxOfDice Watch AppTests.xctest"
+               BlueprintName = "BoxOfDice Watch AppTests"
+               ReferencedContainer = "container:BoxOfDice.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -47,7 +59,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "C097FD3D2FD7B4A800471A18"
             BuildableName = "BoxOfDice Watch App.app"
-            BlueprintName = "BoxOfDice Watch App"
             ReferencedContainer = "container:BoxOfDice.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -64,7 +75,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "C097FD3D2FD7B4A800471A18"
             BuildableName = "BoxOfDice Watch App.app"
-            BlueprintName = "BoxOfDice Watch App"
             ReferencedContainer = "container:BoxOfDice.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

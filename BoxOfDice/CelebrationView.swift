@@ -28,6 +28,7 @@ struct CelebrationView: View {
     let reduceMotion: Bool
     let onComplete: () -> Void
 
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var didFinish = false
 
     // Reduced visuals when the user picked "Reduced" or the system asks to
@@ -56,7 +57,7 @@ struct CelebrationView: View {
             if outcome.isNewBest && outcome.type != .newBest && outcome.type != .none {
                 VStack {
                     NewBestBadge(outcome: outcome)
-                        .padding(.top, 64)
+                        .padding(.top, verticalSizeClass == .compact ? 20 : 64)
                     Spacer()
                 }
             }
@@ -231,6 +232,7 @@ private struct PerfectClearCelebration: View {
     let outcome: CelebrationOutcome
     let isReduced: Bool
 
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var showHint = false
 
     var body: some View {
@@ -261,7 +263,7 @@ private struct PerfectClearCelebration: View {
                         .font(GameTypography.caption(size: 13))
                         .tracking(1)
                         .foregroundStyle(Cel.lightGold.opacity(0.65))
-                        .padding(.bottom, 70)
+                        .padding(.bottom, verticalSizeClass == .compact ? 24 : 70)
                         .opacity(showHint ? 1 : 0)
                 }
                 .onAppear {

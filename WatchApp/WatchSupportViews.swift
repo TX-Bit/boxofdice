@@ -7,18 +7,24 @@ import SwiftUI
 
 struct WatchModeSelectionView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(SettingsStorageKey.gameMode) private var gameModeRaw = GameMode.classic.rawValue
-    @AppStorage(SettingsStorageKey.passAndPlayPlayerCount) private var playerCount = 2
     @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.greenFelt.rawValue
+
+    @State private var selectedMode: GameMode
+    @State private var playerCount: Int
 
     let onStart: (GameMode, Int) -> Void
 
-    private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .classicWood)
+    init(onStart: @escaping (GameMode, Int) -> Void) {
+        self.onStart = onStart
+        let defaults = UserDefaults.standard
+        let rawMode = defaults.string(forKey: SettingsStorageKey.gameMode) ?? GameMode.classic.rawValue
+        _selectedMode = State(initialValue: GameMode.normalizedForWatch(rawValue: rawMode))
+        let savedPlayerCount = defaults.object(forKey: SettingsStorageKey.passAndPlayPlayerCount) as? Int ?? 2
+        _playerCount = State(initialValue: min(4, max(2, savedPlayerCount)))
     }
 
-    private var selectedMode: GameMode {
-        GameMode(rawValue: gameModeRaw) ?? .classic
+    private var theme: GameTheme {
+        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .greenFelt)
     }
 
     var body: some View {
@@ -27,7 +33,7 @@ struct WatchModeSelectionView: View {
                 WatchBackground(theme: theme).ignoresSafeArea()
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 8) {
-                        ForEach(GameMode.allCases.filter { $0 != .bigBox && $0 != .bigBoxSpeed }) { mode in
+                        ForEach(GameMode.supportedOnWatch) { mode in
                             modeButton(mode)
                         }
 
@@ -51,7 +57,7 @@ struct WatchModeSelectionView: View {
     }
 
     private func modeButton(_ mode: GameMode) -> some View {
-        Button { gameModeRaw = mode.rawValue } label: {
+        Button { selectedMode = mode } label: {
             HStack(spacing: 6) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(mode.title)
@@ -90,6 +96,7 @@ struct WatchModeSelectionView: View {
     }
 
     private func start() {
+        UserDefaults.standard.set(playerCount, forKey: SettingsStorageKey.passAndPlayPlayerCount)
         onStart(selectedMode, playerCount)
         dismiss()
     }
@@ -97,6 +104,8 @@ struct WatchModeSelectionView: View {
 
 struct WatchSettingsView: View {
     var onModeChanged: ((GameMode) -> Void)? = nil
+    /// BOD-012: reopens the first-launch tutorial as a replay.
+    var onShowHowToPlay: (() -> Void)? = nil
 
     @AppStorage(SettingsStorageKey.gameMode) private var gameModeRaw = GameMode.classic.rawValue
     @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.greenFelt.rawValue
@@ -104,14 +113,14 @@ struct WatchSettingsView: View {
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
     @AppStorage(SettingsStorageKey.showHints) private var showHints = true
+    @AppStorage(SettingsStorageKey.showDiceTotal) private var showDiceTotal = true
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .classicWood)
+        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .greenFelt)
     }
 
     private var currentMode: GameMode {
-        let mode = GameMode(rawValue: gameModeRaw) ?? .classic
-        return (mode == .bigBox || mode == .bigBoxSpeed) ? .classic : mode
+        GameMode.normalizedForWatch(rawValue: gameModeRaw)
     }
 
     var body: some View {
@@ -125,15 +134,16 @@ struct WatchSettingsView: View {
                         toggleRow("Haptics & Sound", isOn: $hapticsEnabled)
                         dicePickerRow
                         toggleRow("Hints", isOn: $showHints)
+                        toggleRow("Show Dice Total", isOn: $showDiceTotal)
                         statsRow
+                        howToPlayRow
                     }
                     .padding(.bottom, 10)
                 }
             }
             .navigationTitle("Settings")
-            .onChange(of: gameModeRaw) { newValue in
-                let mode = GameMode(rawValue: newValue) ?? .classic
-                onModeChanged?(mode)
+            .onChange(of: gameModeRaw) { _, newValue in
+                onModeChanged?(GameMode.normalizedForWatch(rawValue: newValue))
             }
         }
     }
@@ -159,9 +169,27 @@ struct WatchSettingsView: View {
         .watchCard(theme: theme)
     }
 
+    private var howToPlayRow: some View {
+        Button {
+            onShowHowToPlay?()
+        } label: {
+            HStack {
+                Text(L10n.string("How to Play"))
+                    .font(GameTypography.label(size: 14))
+                    .foregroundStyle(theme.text)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(theme.text.opacity(0.35))
+            }
+        }
+        .buttonStyle(.plain)
+        .watchCard(theme: theme)
+    }
+
     private var modePickerRow: some View {
         return navPickerRow(title: "Mode", valueLabel: currentMode.title) {
-            ForEach(GameMode.allCases.filter { $0 != .bigBox && $0 != .bigBoxSpeed }) { mode in
+            ForEach(GameMode.supportedOnWatch) { mode in
                 selectionButton(label: mode.title, isSelected: currentMode == mode) {
                     gameModeRaw = mode.rawValue
                 }
@@ -170,7 +198,7 @@ struct WatchSettingsView: View {
     }
 
     private var themePickerRow: some View {
-        let current = GameThemeName(rawValue: watchThemeRawValue) ?? .classicWood
+        let current = GameThemeName(rawValue: watchThemeRawValue) ?? .greenFelt
         return navPickerRow(title: "Theme", valueLabel: current.title) {
             ForEach(GameThemeName.allCases) { name in
                 selectionButton(label: name.title, isSelected: current == name) {
@@ -198,11 +226,11 @@ struct WatchSettingsView: View {
         } label: {
             HStack {
                 Text(L10n.string(title))
-                    .font(GameTypography.label(size: 14))
+                    .font(GameTypography.label(size: 15))
                     .foregroundStyle(theme.text)
                 Spacer()
                 Text(L10n.string(valueLabel))
-                    .font(GameTypography.label(size: 13))
+                    .font(GameTypography.label(size: 15))
                     .foregroundStyle(theme.accent)
                     .lineLimit(1)
                 Image(systemName: "chevron.right")
@@ -218,7 +246,7 @@ struct WatchSettingsView: View {
         Button(action: action) {
             HStack {
                 Text(L10n.string(label))
-                    .font(GameTypography.label(size: 15))
+                    .font(GameTypography.label(size: 16))
                     .foregroundStyle(isSelected ? theme.accent : theme.text)
                 Spacer()
                 if isSelected {
@@ -245,27 +273,36 @@ struct WatchSettingsView: View {
 struct WatchStatsView: View {
     @AppStorage(StatisticsStorageKey.gamesPlayed) private var gamesPlayed = 0
     @AppStorage(StatisticsStorageKey.gamesWon) private var gamesWon = 0
-    @AppStorage(StatisticsStorageKey.bestScore) private var bestScore = 0
-    @AppStorage(StatisticsStorageKey.totalScore) private var totalScore = 0
     @AppStorage(StatisticsStorageKey.perfectClears) private var perfectClears = 0
     @AppStorage(StatisticsStorageKey.currentWinStreak) private var currentWinStreak = 0
     @AppStorage(StatisticsStorageKey.bestWinStreak) private var bestWinStreak = 0
     @AppStorage(StatisticsStorageKey.longestGameTurns) private var longestGameTurns = 0
     @AppStorage(StatisticsStorageKey.shortestClearTurns) private var shortestClearTurns = 0
+    @AppStorage(StatisticsStorageKey.bestScoreQuickGame) private var bestScoreQuickGame = 0
     @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = 0
     @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = 0
     @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = 0
     @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = 0
-    @AppStorage(StatisticsStorageKey.winningScoreTotal) private var winningScoreTotal = 0
-    @AppStorage(StatisticsStorageKey.losingScoreTotal) private var losingScoreTotal = 0
     @AppStorage(StatisticsStorageKey.losses) private var losses = 0
     @AppStorage(StatisticsStorageKey.remainingTileCounts) private var remainingTileCounts = ""
+
+    // Per-mode score totals/counts (BOD-005). Watch plays Quick Game/
+    // Classic/Speed Run directly (Big Box modes are mapped down to Classic
+    // on this screen size — see WatchContentView.currentGameMode), matching
+    // the best-score rows below, which cover the same three modes.
+    @AppStorage(StatisticsStorageKey.modeScoreTotalQuickGame) private var modeScoreTotalQuickGame = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalClassic) private var modeScoreTotalClassic = 0
+    @AppStorage(StatisticsStorageKey.modeScoreTotalSpeedRun) private var modeScoreTotalSpeedRun = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountQuickGame) private var modeScoreCountQuickGame = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountClassic) private var modeScoreCountClassic = 0
+    @AppStorage(StatisticsStorageKey.modeScoreCountSpeedRun) private var modeScoreCountSpeedRun = 0
+
     @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.greenFelt.rawValue
 
     @State private var showResetConfirm = false
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .classicWood)
+        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .greenFelt)
     }
 
     var body: some View {
@@ -276,14 +313,22 @@ struct WatchStatsView: View {
                     VStack(spacing: 8) {
                         statRow("Played", "\(gamesPlayed)")
                         statRow("Won", "\(gamesWon)")
-                        statRow("Best", bestText(bestScore, requiresGames: true))
-                        statRow("Average", averageScoreText)
                         statRow("Perfect", "\(perfectClears)")
                         statRow("Streak", "\(currentWinStreak) / \(bestWinStreak)")
                         statRow("Longest", turnsText(longestGameTurns))
                         statRow("Shortest", turnsText(shortestClearTurns))
-                        statRow(GameMode.classic.title, bestText(bestScoreClassic))
-                        statRow(GameMode.speedRun.title, bestText(bestScoreSpeedRun))
+                        statRow(modeLabel(.quickGame), bestText(bestScoreQuickGame, storageKey: StatisticsStorageKey.bestScoreQuickGame))
+                        statRow(modeLabel(.classic), bestText(bestScoreClassic, storageKey: StatisticsStorageKey.bestScoreClassic))
+                        statRow(modeLabel(.speedRun), bestText(bestScoreSpeedRun, storageKey: StatisticsStorageKey.bestScoreSpeedRun))
+                        statRow(L10n.format("%@ avg.", modeLabel(.quickGame)), averageText(total: modeScoreTotalQuickGame, count: modeScoreCountQuickGame))
+                        statRow(L10n.format("%@ avg.", modeLabel(.classic)), averageText(total: modeScoreTotalClassic, count: modeScoreCountClassic))
+                        statRow(L10n.format("%@ avg.", modeLabel(.speedRun)), averageText(total: modeScoreTotalSpeedRun, count: modeScoreCountSpeedRun))
+
+                        Text(L10n.string("Averages count games played after this update."))
+                            .font(GameTypography.caption(size: 10))
+                            .foregroundStyle(theme.text.opacity(0.5))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 8)
 
                         Button("Reset Stats") { showResetConfirm = true }
                             .buttonStyle(WatchDestructiveButtonStyle())
@@ -300,11 +345,29 @@ struct WatchStatsView: View {
     }
 
     private func resetStats() {
-        gamesPlayed = 0; gamesWon = 0; bestScore = 0; totalScore = 0
+        gamesPlayed = 0; gamesWon = 0
         perfectClears = 0; currentWinStreak = 0; bestWinStreak = 0
-        winningScoreTotal = 0; losingScoreTotal = 0; losses = 0
+        losses = 0
         longestGameTurns = 0; shortestClearTurns = 0; remainingTileCounts = ""
-        bestScoreClassic = 0; bestScoreSpeedRun = 0; bestScoreBigBox = 0; bestScoreBigBoxSpeed = 0
+        bestScoreQuickGame = 0; bestScoreClassic = 0; bestScoreSpeedRun = 0; bestScoreBigBox = 0; bestScoreBigBoxSpeed = 0
+        modeScoreTotalQuickGame = 0; modeScoreTotalClassic = 0; modeScoreTotalSpeedRun = 0
+        modeScoreCountQuickGame = 0; modeScoreCountClassic = 0; modeScoreCountSpeedRun = 0
+        [StatisticsStorageKey.bestScoreQuickGame,
+         StatisticsStorageKey.bestScoreClassic,
+         StatisticsStorageKey.bestScoreSpeedRun,
+         StatisticsStorageKey.bestScoreBigBox,
+         StatisticsStorageKey.bestScoreBigBoxSpeed,
+         // Old combined fields are no longer read or written by this view,
+         // but "Reset" is an explicit user action and should still clear them.
+         StatisticsStorageKey.bestScore,
+         StatisticsStorageKey.totalScore,
+         StatisticsStorageKey.winningScoreTotal,
+         StatisticsStorageKey.losingScoreTotal].forEach { UserDefaults.standard.removeObject(forKey: $0) }
+    }
+
+    /// A mode label that always makes clear whether its score includes time.
+    private func modeLabel(_ mode: GameMode) -> String {
+        mode.isTimed ? L10n.format("%@ (+ time)", mode.title) : mode.title
     }
 
     private func statRow(_ title: String, _ value: String) -> some View {
@@ -322,15 +385,14 @@ struct WatchStatsView: View {
         .watchCard(theme: theme)
     }
 
-    private var averageScoreText: String {
-        guard gamesPlayed > 0 else { return "-" }
-        let average = Double(totalScore) / Double(gamesPlayed)
+    private func averageText(total: Int, count: Int) -> String {
+        guard count > 0 else { return "-" }
+        let average = Double(total) / Double(count)
         return average.formatted(.number.precision(.fractionLength(1)))
     }
 
-    private func bestText(_ value: Int, requiresGames: Bool = false) -> String {
-        if requiresGames && gamesPlayed == 0 { return "-" }
-        return value == 0 ? "-" : "\(value)"
+    private func bestText(_ value: Int, storageKey: String) -> String {
+        UserDefaults.standard.object(forKey: storageKey) == nil ? "-" : "\(value)"
     }
 
     private func turnsText(_ value: Int) -> String {
@@ -478,7 +540,9 @@ struct WatchPassAndPlayResultsView: View {
                         .foregroundStyle(theme.text)
                     ForEach(Array(sortedResults.enumerated()), id: \.element.player) { index, result in
                         HStack {
-                            Text("\(index + 1). P\(result.player)")
+                            // "1. P2" — the player abbreviation is a letter,
+                            // so it has to come from the strings table.
+                            Text(L10n.format("%lld. P%lld", index + 1, result.player))
                             Spacer()
                             Text("\(result.score)")
                         }

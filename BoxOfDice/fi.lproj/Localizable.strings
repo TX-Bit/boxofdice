@@ -2,6 +2,8 @@
 
 "BOX OF DICE" = "NOPPALAUTA";
 "Box of Dice" = "Noppalauta";
+"Quick Game" = "Pikapeli";
+"Quick" = "Pika";
 "Classic" = "Klassinen";
 "Speed Run" = "Nopeuspeli";
 "Big Box" = "Iso laatikko";
@@ -23,6 +25,20 @@
 "Reset Stats" = "Nollaa tilastot";
 "Reset all statistics?" = "Nollataanko kaikki tilastot?";
 
+"9 tiles · short and simple" = "9 laattaa · lyhyt ja yksinkertainen";
+"One die now — only low tiles remain" = "Nyt yksi noppa — vain pienet laatat jäljellä";
+
+/* BOD-012: onboarding tutorial */
+"Roll the dice" = "Heitä nopat";
+"You rolled %lld. Try closing %lld, or %lld + %lld." = "Heitit %lld. Sulje esimerkiksi %lld tai %lld + %lld.";
+"Nice! The goal is to leave as few points as possible." = "Hyvä! Tavoite on jättää mahdollisimman vähän pisteitä.";
+"Empty board = 0." = "Tyhjä lauta = 0.";
+"Skip" = "Ohita";
+"Back to Game" = "Takaisin peliin";
+"Rolled %lld and %lld" = "Heitto %lld ja %lld";
+"How to Play" = "Näin pelataan";
+"Remaining: %lld" = "Jäljellä: %lld";
+/* "Lower is better" already defined below (reused verbatim from the existing Game Over screen). */
 "12 tiles · 2 dice · lowest score wins" = "12 laattaa · 2 noppaa · alin pistemäärä voittaa";
 "12 tiles · 2 dice · score + elapsed seconds" = "12 laattaa · 2 noppaa · pisteet + kuluneet sekunnit";
 "18 tiles · 3 dice · lowest score wins" = "18 laattaa · 3 noppaa · alin pistemäärä voittaa";
@@ -64,7 +80,7 @@
 "Haptics & Sound" = "Tunto ja ääni";
 "Hints" = "Vihjeet";
 "Show Hints" = "Näytä vihjeet";
-"Show Dice Total" = "Näytä silmäluku";
+"Show Dice Total" = "Näytä noppien summa";
 "Undo" = "Kumoa";
 "Show hint" = "Näytä vihje";
 "Undo last move" = "Kumoa viimeisin siirto";
@@ -90,10 +106,10 @@
 "Score: %d" = "Pisteet: %d";
 "Score %lld" = "Pisteet %lld";
 "Score %d" = "Pisteet %d";
-"Tiles: %lld" = "Laatat: %lld";
-"Tiles: %d" = "Laatat: %d";
-"Tiles %lld" = "Laatat %lld";
-"Tiles %d" = "Laatat %d";
+"Tile score: %lld" = "Laattapisteet: %lld";
+"Tile score: %d" = "Laattapisteet: %d";
+"Tile score %lld" = "Laattapisteet %lld";
+"Tile score %d" = "Laattapisteet %d";
 "Close tiles to lower your score. Lowest score wins." = "Sulje laattoja pienentääksesi pisteitä. Alin pistemäärä voittaa.";
 "TARGET" = "TAVOITE";
 "Target %d" = "Tavoite %d";
@@ -111,10 +127,10 @@
 "Select tiles matching the dice" = "Valitse noppia vastaavat laatat";
 "Confirm" = "Vahvista";
 "✓ Confirm" = "✓ Vahvista";
-"Selected %lld" = "Valittu %lld";
-"Selected %d" = "Valittu %d";
+"Selected %lld" = "Valinta %lld";
+"Selected %d" = "Valinta %d";
 "Hint" = "Vihje";
-"Last: closed %@" = "Viimeksi: suljettu %@";
+"Last: closed %@" = "Viimeksi suljettu: %@";
 
 "Game Over" = "Peli päättyi";
 "You cleared the box!" = "Tyhjensit laatikon!";
@@ -130,18 +146,18 @@
 "Open: %@" = "Avoinna: %@";
 
 "Scores" = "Pisteet";
-"Average score" = "Keskipisteet";
-"Average winning score" = "Voittojen keskipisteet";
-"Average losing score" = "Tappioiden keskipisteet";
 "Perfect clears" = "Täydelliset tyhjennykset";
 "Best Score by Mode" = "Paras tulos pelitiloittain";
+"Average Score by Mode" = "Keskiarvo pelitiloittain";
+"%@ (+ time)" = "%@ (+ aika)";
+"Averages count games played after this update." = "Keskiarvot lasketaan tästä päivityksestä alkaen pelatuista peleistä.";
 "Streaks & Length" = "Putket ja kesto";
 "Current win streak" = "Nykyinen voittoputki";
 "Best win streak" = "Paras voittoputki";
 "Longest game" = "Pisin peli";
-"Shortest clear" = "Nopein tyhjennys";
+"Shortest clear" = "Tyhjennys vähimmillä siirroilla";
 "Most Common Remaining Tiles" = "Yleisimmät jäljelle jääneet laatat";
-"No data yet — play a few games first" = "Ei dataa vielä — pelaa ensin muutama peli";
+"No data yet — play a few games first" = "Ei vielä dataa — pelaa ensin muutama peli";
 "Played" = "Pelattu";
 "Won" = "Voitot";
 "Lost" = "Tappiot";
@@ -177,6 +193,18 @@
 "A new personal best for this mode." = "Uusi henkilökohtainen ennätys tässä pelitilassa.";
 "Your first score for this mode." = "Ensimmäinen tuloksesi tässä pelitilassa.";
 "Share" = "Jaa";
-"Perfect clear in Box of Dice! 🎲 — %@" = "Täydellinen tyhjennys Noppalauta -pelissä! 🎲 — %@";
-"Cleared the board in Box of Dice 🎲 — %@" = "Tyhjensin laudan Noppalauta -pelissä 🎲 — %@";
-"I scored %lld in Box of Dice 🎲 — %@" = "Sain %lld pistettä Noppalauta -pelissä 🎲 — %@";
+"Perfect clear in Box of Dice! 🎲 — %@" = "Täydellinen tyhjennys Noppalauta-pelissä! 🎲 — %@";
+"Cleared the board in Box of Dice 🎲 — %@" = "Tyhjensin laudan Noppalauta-pelissä 🎲 — %@";
+"I scored %lld in Box of Dice 🎲 — %@" = "Sain %lld pistettä Noppalauta-pelissä 🎲 — %@";
+"Dice Style" = "Noppatyyli";
+"Ivory" = "Norsunluu";
+"Cherry" = "Kirsikka";
+"Midnight Blue" = "Yönsininen";
+"Graphite" = "Grafiitti";
+"Warm pale face, near-black pips" = "Lämmin vaalea pinta, lähes mustat silmät";
+"Deep cherry-red face, cream pips" = "Syvä kirsikanpunainen pinta, kermanvalkoiset silmät";
+"Dark blue face, white pips" = "Tumma sininen pinta, valkoiset silmät";
+"Charcoal face, light pips" = "Hiilenharmaa pinta, vaaleat silmät";
+"Dice style preview" = "Noppatyylin esikatselu";
+"Double-tap to roll the preview die" = "Kaksoisnapauta heittääksesi esikatselunopan";
+"Tap to roll" = "Napauta heittääksesi";

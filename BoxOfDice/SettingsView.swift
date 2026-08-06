@@ -8,16 +8,24 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
+    /// BOD-012: reopens the first-launch tutorial as a replay. Defaults to
+    /// a no-op so `#Preview` and any other caller that doesn't need this
+    /// doesn't have to pass it.
+    var onShowHowToPlay: () -> Void = {}
+
     @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
     @AppStorage(SettingsStorageKey.hapticsEnabled) private var hapticsEnabled = true
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
+    @AppStorage(SettingsStorageKey.diceStyle) private var diceStyleRawValue = DiceStyleName.ivory.rawValue
+    @State private var isShowingDiceStylePicker = false
     @AppStorage(SettingsStorageKey.showHints) private var showHints = true
-    @AppStorage(SettingsStorageKey.showDiceTotal) private var showDiceTotal = false
+    // Same default as ContentView.swift — see the comment there (BOD-012).
+    @AppStorage(SettingsStorageKey.showDiceTotal) private var showDiceTotal = true
     @AppStorage(SettingsStorageKey.language) private var languageRawValue = AppLanguage.system.rawValue
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .classicWood)
+        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .greenFelt)
     }
 
     var body: some View {
@@ -42,6 +50,9 @@ struct SettingsView: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(theme.accent)
                 }
+            }
+            .sheet(isPresented: $isShowingDiceStylePicker) {
+                DiceStylePickerView(theme: theme)
             }
         }
         // Menu pickers don't refresh their displayed label from a plain state
@@ -70,7 +81,7 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.menu)
                 .tint(theme.accent)
-                .font(GameTypography.label(size: 16))
+                .font(GameTypography.label(size: 18))
             }
             .rowPadding()
 
@@ -81,12 +92,14 @@ struct SettingsView: View {
                 Spacer()
                 Picker("", selection: $themeRawValue) {
                     ForEach(GameThemeName.allCases) { t in
-                        Text(t.title).tag(t.rawValue)
+                        Text(t.title)
+                            .font(GameTypography.label(size: 18))
+                            .tag(t.rawValue)
                     }
                 }
                 .pickerStyle(.menu)
                 .tint(theme.accent)
-                .font(GameTypography.label(size: 16))
+                .font(GameTypography.label(size: 18))
             }
             .rowPadding()
 
@@ -107,9 +120,18 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.menu)
                 .tint(theme.accent)
-                .font(GameTypography.label(size: 16))
+                .font(GameTypography.label(size: 18))
             }
             .rowPadding()
+
+            cardDivider
+
+            valueNavigationRow(
+                "Dice Style",
+                value: (DiceStyleName(rawValue: diceStyleRawValue) ?? .ivory).title
+            ) {
+                isShowingDiceStylePicker = true
+            }
         }
     }
 
@@ -118,6 +140,11 @@ struct SettingsView: View {
             toggleRow("Show Hints", isOn: $showHints)
             cardDivider
             toggleRow("Show Dice Total", isOn: $showDiceTotal)
+            cardDivider
+            navigationRow("How to Play") {
+                dismiss()
+                onShowHowToPlay()
+            }
         }
     }
 
@@ -158,9 +185,43 @@ struct SettingsView: View {
         .rowPadding()
     }
 
+    private func navigationRow(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                rowLabel(label)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(theme.text.opacity(0.40))
+            }
+            .rowPadding()
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Like `navigationRow`, but also shows the current value (e.g. the
+    /// selected dice style's name) before the chevron — for a row whose
+    /// picker lives on its own screen rather than an inline menu.
+    private func valueNavigationRow(_ label: String, value: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                rowLabel(label)
+                Spacer()
+                Text(value)
+                    .font(GameTypography.label(size: 18))
+                    .foregroundStyle(theme.accent)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(theme.text.opacity(0.40))
+            }
+            .rowPadding()
+        }
+        .buttonStyle(.plain)
+    }
+
     private func rowLabel(_ text: String) -> some View {
         Text(L10n.string(text))
-            .font(GameTypography.label(size: 16))
+            .font(GameTypography.label(size: 18))
             .foregroundStyle(theme.text.opacity(0.85))
     }
 

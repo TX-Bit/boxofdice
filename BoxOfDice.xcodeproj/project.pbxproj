@@ -7,26 +7,106 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		05EB88C28EA6AA516BD1C1E0 /* WatchOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94680DD4DDF98AABDA6BEE51 /* WatchOnboardingView.swift */; };
+		15836DE21077A5FD74B1DDB4 /* GameEngineSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CA0A26EDC673DFDD88CC6ED /* GameEngineSearchTests.swift */; };
+		20A979E5B1F8CDF8DC5C2B4B /* GameRestoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EAD60DFCBF6477830B772D1 /* GameRestoreTests.swift */; };
+		256DF0F51D25CE685B30CE3F /* QuickGameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF22DC08A2BB35AC73657AF /* QuickGameTests.swift */; };
+		25B68B594814BD8C32383764 /* OnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23616FD172A31F081C3E29AC /* OnboardingViewModel.swift */; };
+		432204FEFE9D167CA7E8C6D1 /* GameResultRecordGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 265EBB3BF1061823FE57661C /* GameResultRecordGuardTests.swift */; };
+		4CC04F0940DEB174AE6200DC /* GameEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C33531EB0F6788ED70187D7F /* GameEngineTests.swift */; };
+		5D7B28831AD4B34D964CD6C0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2C95EFC6D04A5C8AEF7D37A4 /* Foundation.framework */; };
+		61542AE3A31E3F453E464FF2 /* GameSaveStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBFF568ED278A92A05A53F1 /* GameSaveStoreTests.swift */; };
+		B157ED25DD78AC5A92AE1183 /* OnboardingLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550F0AE43E11B51C7C14BFB2 /* OnboardingLayoutTests.swift */; };
+		D4E5F607182930A1B2C3D4E5 /* DiceStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F607182930A1B2C3D4E6 /* DiceStyleTests.swift */; };
+		E5F607182930A1B2C3D4E5F6 /* DiceRollAndTileInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F607182930A1B2C3D4E5F7 /* DiceRollAndTileInteractionTests.swift */; };
+		B381F76A95336BCC3A9F5322 /* LocalizationResourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE281D856EF361A4C488FD2 /* LocalizationResourceTests.swift */; };
 		C049680A2FD91E6700D93BFF /* WatchConnectivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C04968092FD91E6700D93BFF /* WatchConnectivity.swift */; };
 		C097FD302FD7B4A800471A18 /* WatchBoxOfDiceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C097FD292FD7A03F00471A18 /* WatchBoxOfDiceApp.swift */; };
 		C097FD312FD7B4A800471A18 /* WatchContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C097FD2A2FD7A0A900471A18 /* WatchContentView.swift */; };
 		C097FD322FD7B4A800471A18 /* WatchSupportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C097FD2B2FD7A0F500471A18 /* WatchSupportViews.swift */; };
 		C097FD842FD7B30900471A18 /* WatchGameCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C097FD832FD7B30900471A18 /* WatchGameCore.swift */; };
+		C0D1CE000000000000000001 /* BoxOfDice Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = C097FD3B2FD7B4A800471A18 /* BoxOfDice Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C0D1CE000000000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0D1CE000000000000000002 /* Assets.xcassets */; };
+		C0D1CE000000000000000006 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C0D1CE000000000000000005 /* Localizable.strings */; };
+		C0D1CE000000000000000008 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C0D1CE000000000000000007 /* PrivacyInfo.xcprivacy */; };
+		C0D1CE00000000000000000C /* GameEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D1CE00000000000000000B /* GameEngine.swift */; };
+		C0D1CE00000000000000000D /* GameSave.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D1CE00000000000000000E /* GameSave.swift */; };
+		C0D1CE00000000000000000F /* GameResultRecordGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D1CE000000000000000010 /* GameResultRecordGuard.swift */; };
+		C6ADE2F49C7F89DE9DD6A5D1 /* WatchGameRestoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 119366CD227B266CAF980285 /* WatchGameRestoreTests.swift */; };
+		A1B2C3D4E5F60708192A3B4C /* WatchDicePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60708192A3B4D /* WatchDicePresentationTests.swift */; };
+		B2C3D4E5F60718293A4B5C6D /* WatchGameModeSupportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5C6E /* WatchGameModeSupportTests.swift */; };
+		C3D4E5F607192A3B4C5D6E7F /* WatchLayoutBudgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F607192A3B4C5D6E70 /* WatchLayoutBudgetTests.swift */; };
+		D0775F8155218095FB0A7F4D /* GameStatisticsRecorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C9A2D2CBFA3334E0D0636F /* GameStatisticsRecorderTests.swift */; };
+		D8513A4C234E07B2961AC227 /* GameViewModelTimedAnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFB22A84D717F746A6C3385D /* GameViewModelTimedAnimationTests.swift */; };
+		DFF28BD2E1E058EF317E8461 /* OnboardingLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DE9BAC01D29AE123644343 /* OnboardingLifecycleTests.swift */; };
+		DFFA5A8BC8259BE873F1C900 /* OnboardingViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 722493FCD9CE25A4BD7A08C1 /* OnboardingViewModelTests.swift */; };
+		F81AC01E4CE7AB353F37EA3B /* WatchGameCoreRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA12CD1C8E9B2337FDA3FE1 /* WatchGameCoreRegressionTests.swift */; };
+		F88BE945806D145A67E9AC57 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EA8998E0450BE736D87231F5 /* Foundation.framework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		7A5D838C4206D75AD03D4206 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C0B4C6E32FD33B2C009A322C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C097FD3D2FD7B4A800471A18;
+			remoteInfo = "BoxOfDice Watch App";
+		};
+		9970C50882BB6F86D3F76761 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C0B4C6E32FD33B2C009A322C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0B4C6EA2FD33B2C009A322C;
+			remoteInfo = BoxOfDice;
+		};
+		C0D1CE000000000000000009 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C0B4C6E32FD33B2C009A322C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C097FD3D2FD7B4A800471A18;
+			remoteInfo = "BoxOfDice Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXCopyFilesBuildPhase section */
-		C097FDB42FD7C84400471A18 /* CopyFiles */ = {
+		C097FDB42FD7C84400471A18 /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 7;
+			dstPath = Watch;
+			dstSubfolderSpec = 1;
 			files = (
+				C0D1CE000000000000000001 /* BoxOfDice Watch App.app in Embed Watch Content */,
 			);
+			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0105613AC5629B2B41AEEDC3 /* it */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
+		04DE9BAC01D29AE123644343 /* OnboardingLifecycleTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OnboardingLifecycleTests.swift; sourceTree = "<group>"; };
+		119366CD227B266CAF980285 /* WatchGameRestoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchGameRestoreTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60708192A3B4D /* WatchDicePresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchDicePresentationTests.swift; sourceTree = "<group>"; };
+		B2C3D4E5F60718293A4B5C6E /* WatchGameModeSupportTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchGameModeSupportTests.swift; sourceTree = "<group>"; };
+		C3D4E5F607192A3B4C5D6E70 /* WatchLayoutBudgetTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchLayoutBudgetTests.swift; sourceTree = "<group>"; };
+		1AE281D856EF361A4C488FD2 /* LocalizationResourceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocalizationResourceTests.swift; sourceTree = "<group>"; };
+		23616FD172A31F081C3E29AC /* OnboardingViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BoxOfDice/OnboardingViewModel.swift; sourceTree = SOURCE_ROOT; };
+		265EBB3BF1061823FE57661C /* GameResultRecordGuardTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameResultRecordGuardTests.swift; sourceTree = "<group>"; };
+		2C95EFC6D04A5C8AEF7D37A4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		2DBFF568ED278A92A05A53F1 /* GameSaveStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameSaveStoreTests.swift; sourceTree = "<group>"; };
+		32D5D525589F08734C7559FB /* es */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		4B13859F7C22152E59D3A815 /* BoxOfDice Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "BoxOfDice Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4CA0A26EDC673DFDD88CC6ED /* GameEngineSearchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameEngineSearchTests.swift; sourceTree = "<group>"; };
+		550F0AE43E11B51C7C14BFB2 /* OnboardingLayoutTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OnboardingLayoutTests.swift; sourceTree = "<group>"; };
+		D4E5F607182930A1B2C3D4E6 /* DiceStyleTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiceStyleTests.swift; sourceTree = "<group>"; };
+		E5F607182930A1B2C3D4E5F7 /* DiceRollAndTileInteractionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiceRollAndTileInteractionTests.swift; sourceTree = "<group>"; };
+		6BA12CD1C8E9B2337FDA3FE1 /* WatchGameCoreRegressionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchGameCoreRegressionTests.swift; sourceTree = "<group>"; };
+		6EAD60DFCBF6477830B772D1 /* GameRestoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameRestoreTests.swift; sourceTree = "<group>"; };
+		710D265C645C467AE2FC0AB9 /* pt-BR */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		722493FCD9CE25A4BD7A08C1 /* OnboardingViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OnboardingViewModelTests.swift; sourceTree = "<group>"; };
+		7AB12CD0FB2B9AEC4979F087 /* BoxOfDiceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BoxOfDiceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		94680DD4DDF98AABDA6BEE51 /* WatchOnboardingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchOnboardingView.swift; sourceTree = "<group>"; };
+		A86E4DAE7EF55BEF6A21CCE5 /* fr */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		C04968092FD91E6700D93BFF /* WatchConnectivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivity.swift; sourceTree = "<group>"; };
 		C097FD292FD7A03F00471A18 /* WatchBoxOfDiceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchBoxOfDiceApp.swift; sourceTree = "<group>"; };
 		C097FD2A2FD7A0A900471A18 /* WatchContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchContentView.swift; sourceTree = "<group>"; };
@@ -34,17 +114,39 @@
 		C097FD3B2FD7B4A800471A18 /* BoxOfDice Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BoxOfDice Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C097FD832FD7B30900471A18 /* WatchGameCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchGameCore.swift; sourceTree = "<group>"; };
 		C0B4C6EB2FD33B2C009A322C /* BoxOfDice.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BoxOfDice.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0D1CE000000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = BoxOfDice/Assets.xcassets; sourceTree = SOURCE_ROOT; };
+		C0D1CE000000000000000004 /* fi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fi; path = fi.lproj/Localizable.strings; sourceTree = "<group>"; };
+		C0D1CE000000000000000007 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = BoxOfDice/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
+		C0D1CE00000000000000000B /* GameEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxOfDice/GameEngine.swift; sourceTree = SOURCE_ROOT; };
+		C0D1CE00000000000000000E /* GameSave.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxOfDice/GameSave.swift; sourceTree = SOURCE_ROOT; };
+		C0D1CE000000000000000010 /* GameResultRecordGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxOfDice/GameResultRecordGuard.swift; sourceTree = SOURCE_ROOT; };
+		C33531EB0F6788ED70187D7F /* GameEngineTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameEngineTests.swift; sourceTree = "<group>"; };
+		C624883EC2AF3E17EB89CA2C /* de */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
+		CEF22DC08A2BB35AC73657AF /* QuickGameTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QuickGameTests.swift; sourceTree = "<group>"; };
+		DFB22A84D717F746A6C3385D /* GameViewModelTimedAnimationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameViewModelTimedAnimationTests.swift; sourceTree = "<group>"; };
+		E6C9A2D2CBFA3334E0D0636F /* GameStatisticsRecorderTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameStatisticsRecorderTests.swift; sourceTree = "<group>"; };
+		EA8998E0450BE736D87231F5 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C0B4C6ED2FD33B2C009A322C /* BoxOfDice */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = BoxOfDice;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1CAA4C09F92DC9B67F6CBB05 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F88BE945806D145A67E9AC57 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C097FD3C2FD7B4A800471A18 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -59,9 +161,55 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D6A68453DDFA70EAABB8CEE0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5D7B28831AD4B34D964CD6C0 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0E9994305F5B54880C5B1390 /* watchOS */ = {
+			isa = PBXGroup;
+			children = (
+				2C95EFC6D04A5C8AEF7D37A4 /* Foundation.framework */,
+			);
+			name = watchOS;
+			sourceTree = "<group>";
+		};
+		A2B5A3AEE929A6A5FDFDC0FC /* BoxOfDiceTests */ = {
+			isa = PBXGroup;
+			children = (
+				4CA0A26EDC673DFDD88CC6ED /* GameEngineSearchTests.swift */,
+				C33531EB0F6788ED70187D7F /* GameEngineTests.swift */,
+				6EAD60DFCBF6477830B772D1 /* GameRestoreTests.swift */,
+				265EBB3BF1061823FE57661C /* GameResultRecordGuardTests.swift */,
+				2DBFF568ED278A92A05A53F1 /* GameSaveStoreTests.swift */,
+				E6C9A2D2CBFA3334E0D0636F /* GameStatisticsRecorderTests.swift */,
+				DFB22A84D717F746A6C3385D /* GameViewModelTimedAnimationTests.swift */,
+				CEF22DC08A2BB35AC73657AF /* QuickGameTests.swift */,
+				722493FCD9CE25A4BD7A08C1 /* OnboardingViewModelTests.swift */,
+				1AE281D856EF361A4C488FD2 /* LocalizationResourceTests.swift */,
+				04DE9BAC01D29AE123644343 /* OnboardingLifecycleTests.swift */,
+				550F0AE43E11B51C7C14BFB2 /* OnboardingLayoutTests.swift */,
+				D4E5F607182930A1B2C3D4E6 /* DiceStyleTests.swift */,
+				E5F607182930A1B2C3D4E5F7 /* DiceRollAndTileInteractionTests.swift */,
+			);
+			name = BoxOfDiceTests;
+			path = BoxOfDiceTests;
+			sourceTree = "<group>";
+		};
+		A7B82719E484EA1EA3F40171 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				EA8998E0450BE736D87231F5 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
 		C097FD282FD7A03B00471A18 /* WatchApp */ = {
 			isa = PBXGroup;
 			children = (
@@ -70,6 +218,8 @@
 				C097FD2B2FD7A0F500471A18 /* WatchSupportViews.swift */,
 				C097FD832FD7B30900471A18 /* WatchGameCore.swift */,
 				C04968092FD91E6700D93BFF /* WatchConnectivity.swift */,
+				C0D1CE000000000000000005 /* Localizable.strings */,
+				94680DD4DDF98AABDA6BEE51 /* WatchOnboardingView.swift */,
 			);
 			path = WatchApp;
 			sourceTree = "<group>";
@@ -77,6 +227,12 @@
 		C097FD502FD7C00000471A18 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				C0D1CE000000000000000002 /* Assets.xcassets */,
+				C0D1CE000000000000000007 /* PrivacyInfo.xcprivacy */,
+				C0D1CE00000000000000000B /* GameEngine.swift */,
+				C0D1CE00000000000000000E /* GameSave.swift */,
+				C0D1CE000000000000000010 /* GameResultRecordGuard.swift */,
+				23616FD172A31F081C3E29AC /* OnboardingViewModel.swift */,
 			);
 			name = Shared;
 			sourceTree = "<group>";
@@ -88,6 +244,9 @@
 				C0B4C6EC2FD33B2C009A322C /* Products */,
 				C097FD282FD7A03B00471A18 /* WatchApp */,
 				C097FD502FD7C00000471A18 /* Shared */,
+				F732293185871DFA150C142B /* Frameworks */,
+				A2B5A3AEE929A6A5FDFDC0FC /* BoxOfDiceTests */,
+				C5CDD7D520FB6D7196910204 /* WatchAppTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -96,13 +255,55 @@
 			children = (
 				C0B4C6EB2FD33B2C009A322C /* BoxOfDice.app */,
 				C097FD3B2FD7B4A800471A18 /* BoxOfDice Watch App.app */,
+				7AB12CD0FB2B9AEC4979F087 /* BoxOfDiceTests.xctest */,
+				4B13859F7C22152E59D3A815 /* BoxOfDice Watch AppTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		C5CDD7D520FB6D7196910204 /* WatchAppTests */ = {
+			isa = PBXGroup;
+			children = (
+				6BA12CD1C8E9B2337FDA3FE1 /* WatchGameCoreRegressionTests.swift */,
+				119366CD227B266CAF980285 /* WatchGameRestoreTests.swift */,
+				A1B2C3D4E5F60708192A3B4D /* WatchDicePresentationTests.swift */,
+				B2C3D4E5F60718293A4B5C6E /* WatchGameModeSupportTests.swift */,
+				C3D4E5F607192A3B4C5D6E70 /* WatchLayoutBudgetTests.swift */,
+			);
+			name = WatchAppTests;
+			path = WatchAppTests;
+			sourceTree = "<group>";
+		};
+		F732293185871DFA150C142B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A7B82719E484EA1EA3F40171 /* iOS */,
+				0E9994305F5B54880C5B1390 /* watchOS */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		77F3A099333D55309A06AD7B /* BoxOfDice Watch AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6C1C8C4494D03281EC100E3E /* Build configuration list for PBXNativeTarget "BoxOfDice Watch AppTests" */;
+			buildPhases = (
+				3817866D2023CC4A385E049A /* Sources */,
+				D6A68453DDFA70EAABB8CEE0 /* Frameworks */,
+				205E700AA8F8E7604C8EBA4E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E7101AAA02077B52FC4E278A /* PBXTargetDependency */,
+			);
+			name = "BoxOfDice Watch AppTests";
+			productName = "BoxOfDice Watch AppTests";
+			productReference = 4B13859F7C22152E59D3A815 /* BoxOfDice Watch AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		C097FD3D2FD7B4A800471A18 /* BoxOfDice Watch App */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = C097FD412FD7B4A800471A18 /* Build configuration list for PBXNativeTarget "BoxOfDice Watch App" */;
@@ -116,8 +317,6 @@
 			dependencies = (
 			);
 			name = "BoxOfDice Watch App";
-			packageProductDependencies = (
-			);
 			productName = "BoxOfDice Watch App";
 			productReference = C097FD3B2FD7B4A800471A18 /* BoxOfDice Watch App.app */;
 			productType = "com.apple.product-type.application";
@@ -129,21 +328,38 @@
 				C0B4C6E72FD33B2C009A322C /* Sources */,
 				C0B4C6E82FD33B2C009A322C /* Frameworks */,
 				C0B4C6E92FD33B2C009A322C /* Resources */,
-				C097FDB42FD7C84400471A18 /* CopyFiles */,
+				C097FDB42FD7C84400471A18 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C0D1CE00000000000000000A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				C0B4C6ED2FD33B2C009A322C /* BoxOfDice */,
 			);
 			name = BoxOfDice;
-			packageProductDependencies = (
-			);
 			productName = BoxOfDice;
 			productReference = C0B4C6EB2FD33B2C009A322C /* BoxOfDice.app */;
 			productType = "com.apple.product-type.application";
+		};
+		FE6B9520A833BDD606868692 /* BoxOfDiceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF8917038B2F78518FA2F1D6 /* Build configuration list for PBXNativeTarget "BoxOfDiceTests" */;
+			buildPhases = (
+				C338F91BCCBAC40C490071FD /* Sources */,
+				1CAA4C09F92DC9B67F6CBB05 /* Frameworks */,
+				6806F5DB84C5F1D787621C23 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				857F228D437D4346089BA548 /* PBXTargetDependency */,
+			);
+			name = BoxOfDiceTests;
+			productName = BoxOfDiceTests;
+			productReference = 7AB12CD0FB2B9AEC4979F087 /* BoxOfDiceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -170,6 +386,11 @@
 				en,
 				Base,
 				fi,
+				de,
+				fr,
+				es,
+				it,
+				"pt-BR",
 			);
 			mainGroup = C0B4C6E22FD33B2C009A322C;
 			minimizedProjectReferenceProxies = 1;
@@ -180,15 +401,34 @@
 			targets = (
 				C0B4C6EA2FD33B2C009A322C /* BoxOfDice */,
 				C097FD3D2FD7B4A800471A18 /* BoxOfDice Watch App */,
+				FE6B9520A833BDD606868692 /* BoxOfDiceTests */,
+				77F3A099333D55309A06AD7B /* BoxOfDice Watch AppTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		205E700AA8F8E7604C8EBA4E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6806F5DB84C5F1D787621C23 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C097FD3E2FD7B4A800471A18 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0D1CE000000000000000003 /* Assets.xcassets in Resources */,
+				C0D1CE000000000000000006 /* Localizable.strings in Resources */,
+				C0D1CE000000000000000008 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -202,6 +442,18 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		3817866D2023CC4A385E049A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F81AC01E4CE7AB353F37EA3B /* WatchGameCoreRegressionTests.swift in Sources */,
+				C6ADE2F49C7F89DE9DD6A5D1 /* WatchGameRestoreTests.swift in Sources */,
+				A1B2C3D4E5F60708192A3B4C /* WatchDicePresentationTests.swift in Sources */,
+				B2C3D4E5F60718293A4B5C6D /* WatchGameModeSupportTests.swift in Sources */,
+				C3D4E5F607192A3B4C5D6E7F /* WatchLayoutBudgetTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C097FD3F2FD7B4A800471A18 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -211,6 +463,11 @@
 				C097FD312FD7B4A800471A18 /* WatchContentView.swift in Sources */,
 				C097FD322FD7B4A800471A18 /* WatchSupportViews.swift in Sources */,
 				C097FD842FD7B30900471A18 /* WatchGameCore.swift in Sources */,
+				C0D1CE00000000000000000C /* GameEngine.swift in Sources */,
+				C0D1CE00000000000000000D /* GameSave.swift in Sources */,
+				C0D1CE00000000000000000F /* GameResultRecordGuard.swift in Sources */,
+				25B68B594814BD8C32383764 /* OnboardingViewModel.swift in Sources */,
+				05EB88C28EA6AA516BD1C1E0 /* WatchOnboardingView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -221,12 +478,170 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C338F91BCCBAC40C490071FD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				15836DE21077A5FD74B1DDB4 /* GameEngineSearchTests.swift in Sources */,
+				4CC04F0940DEB174AE6200DC /* GameEngineTests.swift in Sources */,
+				20A979E5B1F8CDF8DC5C2B4B /* GameRestoreTests.swift in Sources */,
+				432204FEFE9D167CA7E8C6D1 /* GameResultRecordGuardTests.swift in Sources */,
+				61542AE3A31E3F453E464FF2 /* GameSaveStoreTests.swift in Sources */,
+				D0775F8155218095FB0A7F4D /* GameStatisticsRecorderTests.swift in Sources */,
+				D8513A4C234E07B2961AC227 /* GameViewModelTimedAnimationTests.swift in Sources */,
+				256DF0F51D25CE685B30CE3F /* QuickGameTests.swift in Sources */,
+				DFFA5A8BC8259BE873F1C900 /* OnboardingViewModelTests.swift in Sources */,
+				B381F76A95336BCC3A9F5322 /* LocalizationResourceTests.swift in Sources */,
+				DFF28BD2E1E058EF317E8461 /* OnboardingLifecycleTests.swift in Sources */,
+				B157ED25DD78AC5A92AE1183 /* OnboardingLayoutTests.swift in Sources */,
+				D4E5F607182930A1B2C3D4E5 /* DiceStyleTests.swift in Sources */,
+				E5F607182930A1B2C3D4E5F6 /* DiceRollAndTileInteractionTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		857F228D437D4346089BA548 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = BoxOfDice;
+			target = C0B4C6EA2FD33B2C009A322C /* BoxOfDice */;
+			targetProxy = 9970C50882BB6F86D3F76761 /* PBXContainerItemProxy */;
+		};
+		C0D1CE00000000000000000A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C097FD3D2FD7B4A800471A18 /* BoxOfDice Watch App */;
+			targetProxy = C0D1CE000000000000000009 /* PBXContainerItemProxy */;
+		};
+		E7101AAA02077B52FC4E278A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "BoxOfDice Watch App";
+			target = C097FD3D2FD7B4A800471A18 /* BoxOfDice Watch App */;
+			targetProxy = 7A5D838C4206D75AD03D4206 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		C0D1CE000000000000000005 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C0D1CE000000000000000004 /* fi */,
+				C624883EC2AF3E17EB89CA2C /* de */,
+				A86E4DAE7EF55BEF6A21CCE5 /* fr */,
+				32D5D525589F08734C7559FB /* es */,
+				0105613AC5629B2B41AEEDC3 /* it */,
+				710D265C645C467AE2FC0AB9 /* pt-BR */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
+		1C6B374691DDADE2EB2C1BC1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BoxOfDice.app/BoxOfDice";
+			};
+			name = Debug;
+		};
+		7D80E95978D8B247B5358456 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice.watchkitapp.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BoxOfDice Watch App.app/BoxOfDice Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 10.6;
+			};
+			name = Debug;
+		};
+		935563AAE5813EC5816429C7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice.watchkitapp.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BoxOfDice Watch App.app/BoxOfDice Watch App";
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.6;
+			};
+			name = Release;
+		};
+		A2B52C209B6E391CA47A7E7B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BoxOfDice.app/BoxOfDice";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		C097FD402FD7B4A800471A18 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 13;
@@ -245,7 +660,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
-				SKIP_INSTALL = NO;
+				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -261,6 +676,7 @@
 		C097FD492FD7B4A800471A18 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 13;
@@ -279,7 +695,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
-				SKIP_INSTALL = NO;
+				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -433,7 +849,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -468,7 +884,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -490,6 +906,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		6C1C8C4494D03281EC100E3E /* Build configuration list for PBXNativeTarget "BoxOfDice Watch AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				935563AAE5813EC5816429C7 /* Release */,
+				7D80E95978D8B247B5358456 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF8917038B2F78518FA2F1D6 /* Build configuration list for PBXNativeTarget "BoxOfDiceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A2B52C209B6E391CA47A7E7B /* Release */,
+				1C6B374691DDADE2EB2C1BC1 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		C097FD412FD7B4A800471A18 /* Build configuration list for PBXNativeTarget "BoxOfDice Watch App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

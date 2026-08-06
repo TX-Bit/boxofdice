@@ -28,40 +28,53 @@ struct ContentView: View {
     @AppStorage(SettingsStorageKey.hapticsEnabled) private var hapticsEnabled = true
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
+    @AppStorage(SettingsStorageKey.diceStyle) private var diceStyleRawValue = DiceStyleName.ivory.rawValue
     @AppStorage(SettingsStorageKey.showHints) private var showHints = true
-    @AppStorage(SettingsStorageKey.showDiceTotal) private var showDiceTotal = false
+    // BOD-012: new installs show the dice sum by default (helps new players
+    // connect the roll to the target number); a previous user's explicit
+    // `false` still wins, since @AppStorage only falls back to this default
+    // when the key has never been written — this is not a forced migration.
+    @AppStorage(SettingsStorageKey.showDiceTotal) private var showDiceTotal = true
     @AppStorage(SettingsStorageKey.celebrations) private var celebrationsRaw = CelebrationLevel.on.rawValue
     @AppStorage(SettingsStorageKey.language) private var languageRaw = AppLanguage.system.rawValue
     @AppStorage("hasSelectedInitialGameMode") private var hasSelectedInitialGameMode = false
     @AppStorage("hasSeenScoreOnboardingHint") private var hasSeenScoreOnboardingHint = false
+    @AppStorage(SettingsStorageKey.onboardingCompletedOrSkipped) private var onboardingCompletedOrSkipped = false
 
-    // Global stats
+    // BOD-012: which context the tutorial is showing for, if any — kept
+    // entirely separate from the normal game's state. `nil` means the
+    // tutorial isn't showing.
+    // `OnboardingContext` is shared with the Watch target — it carries the
+    // rule for whether the game underneath may be saved (see
+    // OnboardingViewModel.swift).
+    @State private var onboardingContext: OnboardingContext?
+
+    // Read here only for what ContentView itself needs directly: the
+    // onboarding hint check and the celebration's "previous best" lookup.
+    // Every other statistics field is written by GameStatisticsRecorder
+    // (BOD-005) against the same UserDefaults keys, and read for display
+    // only by StatsView.
     @AppStorage(StatisticsStorageKey.gamesPlayed) private var gamesPlayed = 0
-    @AppStorage(StatisticsStorageKey.gamesWon) private var gamesWon = 0
-    // -1 is "nothing recorded yet"; 0 is a real score (a perfect clear).
-    @AppStorage(StatisticsStorageKey.bestScore) private var bestScore = -1
-    @AppStorage(StatisticsStorageKey.totalScore) private var totalScore = 0
-    @AppStorage(StatisticsStorageKey.perfectClears) private var perfectClears = 0
-    @AppStorage(StatisticsStorageKey.currentWinStreak) private var currentWinStreak = 0
-    @AppStorage(StatisticsStorageKey.bestWinStreak) private var bestWinStreak = 0
-    @AppStorage(StatisticsStorageKey.winningScoreTotal) private var winningScoreTotal = 0
-    @AppStorage(StatisticsStorageKey.losingScoreTotal) private var losingScoreTotal = 0
-    @AppStorage(StatisticsStorageKey.losses) private var losses = 0
-    @AppStorage(StatisticsStorageKey.longestGameTurns) private var longestGameTurns = 0
-    @AppStorage(StatisticsStorageKey.shortestClearTurns) private var shortestClearTurns = 0
-    @AppStorage(StatisticsStorageKey.remainingTileCounts) private var remainingTileCounts = ""
 
-    // Per-mode best scores
-    @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = -1
-    @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = -1
-    @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = -1
-    @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = -1
+    // Per-mode best scores (existing, preserved as-is)
+    @AppStorage(StatisticsStorageKey.bestScoreQuickGame) private var bestScoreQuickGame = 0
+    @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = 0
+    @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = 0
+    @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = 0
+    @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = 0
+
+    // Guards against recording the same finished game's stats twice (e.g. if
+    // the game-over transition were ever observed more than once before a
+    // new game starts). Reset whenever a fresh game begins. See
+    // GameResultRecordGuard.swift (R3 in docs/KORJAUSTEN_TARKISTUS_2026-09-09.md).
+    @State private var resultRecordGuard = GameResultRecordGuard()
 
     private let horizontalPadding: CGFloat = 12
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         GeometryReader { proxy in
@@ -121,15 +134,34 @@ struct ContentView: View {
                     .transition(.opacity)
                     .zIndex(2)
                 }
+
+                // BOD-012: the tutorial fully covers the normal game — its own
+                // board, not a sheet — so it can be a new install's very first
+                // screen with no mode menu underneath it.
+                if let context = onboardingContext {
+                    OnboardingView(
+                        theme: theme,
+                        diceStyle: diceStyle,
+                        isReplay: context == .replay,
+                        onFinish: { finishOnboarding(context: context) }
+                    )
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(3)
+                }
             }
         }
         .onAppear {
             guard !didApplyInitialSettings else { return }
             didApplyInitialSettings = true
             configureViewModel()
-            viewModel.newGame(settings: currentSettings, isTimed: currentGameMode.isTimed)
-            if !hasSelectedInitialGameMode {
-                isShowingModeSelection = true
+            beginAppLaunchFlow()
+        }
+        .onChange(of: viewModel.revision) { persistCurrentGame() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background {
+                viewModel.handleScenePhaseBackground()
+                persistCurrentGame()
             }
         }
         .sheet(isPresented: $isShowingModeSelection) {
@@ -138,12 +170,12 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $isShowingSettings) {
-            SettingsView()
+            SettingsView(onShowHowToPlay: { onboardingContext = .replay })
         }
         .sheet(isPresented: $isShowingStats) {
             StatsView()
         }
-        .onChange(of: viewModel.gameState) { newState in
+        .onChange(of: viewModel.gameState) { _, newState in
             if case .gameOver(let won) = newState {
                 handleGameOver(won: won)
                 if currentGameMode.isMultiplayer {
@@ -159,14 +191,15 @@ struct ContentView: View {
                 celebrationOutcome = nil
             }
         }
-        .onChange(of: viewModel.hasRolled) { hasRolled in
+        .onChange(of: viewModel.hasRolled) { _, hasRolled in
             if hasRolled {
                 hasSeenScoreOnboardingHint = true
             }
         }
-        .onChange(of: diceAnimationSpeedRawValue) { _ in configureViewModel() }
-        .onChange(of: hapticsEnabled) { _ in configureViewModel() }
-        .onChange(of: soundsEnabled) { _ in configureViewModel() }
+        .onChange(of: diceAnimationSpeedRawValue) { configureViewModel() }
+        .onChange(of: hapticsEnabled) { configureViewModel() }
+        .onChange(of: soundsEnabled) { configureViewModel() }
+        .onChange(of: reduceMotion) { configureViewModel() }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.gameState)
         // Reading languageRaw here re-renders the whole UI (and every L10n string)
         // the instant the in-app language changes, and applies the matching locale.
@@ -246,33 +279,33 @@ struct ContentView: View {
         let usableWidth = proxy.size.width - leading - trailing
         let board = boardSizing(forHeight: usableHeight, width: usableWidth * 0.60, maxTile: 66)
         let panelWidth = min(340, usableWidth * 0.40)
+        let heightConstrainedDie = max(40, min(76, (usableHeight - 195) / 1.35))
+        let dieSize = min(heightConstrainedDie, fittingDieSize(desired: 76, count: viewModel.dieCount, available: panelWidth - 6))
 
-        ZStack(alignment: .top) {
-            HStack(alignment: .center, spacing: 16) {
-                // Left: the tray, centred vertically in the available height.
-                boardView(width: board.width, maxTileWidth: board.maxTile, numberFontSize: 27 * scale)
-                    .frame(maxWidth: .infinity)
+        HStack(alignment: .center, spacing: 16) {
+            // Left: the tray, centred vertically in the available height.
+            boardView(width: board.width, maxTileWidth: board.maxTile, numberFontSize: 27 * scale)
+                .frame(maxWidth: .infinity)
 
-                // Right: compact title/score, dice + target, action, secondary row.
+            // Right: compact header with stats/settings, dice, action, secondary row.
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 8) {
-                    scoreModeBlock(scale: scale)
-                    diceSection(dieSize: fittingDieSize(desired: 88, count: viewModel.dieCount, available: panelWidth - 6), scale: scale)
+                    phoneLandscapeHeader(scale: scale)
+                    diceSection(dieSize: dieSize, scale: scale)
                     actionButton(scale: scale)
+                    moveHistorySummary(scale: scale)
                     secondaryToolBar(scale: scale)
                 }
                 .frame(width: panelWidth)
+                .frame(minHeight: usableHeight, alignment: .center)
             }
-            .padding(.leading, leading)
-            .padding(.trailing, trailing)
-            .padding(.top, topPad)
-            .padding(.bottom, bottomPad)
-
-            // Stats / settings stay compact in the safe top corners, clear of content.
-            cornerIcons(scale: scale)
-                .padding(.leading, max(8, insets.leading + 4))
-                .padding(.trailing, max(8, insets.trailing + 4))
-                .padding(.top, max(6, insets.top))
+            .frame(width: panelWidth)
+            .frame(maxHeight: usableHeight)
         }
+        .padding(.leading, leading)
+        .padding(.trailing, trailing)
+        .padding(.top, topPad)
+        .padding(.bottom, bottomPad)
     }
 
     // MARK: - iPad (dedicated large-tabletop layouts)
@@ -329,20 +362,26 @@ struct ContentView: View {
         let usableHeight = proxy.size.height - topPad - bottomPad
         let board = boardSizing(forHeight: usableHeight, width: usableWidth * 0.65, maxTile: 116)
         let panelWidth = min(440, usableWidth * 0.35)
+        let dieDesired = min(150, (usableHeight - 260) / 1.4)
 
         ZStack(alignment: .top) {
             HStack(alignment: .center, spacing: 32) {
                 boardView(width: board.width, maxTileWidth: board.maxTile, numberFontSize: 27 * scale)
                     .frame(maxWidth: .infinity)
 
-                VStack(spacing: 18) {
-                    scoreModeBlock(scale: scale)
-                    diceSection(dieSize: fittingDieSize(desired: 150, count: viewModel.dieCount, available: panelWidth - 8), scale: scale)
-                    actionButton(scale: scale)
-                    moveHistorySummary(scale: scale)
-                    secondaryToolBar(scale: scale)
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 18) {
+                        scoreModeBlock(scale: scale)
+                        diceSection(dieSize: fittingDieSize(desired: dieDesired, count: viewModel.dieCount, available: panelWidth - 8), scale: scale)
+                        actionButton(scale: scale)
+                        moveHistorySummary(scale: scale)
+                        secondaryToolBar(scale: scale)
+                    }
+                    .frame(width: panelWidth)
+                    .frame(minHeight: usableHeight, alignment: .center)
                 }
                 .frame(width: panelWidth)
+                .frame(maxHeight: usableHeight)
             }
             .padding(.horizontal, sidePad)
             .padding(.top, topPad)
@@ -411,13 +450,19 @@ struct ContentView: View {
     private var currentSettings: GameSettings {
         GameSettings.from(
             mode: currentGameMode,
-            diceMode: .alwaysTwoDice,
+            diceMode: currentGameMode.diceMode,
             moveRule: .anyCombination
         )
     }
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .classicWood)
+        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .greenFelt)
+    }
+
+    // Dice style is chosen independently of the board theme (see
+    // DiceStyle.swift) — its own AppStorage key, read the same way as theme.
+    private var diceStyle: DiceStyle {
+        DiceStyle.palette(for: DiceStyleName(rawValue: diceStyleRawValue) ?? .ivory)
     }
 
     private var dimBackground: Color {
@@ -457,6 +502,21 @@ struct ContentView: View {
         .accessibilityElement(children: .combine)
     }
 
+    private func phoneLandscapeHeader(scale: CGFloat) -> some View {
+        VStack(spacing: 4 * scale) {
+            HStack(alignment: .center) {
+                headerIconButton(systemName: "chart.bar.fill", label: "Statistics", scale: scale) { isShowingStats = true }
+                Spacer()
+                modePill(scale: scale)
+                Spacer()
+                headerIconButton(systemName: "gearshape.fill", label: "Settings", scale: scale) { isShowingSettings = true }
+            }
+            headerScoreRow(scale: scale)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
     private func cornerIcons(scale: CGFloat) -> some View {
         HStack {
             headerIconButton(systemName: "chart.bar.fill", label: "Statistics", scale: scale) { isShowingStats = true }
@@ -469,7 +529,11 @@ struct ContentView: View {
     private func headerScoreRow(scale: CGFloat) -> some View {
         if currentGameMode.isTimed {
             HStack(spacing: 10 * scale) {
-                Text("Tiles: \(viewModel.score)")
+                // "Tile score", not "Tiles": the number is the SUM of the open
+                // tiles, not how many are open (docs/KIELITARKISTUS_2026-09-10.md).
+                // In a timed mode it also must not read as the final score,
+                // which is this plus the elapsed seconds shown next to it.
+                Text("Tile score: \(viewModel.score)")
                     .animation(.spring(), value: viewModel.score)
                 if viewModel.hasRolled {
                     Text("·")
@@ -487,13 +551,17 @@ struct ContentView: View {
             .animation(.easeInOut(duration: 0.2), value: viewModel.hasRolled)
         } else {
             VStack(spacing: 3 * scale) {
-                Text("Score: \(viewModel.score)")
+                // "Remaining" instead of "Score": in a lowest-wins game, an
+                // unqualified "Score" reads as something you want to grow.
+                // BOD-012 acceptance test expects this exact wording.
+                Text(L10n.format("Remaining: %lld", viewModel.score))
                     .font(GameTypography.value(size: 23 * scale))
                     .foregroundStyle(theme.text)
                     .animation(.spring(), value: viewModel.score)
+                    .accessibilityLabel(L10n.format("Remaining: %lld", viewModel.score))
 
                 if !hasSeenScoreOnboardingHint && !viewModel.hasRolled && gamesPlayed == 0 {
-                    Text("Close tiles to lower your score. Lowest score wins.")
+                    Text("Lower is better")
                         .font(GameTypography.caption(size: 12 * scale))
                         .foregroundStyle(theme.text.opacity(0.66))
                         .multilineTextAlignment(.center)
@@ -582,14 +650,30 @@ struct ContentView: View {
     }
 
     private func tileButton(for tile: Tile, numberFontSize: CGFloat = 27) -> some View {
-        TileView(
+        let isSelected = viewModel.selectedTiles.contains(tile.id) || viewModel.highlightedHint.contains(tile.id)
+        return TileView(
             number: tile.id,
             isOpen: tile.isOpen,
-            isSelected: viewModel.selectedTiles.contains(tile.id) || viewModel.highlightedHint.contains(tile.id),
+            isSelected: isSelected,
             isEnabled: viewModel.canSelectTiles,
+            isMatched: viewModel.selectedTiles.contains(tile.id) && viewModel.canConfirm,
             numberFontSize: numberFontSize,
+            closeDelay: closeStaggerDelay(for: tile.id),
             onTap: { viewModel.toggleTile(tile.id) }
         )
+    }
+
+    /// A small, capped per-tile delay so several tiles closing from the same
+    /// confirmed move flap down as a light stagger rather than all at once —
+    /// capped at 6 tiles' worth so a large close (Big Box can close many
+    /// tiles in one move) never drags the flap out. Purely cosmetic: the
+    /// engine already closed every one of these tiles synchronously at
+    /// confirm time, independent of this delay or whether the animation
+    /// ever finishes (e.g. the view disappearing mid-flip).
+    private func closeStaggerDelay(for tileId: Int) -> TimeInterval {
+        guard let lastMove = viewModel.moveHistory.last,
+              let index = lastMove.closedTiles.firstIndex(of: tileId) else { return 0 }
+        return Double(min(index, 6)) * 0.045
     }
 
     // MARK: - Dice
@@ -614,9 +698,17 @@ struct ContentView: View {
                         value: viewModel.dice[index],
                         isRolling: viewModel.isRolling,
                         dieIndex: index,
+                        rollDuration: viewModel.effectiveDiceAnimationSpeed.tumbleDuration,
+                        style: diceStyle,
+                        reduceMotion: reduceMotion,
                         onSettled: index == 0 ? { viewModel.diceSettledFeedback() } : nil
                     )
                     .frame(width: dieSize, height: dieSize)
+                    .accessibilityLabel(
+                        viewModel.dice[index] > 0
+                            ? L10n.format("Die showing %lld", viewModel.dice[index])
+                            : L10n.string("Die not rolled")
+                    )
                     // Soft contact shadow rendered behind the die — a blurred,
                     // edge-free ellipse that grounds it on the table without
                     // touching any of the SceneKit content.
@@ -630,6 +722,17 @@ struct ContentView: View {
                 Text(L10n.format("Dice total %lld", viewModel.diceTotal))
                     .font(GameTypography.value(size: 16 * scale))
                     .foregroundStyle(theme.text.opacity(0.86))
+                    .transition(.opacity)
+            }
+
+            // Quick Game only: explain the drop to a single die, so it doesn't
+            // read as a bug. `viewModel.dieCount` already stays fixed at the
+            // roll's own die count for its whole duration (roll + selection),
+            // so this can only ever change between turns, never mid-roll.
+            if currentGameMode == .quickGame && viewModel.dieCount == 1 {
+                Text(L10n.string("One die now — only low tiles remain"))
+                    .font(GameTypography.caption(size: 12 * scale))
+                    .foregroundStyle(theme.text.opacity(0.62))
                     .transition(.opacity)
             }
         }
@@ -870,7 +973,7 @@ struct ContentView: View {
         }
 
         configureViewModel()
-        viewModel.newGame(settings: currentSettings, isTimed: mode.isTimed)
+        beginNewViewModelGame(settings: currentSettings, isTimed: mode.isTimed)
     }
 
     private func restartCurrentGame() {
@@ -881,7 +984,123 @@ struct ContentView: View {
         passAndPlayScores.append(viewModel.score)
         currentPassAndPlayPlayer += 1
         configureViewModel()
-        viewModel.newGame(settings: currentSettings, isTimed: false)
+        beginNewViewModelGame(settings: currentSettings, isTimed: false)
+    }
+
+    // MARK: - Launch routing (BOD-012)
+
+    /// Decides what a fresh launch shows, in priority order: (1) a
+    /// restorable in-progress game always wins — BOD-006 says so
+    /// explicitly; (2) any existing signal of prior use (a previously
+    /// chosen mode, or any recorded game) means this is a returning user,
+    /// who is never forced into the tutorial, even if the dedicated
+    /// onboarding-completed flag happens to be unset for some reason (e.g.
+    /// it didn't exist in their installed version yet); (3) only a
+    /// genuinely fresh install — no save, no prior-use signal, tutorial not
+    /// yet completed/skipped — sees the tutorial. The old "always open the
+    /// mode-selection sheet on first launch" behaviour is gone; the
+    /// tutorial (for new users) or the last-used mode (for returning users)
+    /// replaces it.
+    private func beginAppLaunchFlow() {
+        if restoreSavedGameIfAny() {
+            return
+        }
+        let isReturningUser = hasSelectedInitialGameMode || gamesPlayed > 0
+        if isReturningUser || onboardingCompletedOrSkipped {
+            onboardingCompletedOrSkipped = true
+            beginNewViewModelGame(settings: currentSettings, isTimed: currentGameMode.isTimed)
+        } else {
+            onboardingContext = .firstLaunch
+        }
+    }
+
+    /// Called when the tutorial finishes, however it finished (the closing
+    /// prompt's button, or Skip — both do the same thing at this point).
+    private func finishOnboarding(context: OnboardingContext) {
+        onboardingContext = nil
+        guard context == .firstLaunch else { return } // .replay: the game underneath is untouched
+        onboardingCompletedOrSkipped = true
+        hasSelectedInitialGameMode = true
+        gameModeRaw = GameMode.quickGame.rawValue
+        configureViewModel()
+        beginNewViewModelGame(
+            settings: GameSettings.from(mode: .quickGame, diceMode: GameMode.quickGame.diceMode, moveRule: .anyCombination),
+            isTimed: false
+        )
+    }
+
+    /// Starts a fresh game on the view model and clears the "already recorded
+    /// this game's result" guard, so the next completed game can be recorded
+    /// exactly once. All `viewModel.newGame(...)` calls should go through here.
+    private func beginNewViewModelGame(settings: GameSettings, isTimed: Bool) {
+        resultRecordGuard.reset()
+        viewModel.newGame(settings: settings, isTimed: isTimed)
+        // The new game replaces whatever was saved for the previous one —
+        // `viewModel.newGame` already bumped `revision`, so `persistCurrentGame()`
+        // will run from the `.onChange(of: viewModel.revision)` handler, but
+        // save right away too so a save never lags behind a fast double-tap
+        // (e.g. New Game tapped twice) into a new game's own next action.
+        persistCurrentGame()
+    }
+
+    // MARK: - Save/restore (BOD-006)
+
+    /// Attempts to resume a previously saved in-progress game. Returns
+    /// `true` if a game was restored — the caller must not also start a
+    /// fresh one in that case. Any failure (no save, unreadable file,
+    /// corrupt/unrecognized JSON) is already handled inside
+    /// `GameSaveStore.load()`, which returns `nil`; this simply falls
+    /// through to the caller starting a fresh game.
+    private func restoreSavedGameIfAny() -> Bool {
+        guard let saved = GameSaveStore.load() else { return false }
+
+        gameModeRaw = saved.gameMode.rawValue
+        passAndPlayPlayerCount = saved.passAndPlayPlayerCount
+        currentPassAndPlayPlayer = saved.currentPassAndPlayPlayer
+        passAndPlayScores = saved.passAndPlayScores
+        hasSelectedInitialGameMode = true
+        resultRecordGuard.reset()
+
+        viewModel.restore(
+            engine: saved.engine,
+            pendingRollDice: saved.pendingRollDice,
+            gameStartTime: saved.gameStartTime,
+            isTimed: saved.gameMode.isTimed
+        )
+        return true
+    }
+
+    /// Persists the current in-progress game: mode/rules, full engine state
+    /// (tiles, dice, selection, phase, move history, and the random
+    /// generator's exact progress so future rolls don't change because of
+    /// the save), any roll already drawn but not yet committed (the app was
+    /// backgrounded mid-animation), the timed clock's real start time (so
+    /// backgrounded/quit time still counts toward the result), and local
+    /// Pass & Play progress. A finished game has nothing left to resume —
+    /// and its stats are already recorded — so its save is cleared instead,
+    /// which also guarantees a finished game's stats can never be recorded
+    /// a second time by restoring it.
+    private func persistCurrentGame() {
+        // BOD-012 follow-up (docs/UUDISTUSTEN_TARKISTUS_2026-09-10.md §1):
+        // never write the untouched Classic game sitting underneath the
+        // first-launch tutorial — see `OnboardingContext`.
+        if let onboardingContext, !onboardingContext.allowsPersistingUnderlyingGame { return }
+        let isReturningUser = hasSelectedInitialGameMode || gamesPlayed > 0
+        if !onboardingCompletedOrSkipped && !isReturningUser { return }
+
+        if case .gameOver = viewModel.gameState {
+            GameSaveStore.clear()
+            return
+        }
+        GameSaveStore.save(SavedGame(
+            gameMode: currentGameMode,
+            engine: viewModel.engineSnapshot,
+            pendingRollDice: viewModel.pendingRollDiceForSaving,
+            gameStartTime: viewModel.gameStartTimeForSaving,
+            passAndPlayPlayerCount: passAndPlayPlayerCount,
+            currentPassAndPlayPlayer: currentPassAndPlayPlayer,
+            passAndPlayScores: passAndPlayScores
+        ))
     }
 
     private func showPassAndPlayResults() {
@@ -895,13 +1114,16 @@ struct ContentView: View {
         viewModel.configure(
             diceAnimationSpeed: diceAnimationSpeed,
             feedbackOptions: FeedbackOptions(hapticsEnabled: hapticsEnabled, soundsEnabled: soundsEnabled),
-            isTimed: currentGameMode.isTimed
+            isTimed: currentGameMode.isTimed,
+            reduceMotion: reduceMotion
         )
     }
 
     private func handleGameOver(won: Bool) {
         // Don't record stats for multiplayer — results screen handles that
         guard !currentGameMode.isMultiplayer else { return }
+        // Never record the same finished game's stats twice.
+        guard resultRecordGuard.recordIfNeeded() else { return }
         // Resolve the celebration BEFORE recording, so we still know the previous
         // best for this mode (recordCompletedGame overwrites it).
         celebrationOutcome = makeCelebrationOutcome(won: won)
@@ -914,14 +1136,19 @@ struct ContentView: View {
         CelebrationLevel(rawValue: celebrationsRaw) ?? .on
     }
 
-    private var currentModeBestScore: Int {
+    private var currentModeBestScore: Int? {
         switch currentGameMode {
-        case .classic:      return bestScoreClassic
-        case .speedRun:     return bestScoreSpeedRun
-        case .bigBox:       return bestScoreBigBox
-        case .bigBoxSpeed:  return bestScoreBigBoxSpeed
-        case .passAndPlay:  return -1
+        case .quickGame:    return storedBestScore(bestScoreQuickGame, key: StatisticsStorageKey.bestScoreQuickGame)
+        case .classic:      return storedBestScore(bestScoreClassic, key: StatisticsStorageKey.bestScoreClassic)
+        case .speedRun:     return storedBestScore(bestScoreSpeedRun, key: StatisticsStorageKey.bestScoreSpeedRun)
+        case .bigBox:       return storedBestScore(bestScoreBigBox, key: StatisticsStorageKey.bestScoreBigBox)
+        case .bigBoxSpeed:  return storedBestScore(bestScoreBigBoxSpeed, key: StatisticsStorageKey.bestScoreBigBoxSpeed)
+        case .passAndPlay:  return nil
         }
+    }
+
+    private func storedBestScore(_ score: Int, key: String) -> Int? {
+        UserDefaults.standard.object(forKey: key) == nil ? nil : score
     }
 
     private func makeCelebrationOutcome(won: Bool) -> CelebrationOutcome {
@@ -940,13 +1167,31 @@ struct ContentView: View {
 
     // Reveal the celebration (when enabled) and then the result card, or fall back
     // to the plain delayed result card when celebrations are off / nothing happened.
+    /// Approximate time for the winning move's closing tile flap(s) —
+    /// including the stagger from `closeStaggerDelay` — to finish, so the
+    /// celebration never starts on top of a tile still visibly closing.
+    /// Reduce Motion's tile transition is much shorter, so this shrinks to
+    /// match rather than adding a needless extra wait.
+    private var lastMoveCloseAnimationTailNanoseconds: UInt64 {
+        guard let lastMove = viewModel.moveHistory.last else { return 0 }
+        if reduceMotion { return 120_000_000 }
+        let lastIndex = max(0, min(lastMove.closedTiles.count, 7) - 1)
+        let staggerSeconds = Double(min(lastIndex, 6)) * 0.045
+        let flapSeconds = 0.07 + 0.05 + 0.22 // fade + gap + spring settle, see TileView.animateOpenState
+        return UInt64((staggerSeconds + flapSeconds) * 1_000_000_000)
+    }
+
     private func presentEndOfGame(won: Bool) {
         let outcome = celebrationOutcome
         let shouldCelebrate = celebrationLevel != .off
             && (outcome?.type ?? .none) != .none
 
         if shouldCelebrate {
-            let delay: UInt64 = won ? 450_000_000 : 650_000_000
+            // A win's celebration must never start before the winning move's
+            // own closing tiles finish flapping down — losses don't close
+            // any tile (the game ends on an unplayable roll), so their delay
+            // is unaffected.
+            let delay: UInt64 = won ? max(450_000_000, lastMoveCloseAnimationTailNanoseconds + 80_000_000) : 650_000_000
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: delay)
                 guard case .gameOver = viewModel.gameState else { return }
@@ -988,66 +1233,14 @@ struct ContentView: View {
     // MARK: - Statistics
 
     private func recordCompletedGame(won: Bool) {
-        let baseScore = viewModel.score
-        let finalScore = currentGameMode.finalScore(baseScore: baseScore, elapsedSeconds: viewModel.elapsedSeconds)
-        gamesPlayed += 1
-        totalScore += finalScore
-        bestScore = bestScore < 0 ? finalScore : min(bestScore, finalScore)
-
-        longestGameTurns = max(longestGameTurns, viewModel.turnCount)
-        updateBestScoreByMode(finalScore)
-        updateRemainingTileCounts(viewModel.remainingOpenTiles)
-
-        if won {
-            gamesWon += 1
-            winningScoreTotal += finalScore
-            perfectClears += baseScore == 0 ? 1 : 0
-            currentWinStreak += 1
-            bestWinStreak = max(bestWinStreak, currentWinStreak)
-            shortestClearTurns = shortestClearTurns == 0
-                ? viewModel.turnCount
-                : min(shortestClearTurns, viewModel.turnCount)
-        } else {
-            losses += 1
-            losingScoreTotal += finalScore
-            currentWinStreak = 0
-        }
-    }
-
-    private func updateBestScoreByMode(_ finalScore: Int) {
-        switch currentGameMode {
-        case .classic:
-            bestScoreClassic = bestScoreClassic < 0 ? finalScore : min(bestScoreClassic, finalScore)
-        case .speedRun:
-            bestScoreSpeedRun = bestScoreSpeedRun < 0 ? finalScore : min(bestScoreSpeedRun, finalScore)
-        case .bigBox:
-            bestScoreBigBox = bestScoreBigBox < 0 ? finalScore : min(bestScoreBigBox, finalScore)
-        case .bigBoxSpeed:
-            bestScoreBigBoxSpeed = bestScoreBigBoxSpeed < 0 ? finalScore : min(bestScoreBigBoxSpeed, finalScore)
-        case .passAndPlay:
-            break
-        }
-    }
-
-    private func updateRemainingTileCounts(_ tiles: [Int]) {
-        var counts = parseRemainingTileCounts()
-        for tile in tiles {
-            counts[tile, default: 0] += 1
-        }
-        remainingTileCounts = counts
-            .sorted { $0.key < $1.key }
-            .map { "\($0.key):\($0.value)" }
-            .joined(separator: ",")
-    }
-
-    private func parseRemainingTileCounts() -> [Int: Int] {
-        var counts: [Int: Int] = [:]
-        for pair in remainingTileCounts.split(separator: ",") {
-            let parts = pair.split(separator: ":")
-            guard parts.count == 2, let tile = Int(parts[0]), let count = Int(parts[1]) else { continue }
-            counts[tile] = count
-        }
-        return counts
+        GameStatisticsRecorder.recordCompletedGame(
+            mode: currentGameMode,
+            won: won,
+            baseScore: viewModel.score,
+            elapsedSeconds: viewModel.elapsedSeconds,
+            turnCount: viewModel.turnCount,
+            remainingOpenTiles: viewModel.remainingOpenTiles
+        )
     }
 
     private func spacing(for height: CGFloat) -> CGFloat {

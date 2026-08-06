@@ -12,6 +12,9 @@ struct Dice3DView: UIViewRepresentable {
     let value: Int
     let isRolling: Bool
     let dieIndex: Int
+    let rollDuration: TimeInterval
+    var style: DiceStyle = .palette(for: .ivory)
+    var reduceMotion: Bool = false
     var onSettled: (() -> Void)?
 
     func makeUIView(context: Context) -> SCNView {
@@ -22,6 +25,9 @@ struct Dice3DView: UIViewRepresentable {
         context.coordinator.update(
             value: value,
             isRolling: isRolling,
+            rollDuration: rollDuration,
+            style: style,
+            reduceMotion: reduceMotion,
             onSettled: onSettled
         )
     }
@@ -43,6 +49,16 @@ final class DiceSceneCoordinator: NSObject {
     private var isAnimating = false
     private var onSettled: (() -> Void)?
     private var finalYaw: Float = 0
+    private var rollDuration: TimeInterval = 0.86
+
+    // The two materials driven by `DiceStyle` — kept as live references so a
+    // style change can recolor the existing die in place (see
+    // `apply(style:)`) instead of rebuilding the geometry, which would risk
+    // disturbing the die's current orientation/animation state for no
+    // reason.
+    private let bodyMaterial = SCNMaterial()
+    private let pipMaterial = SCNMaterial()
+    private var currentStyleName: DiceStyleName?
 
     private let dieSize: CGFloat = 1.0
     private let pipRadius: CGFloat = 0.082
@@ -97,14 +113,26 @@ final class DiceSceneCoordinator: NSObject {
         return view
     }
 
-    func update(value: Int, isRolling: Bool, onSettled: (() -> Void)?) {
+    func update(value: Int, isRolling: Bool, rollDuration: TimeInterval, style: DiceStyle, reduceMotion: Bool, onSettled: (() -> Void)?) {
         self.onSettled = onSettled
+        self.rollDuration = rollDuration
+        apply(style: style)
 
         if isRolling {
             let suppliedValue = clampedDieValue(value, fallback: decorativeValue)
             targetValue = suppliedValue
             if !wasRolling && !isAnimating {
-                startRoll(to: suppliedValue)
+                if reduceMotion {
+                    // A short, calm crossfade to the result instead of a
+                    // tumble — no spin, no bounce. `onSettled` still fires
+                    // on completion so the (equally subtle) settle haptic
+                    // is unaffected.
+                    setValue(suppliedValue, animated: true)
+                    let settled = onSettled
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { settled?() }
+                } else {
+                    startRoll(to: suppliedValue)
+                }
             }
         } else if wasRolling {
             let suppliedValue = clampedDieValue(value, fallback: targetValue)
@@ -124,10 +152,26 @@ final class DiceSceneCoordinator: NSObject {
         scene.rootNode.addChildNode(dieNode)
         dieNode.simdPosition = basePosition
         buildDie()
+        apply(style: .palette(for: .ivory))
         addShadowPlane()
         addCamera()
         addLights()
         setValue(0, animated: false)
+    }
+
+    /// Recolors the existing die/pip materials in place for `style` — never
+    /// rebuilds geometry or touches the die's current orientation, position,
+    /// displayed value, or in-flight animation. A no-op when `style` is
+    /// already applied, so a SwiftUI re-render that passes the same style
+    /// every frame costs nothing.
+    private func apply(style: DiceStyle) {
+        guard currentStyleName != style.name else { return }
+        currentStyleName = style.name
+        bodyMaterial.diffuse.contents = UIColor(style.bodyColor)
+        bodyMaterial.roughness.contents = style.roughness
+        bodyMaterial.clearCoat.contents = style.clearCoat
+        bodyMaterial.clearCoatRoughness.contents = style.clearCoatRoughness
+        pipMaterial.diffuse.contents = UIColor(style.pipColor)
     }
 
     private func buildDie() {
@@ -139,15 +183,10 @@ final class DiceSceneCoordinator: NSObject {
         )
         box.chamferSegmentCount = 14
 
-        let material = SCNMaterial()
-        material.lightingModel = .physicallyBased
-        material.diffuse.contents = UIColor(red: 245.0 / 255.0, green: 242.0 / 255.0, blue: 230.0 / 255.0, alpha: 1.0)
-        material.roughness.contents = 0.32
-        material.metalness.contents = 0.0
-        material.clearCoat.contents = 0.06
-        material.clearCoatRoughness.contents = 0.58
-        material.ambientOcclusion.contents = UIColor(white: 0.78, alpha: 1.0)
-        box.materials = Array(repeating: material, count: 6)
+        bodyMaterial.lightingModel = .physicallyBased
+        bodyMaterial.metalness.contents = 0.0
+        bodyMaterial.ambientOcclusion.contents = UIColor(white: 0.78, alpha: 1.0)
+        box.materials = Array(repeating: bodyMaterial, count: 6)
 
         dieNode.geometry = box
         dieNode.castsShadow = false
@@ -155,9 +194,7 @@ final class DiceSceneCoordinator: NSObject {
     }
 
     private func addPips() {
-        let pipMaterial = SCNMaterial()
         pipMaterial.lightingModel = .physicallyBased
-        pipMaterial.diffuse.contents = UIColor(red: 0.055, green: 0.055, blue: 0.052, alpha: 1.0)
         pipMaterial.roughness.contents = 0.76
         pipMaterial.metalness.contents = 0.0
 
@@ -286,7 +323,7 @@ final class DiceSceneCoordinator: NSObject {
 
         let wait = SCNAction.wait(duration: Double(dieIndex) * 0.06)
 
-        let tumbleDuration = 0.86
+        let tumbleDuration = rollDuration
         let tumble = SCNAction.customAction(duration: tumbleDuration) { [weak self] node, elapsed in
             guard let self else { return }
             let progress = Float(elapsed / tumbleDuration)

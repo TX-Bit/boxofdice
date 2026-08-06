@@ -5,30 +5,86 @@
 
 import Foundation
 
-// Platform-independent core game logic shared by iOS today and a future watchOS target.
-// Keep SwiftUI, UIKit, haptics, sounds, persistence, and device-specific layout out of this file.
-// A future WatchGameView can drive this engine directly or through GameViewModel.
-struct Tile: Identifiable, Equatable {
+// Platform-independent core game logic and pure models, shared verbatim by the
+// iOS ("BoxOfDice") and watchOS ("BoxOfDice Watch App") targets — see this
+// file's explicit membership in both targets in project.pbxproj. Keep SwiftUI,
+// WatchKit, localization (L10n), haptics/sound feedback, persistence keys, and
+// any other device-specific code out of this file; those stay per-platform.
+struct Tile: Identifiable, Equatable, Codable {
     let id: Int
     var isOpen: Bool = true
 }
 
-struct MoveRecord: Identifiable {
+struct MoveRecord: Identifiable, Codable {
     let id = UUID()
     let dice: [Int]
     let closedTiles: [Int]
     let scoreAfterMove: Int
 
     var diceTotal: Int { dice.reduce(0, +) }
+
+    // `id` is a fresh, local Identifiable handle for SwiftUI lists; it's
+    // never meaningful across a save/restore round-trip, so it's excluded
+    // here rather than persisted and silently regenerated anyway.
+    private enum CodingKeys: String, CodingKey {
+        case dice, closedTiles, scoreAfterMove
+    }
 }
 
-enum GameState: Equatable {
+enum GameState: Equatable, Codable {
     case waitingToRoll
     case selecting
     case gameOver(won: Bool)
 }
 
-struct SeededRandomNumberGenerator: RandomNumberGenerator {
+// Titles for these two are presentation/localization concerns and belong with
+// whichever platform's settings UI eventually exposes them (none does today
+// on either platform; both currently hardcode .alwaysTwoDice/.anyCombination).
+enum DiceMode: String, CaseIterable, Identifiable, Codable {
+    case alwaysTwoDice
+    case oneDieWhenLowTilesRemain
+
+    var id: String { rawValue }
+}
+
+enum MoveRule: String, CaseIterable, Identifiable, Codable {
+    case anyCombination
+    case oneOrTwoTiles
+
+    var id: String { rawValue }
+}
+
+struct GameSettings: Equatable, Codable {
+    var tileCount: Int
+    var baseDiceCount: Int
+    var diceMode: DiceMode
+    var moveRule: MoveRule
+
+    static let `default` = GameSettings(
+        tileCount: 12,
+        baseDiceCount: 2,
+        diceMode: .alwaysTwoDice,
+        moveRule: .anyCombination
+    )
+
+    static func from(mode: GameMode, diceMode: DiceMode, moveRule: MoveRule) -> GameSettings {
+        GameSettings(
+            tileCount: mode.tileCount,
+            baseDiceCount: mode.baseDiceCount,
+            diceMode: diceMode,
+            moveRule: moveRule
+        )
+    }
+
+    init(tileCount: Int, baseDiceCount: Int, diceMode: DiceMode, moveRule: MoveRule) {
+        self.tileCount = tileCount
+        self.baseDiceCount = max(1, min(3, baseDiceCount))
+        self.diceMode = diceMode
+        self.moveRule = moveRule
+    }
+}
+
+struct SeededRandomNumberGenerator: RandomNumberGenerator, Codable {
     private var state: UInt64
 
     init(seed: UInt64) {
@@ -44,7 +100,7 @@ struct SeededRandomNumberGenerator: RandomNumberGenerator {
     }
 }
 
-struct GameEngine {
+struct GameEngine: Codable {
 
     // MARK: - State
 
@@ -187,8 +243,9 @@ struct GameEngine {
     // MARK: - Move Validation
 
     /// Returns true if any allowed selection of currently open tiles sums to the dice total.
+    /// Stops at the first match instead of building the full move list.
     func hasValidMoves() -> Bool {
-        !validMoves().isEmpty
+        !allowedCombinations(openTiles, target: diceTotal, stopAtFirst: true).isEmpty
     }
 
     func bestHint() -> [Int]? {
@@ -199,7 +256,7 @@ struct GameEngine {
     }
 
     func validMoves() -> [[Int]] {
-        allowedSubsets(openTiles, target: diceTotal)
+        allowedCombinations(openTiles, target: diceTotal, stopAtFirst: false)
     }
 
     // MARK: - Private
@@ -222,24 +279,62 @@ struct GameEngine {
         }
     }
 
-    private func allowedSubsets(_ numbers: [Int], target: Int) -> [[Int]] {
-        guard target > 0 else { return [] }
-        let n = numbers.count
-        var matches: [[Int]] = []
+    /// The maximum number of tiles a single move may close under the current
+    /// move rule, applied during the search below rather than as a filter
+    /// afterwards. `nil` means no limit.
+    private var maxTilesPerMove: Int? {
+        switch settings.moveRule {
+        case .anyCombination:      return nil
+        case .oneOrTwoTiles:       return 2
+        }
+    }
 
-        for mask in 1..<(1 << n) {
-            var subset: [Int] = []
-            var sum = 0
-            for i in 0..<n where mask & (1 << i) != 0 {
-                sum += numbers[i]
-                subset.append(numbers[i])
-                if sum > target { break }
+    /// Depth-first search over ascending, strictly-positive tile numbers for
+    /// every combination summing exactly to `target`, honouring the current
+    /// move rule. Because tile numbers are positive and the list is sorted
+    /// ascending, a running sum that already exceeds `target` can only grow
+    /// with any further tile (whether the next one or any later, larger one)
+    /// — so that whole branch is abandoned immediately instead of visiting
+    /// each of its subsets individually, unlike the previous full bitmask
+    /// scan of every one of the 2^n subsets. When `stopAtFirst` is true the
+    /// search returns as soon as one match is found, without enumerating the
+    /// rest — used by `hasValidMoves()`, which only needs an existence check.
+    // Not private so BOD-004's tests (`@testable import`) can drive it directly
+    // with arbitrary tile lists, independent of an engine's live tile state.
+    func allowedCombinations(_ tileNumbers: [Int], target: Int, stopAtFirst: Bool) -> [[Int]] {
+        guard target > 0, !tileNumbers.isEmpty else { return [] }
+        let numbers = tileNumbers.sorted()
+        let maxTiles = maxTilesPerMove
+
+        var matches: [[Int]] = []
+        var current: [Int] = []
+        var currentSum = 0
+
+        // Returns true once `stopAtFirst` is set and a match has been found,
+        // so every enclosing call unwinds immediately without further work.
+        func search(from index: Int) -> Bool {
+            if currentSum == target {
+                matches.append(current)
+                return stopAtFirst
             }
-            if sum == target && isSelectionAllowed(Set(subset)) {
-                matches.append(subset)
-            }
+            guard index < numbers.count else { return false }
+            // Positive, ascending tile numbers: once adding the smallest
+            // remaining tile would already overshoot, no combination built
+            // from here (with this tile or any larger one after it) can ever
+            // land back on target — abandon the whole branch.
+            guard currentSum + numbers[index] <= target else { return false }
+            if let maxTiles, current.count >= maxTiles { return false }
+
+            current.append(numbers[index])
+            currentSum += numbers[index]
+            if search(from: index + 1) { return true }
+            currentSum -= numbers[index]
+            current.removeLast()
+
+            return search(from: index + 1)
         }
 
+        _ = search(from: 0)
         return matches
     }
 }
