@@ -38,7 +38,8 @@ struct ContentView: View {
     // Global stats
     @AppStorage(StatisticsStorageKey.gamesPlayed) private var gamesPlayed = 0
     @AppStorage(StatisticsStorageKey.gamesWon) private var gamesWon = 0
-    @AppStorage(StatisticsStorageKey.bestScore) private var bestScore = 0
+    // -1 is "nothing recorded yet"; 0 is a real score (a perfect clear).
+    @AppStorage(StatisticsStorageKey.bestScore) private var bestScore = -1
     @AppStorage(StatisticsStorageKey.totalScore) private var totalScore = 0
     @AppStorage(StatisticsStorageKey.perfectClears) private var perfectClears = 0
     @AppStorage(StatisticsStorageKey.currentWinStreak) private var currentWinStreak = 0
@@ -51,10 +52,10 @@ struct ContentView: View {
     @AppStorage(StatisticsStorageKey.remainingTileCounts) private var remainingTileCounts = ""
 
     // Per-mode best scores
-    @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = 0
-    @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = 0
-    @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = 0
-    @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = 0
+    @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = -1
+    @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = -1
+    @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = -1
+    @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = -1
 
     private let horizontalPadding: CGFloat = 12
 
@@ -919,7 +920,7 @@ struct ContentView: View {
         case .speedRun:     return bestScoreSpeedRun
         case .bigBox:       return bestScoreBigBox
         case .bigBoxSpeed:  return bestScoreBigBoxSpeed
-        case .passAndPlay:  return 0
+        case .passAndPlay:  return -1
         }
     }
 
@@ -989,11 +990,9 @@ struct ContentView: View {
     private func recordCompletedGame(won: Bool) {
         let baseScore = viewModel.score
         let finalScore = currentGameMode.finalScore(baseScore: baseScore, elapsedSeconds: viewModel.elapsedSeconds)
-        let isFirstGame = gamesPlayed == 0
-
         gamesPlayed += 1
         totalScore += finalScore
-        bestScore = isFirstGame ? finalScore : min(bestScore, finalScore)
+        bestScore = bestScore < 0 ? finalScore : min(bestScore, finalScore)
 
         longestGameTurns = max(longestGameTurns, viewModel.turnCount)
         updateBestScoreByMode(finalScore)
@@ -1018,13 +1017,13 @@ struct ContentView: View {
     private func updateBestScoreByMode(_ finalScore: Int) {
         switch currentGameMode {
         case .classic:
-            bestScoreClassic = bestScoreClassic == 0 ? finalScore : min(bestScoreClassic, finalScore)
+            bestScoreClassic = bestScoreClassic < 0 ? finalScore : min(bestScoreClassic, finalScore)
         case .speedRun:
-            bestScoreSpeedRun = bestScoreSpeedRun == 0 ? finalScore : min(bestScoreSpeedRun, finalScore)
+            bestScoreSpeedRun = bestScoreSpeedRun < 0 ? finalScore : min(bestScoreSpeedRun, finalScore)
         case .bigBox:
-            bestScoreBigBox = bestScoreBigBox == 0 ? finalScore : min(bestScoreBigBox, finalScore)
+            bestScoreBigBox = bestScoreBigBox < 0 ? finalScore : min(bestScoreBigBox, finalScore)
         case .bigBoxSpeed:
-            bestScoreBigBoxSpeed = bestScoreBigBoxSpeed == 0 ? finalScore : min(bestScoreBigBoxSpeed, finalScore)
+            bestScoreBigBoxSpeed = bestScoreBigBoxSpeed < 0 ? finalScore : min(bestScoreBigBoxSpeed, finalScore)
         case .passAndPlay:
             break
         }

@@ -10,7 +10,9 @@ struct StatsView: View {
 
     @AppStorage(StatisticsStorageKey.gamesPlayed) private var gamesPlayed = 0
     @AppStorage(StatisticsStorageKey.gamesWon) private var gamesWon = 0
-    @AppStorage(StatisticsStorageKey.bestScore) private var bestScore = 0
+    // -1, not 0, means "nothing recorded yet": a perfect clear scores 0, and treating
+    // that as "unset" hid the best score a player had just earned.
+    @AppStorage(StatisticsStorageKey.bestScore) private var bestScore = -1
     @AppStorage(StatisticsStorageKey.totalScore) private var totalScore = 0
     @AppStorage(StatisticsStorageKey.perfectClears) private var perfectClears = 0
     @AppStorage(StatisticsStorageKey.currentWinStreak) private var currentWinStreak = 0
@@ -22,10 +24,10 @@ struct StatsView: View {
     @AppStorage(StatisticsStorageKey.shortestClearTurns) private var shortestClearTurns = 0
     @AppStorage(StatisticsStorageKey.remainingTileCounts) private var remainingTileCounts = ""
 
-    @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = 0
-    @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = 0
-    @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = 0
-    @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = 0
+    @AppStorage(StatisticsStorageKey.bestScoreClassic) private var bestScoreClassic = -1
+    @AppStorage(StatisticsStorageKey.bestScoreSpeedRun) private var bestScoreSpeedRun = -1
+    @AppStorage(StatisticsStorageKey.bestScoreBigBox) private var bestScoreBigBox = -1
+    @AppStorage(StatisticsStorageKey.bestScoreBigBoxSpeed) private var bestScoreBigBoxSpeed = -1
 
     @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
 
@@ -196,7 +198,7 @@ struct StatsView: View {
 
     // MARK: - Computed values
 
-    private var bestScoreText: String { bestText(bestScore, requiresGames: true) }
+    private var bestScoreText: String { bestText(bestScore) }
 
     private var averageScoreText: String {
         guard gamesPlayed > 0 else { return "-" }
@@ -214,11 +216,11 @@ struct StatsView: View {
     }
 
     private func resetStats() {
-        gamesPlayed = 0; gamesWon = 0; bestScore = 0; totalScore = 0
-        perfectClears = 0; currentWinStreak = 0; bestWinStreak = 0
+        gamesPlayed = 0; gamesWon = 0; totalScore = 0
+        perfectClears = 0; currentWinStreak = 0; bestWinStreak = 0; bestScore = -1
         winningScoreTotal = 0; losingScoreTotal = 0; losses = 0
         longestGameTurns = 0; shortestClearTurns = 0; remainingTileCounts = ""
-        bestScoreClassic = 0; bestScoreSpeedRun = 0; bestScoreBigBox = 0; bestScoreBigBoxSpeed = 0
+        bestScoreClassic = -1; bestScoreSpeedRun = -1; bestScoreBigBox = -1; bestScoreBigBoxSpeed = -1
     }
 
     private var commonRemainingTiles: [(tile: Int, count: Int)] {
@@ -237,9 +239,8 @@ struct StatsView: View {
             .map { (tile: $0.0, count: $0.1) }
     }
 
-    private func bestText(_ score: Int, requiresGames: Bool = false) -> String {
-        if requiresGames && gamesPlayed == 0 { return "-" }
-        return score == 0 ? "-" : "\(score)"
+    private func bestText(_ score: Int) -> String {
+        score < 0 ? "-" : "\(score)"
     }
 
     private func formattedAverage(_ total: Int, count: Int) -> String {

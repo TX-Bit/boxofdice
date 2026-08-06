@@ -97,7 +97,8 @@ struct CelebrationOutcome: Equatable {
     ///   - isClassicMode: perfect clear is reserved for Classic mode.
     ///   - tileScore: the sum of open tiles (0 when the board is cleared).
     ///   - finalScore: the recorded score including any time penalty.
-    ///   - storedBest: the mode's saved best score; 0 means "none recorded yet".
+    ///   - storedBest: the mode's saved best score; negative means "none recorded yet"
+    ///     (0 is a real score — a perfect clear).
     ///   - tileCount / modeName: used by the celebration visuals and result card.
     static func resolve(won: Bool,
                         isClassicMode: Bool,
@@ -106,7 +107,7 @@ struct CelebrationOutcome: Equatable {
                         storedBest: Int,
                         tileCount: Int,
                         modeName: String) -> CelebrationOutcome {
-        let hasPrevious = storedBest != 0
+        let hasPrevious = storedBest >= 0
         let previousBest: Int? = hasPrevious ? storedBest : nil
         // Lower is better. A first-ever score for the mode still earns a (gentle)
         // "First Score!" moment.
