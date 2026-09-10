@@ -523,6 +523,13 @@ struct ContentView: View {
             Spacer()
             headerIconButton(systemName: "gearshape.fill", label: "Settings", scale: scale) { isShowingSettings = true }
         }
+        // Without an explicit width, this HStack (and its Spacer) collapses to
+        // its two buttons' intrinsic width whenever nothing else in the same
+        // ZStack forces a wider layout — which is exactly the case in the
+        // landscape layouts (unlike portrait/iPad, where `scoreModeBlock`
+        // sharing the ZStack already stretches it). The buttons then end up
+        // centered together instead of pinned to opposite corners.
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
