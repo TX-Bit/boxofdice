@@ -895,10 +895,25 @@ private struct WatchPipDieView: View {
     let size: CGFloat
     var restingAngle: CGFloat = 0
 
-    @State private var displayValue: Int = 1
+    // Only ever drives the cosmetic random-face cycling *during* an active
+    // roll. The resting face is never cached into state — it reads `value`
+    // directly every render (see `displayedValue` below) — so there is no
+    // "copy value into @State, keep it in sync via onAppear/onChange"
+    // machinery that could fall out of sync. That machinery previously ran
+    // the die's resting face this way, and a missed/late sync left it
+    // showing a stale face (reported: pips frozen at "1, 1" while the real
+    // roll — and everything derived from it, score included — was correct).
+    @State private var cyclingValue: Int = 1
     @State private var shakeLeft = false
     @State private var animTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The face actually shown: the live cycling value while genuinely
+    /// mid-roll, otherwise always the model's real `value` — never a cached
+    /// copy, so it can't go stale.
+    private var displayedValue: Int {
+        (isRolling && !reduceMotion) ? cyclingValue : max(1, value)
+    }
 
     var body: some View {
         ZStack {
@@ -908,33 +923,29 @@ private struct WatchPipDieView: View {
             RoundedRectangle(cornerRadius: size * 0.18)
                 .strokeBorder(Color.black.opacity(0.16), lineWidth: 0.7)
             // Pips
-            PipLayout(value: displayValue, size: size)
-                .animation(.easeInOut(duration: 0.04), value: displayValue)
+            PipLayout(value: displayedValue, size: size)
+                .animation(.easeInOut(duration: 0.04), value: displayedValue)
         }
         .frame(width: size, height: size)
         .rotationEffect(.degrees(isRolling && !reduceMotion ? (shakeLeft ? -7 : 7) : restingAngle))
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.09), value: shakeLeft)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isRolling)
-        .onAppear { displayValue = max(1, value) }
-        .onChange(of: value) { _, newValue in if !isRolling { displayValue = max(1, newValue) } }
         .onChange(of: isRolling) { _, rolling in
             if rolling {
                 animTask?.cancel()
                 // Reduce Motion: skip the cosmetic pip-cycling/shake loop
-                // entirely — the die just holds its last resting value
-                // until the real result lands and this branch's `else`
-                // below assigns it, rather than flashing random faces.
+                // entirely — the die just holds its resting face (already
+                // live via `displayedValue`) until the real result lands.
                 guard !reduceMotion else { return }
                 animTask = Task { @MainActor in
                     while !Task.isCancelled {
-                        displayValue = Int.random(in: 1...6)
+                        cyclingValue = Int.random(in: 1...6)
                         shakeLeft.toggle()
                         try? await Task.sleep(nanoseconds: 80_000_000)
                     }
                 }
             } else {
                 animTask?.cancel(); animTask = nil
-                displayValue = max(1, value)
                 shakeLeft = false
             }
         }
