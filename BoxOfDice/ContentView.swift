@@ -157,8 +157,8 @@ struct ContentView: View {
             configureViewModel()
             beginAppLaunchFlow()
         }
-        .onChange(of: viewModel.revision) { persistCurrentGame() }
-        .onChange(of: scenePhase) { _, newPhase in
+        .onChange(of: viewModel.revision) { _ in persistCurrentGame() }
+        .onChange(of: scenePhase) { newPhase in
             if newPhase == .background {
                 viewModel.handleScenePhaseBackground()
                 persistCurrentGame()
@@ -175,7 +175,7 @@ struct ContentView: View {
         .sheet(isPresented: $isShowingStats) {
             StatsView()
         }
-        .onChange(of: viewModel.gameState) { _, newState in
+        .onChange(of: viewModel.gameState) { newState in
             if case .gameOver(let won) = newState {
                 handleGameOver(won: won)
                 if currentGameMode.isMultiplayer {
@@ -191,15 +191,15 @@ struct ContentView: View {
                 celebrationOutcome = nil
             }
         }
-        .onChange(of: viewModel.hasRolled) { _, hasRolled in
+        .onChange(of: viewModel.hasRolled) { hasRolled in
             if hasRolled {
                 hasSeenScoreOnboardingHint = true
             }
         }
-        .onChange(of: diceAnimationSpeedRawValue) { configureViewModel() }
-        .onChange(of: hapticsEnabled) { configureViewModel() }
-        .onChange(of: soundsEnabled) { configureViewModel() }
-        .onChange(of: reduceMotion) { configureViewModel() }
+        .onChange(of: diceAnimationSpeedRawValue) { _ in configureViewModel() }
+        .onChange(of: hapticsEnabled) { _ in configureViewModel() }
+        .onChange(of: soundsEnabled) { _ in configureViewModel() }
+        .onChange(of: reduceMotion) { _ in configureViewModel() }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.gameState)
         // Reading languageRaw here re-renders the whole UI (and every L10n string)
         // the instant the in-app language changes, and applies the matching locale.
@@ -235,7 +235,7 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - iPhone portrait (unchanged single-column design)
+    // MARK: - iPhone portrait
 
     @ViewBuilder
     private func iPhonePortraitGameView(proxy: GeometryProxy) -> some View {
@@ -245,7 +245,7 @@ struct ContentView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: spacing(for: proxy.size.height)) {
                 portraitHeader(scale: scale)
-                    .padding(.top, max(18, proxy.safeAreaInsets.top + 10))
+                    .padding(.top, 12)
 
                 boardView(width: columnWidth - horizontalPadding * 2, maxTileWidth: 68, numberFontSize: 27 * scale)
 
@@ -253,14 +253,17 @@ struct ContentView: View {
 
                 VStack(spacing: 6) {
                     actionButton(scale: scale)
-                    moveHistorySummary(scale: scale)
-                    secondaryToolBar(scale: scale)
+                        .frame(minHeight: 92)
+                    secondaryToolBar(scale: scale, reservesSpace: true)
                 }
                 .padding(.bottom, max(24, proxy.safeAreaInsets.bottom + 12))
             }
             .frame(maxWidth: 430)
             .padding(.horizontal, horizontalPadding)
             .frame(maxWidth: .infinity)
+            // Match the onboarding screen's vertical centering when the game
+            // fits. Taller content still scrolls normally on smaller phones.
+            .frame(minHeight: proxy.size.height, alignment: .center)
         }
     }
 
@@ -293,7 +296,6 @@ struct ContentView: View {
                     phoneLandscapeHeader(scale: scale)
                     diceSection(dieSize: dieSize, scale: scale)
                     actionButton(scale: scale)
-                    moveHistorySummary(scale: scale)
                     secondaryToolBar(scale: scale)
                 }
                 .frame(width: panelWidth)
@@ -335,7 +337,6 @@ struct ContentView: View {
 
                 VStack(spacing: 14) {
                     actionButton(scale: scale)
-                    moveHistorySummary(scale: scale)
                     secondaryToolBar(scale: scale)
                 }
                 .padding(.bottom, max(28, proxy.safeAreaInsets.bottom + 16))
@@ -374,7 +375,6 @@ struct ContentView: View {
                         scoreModeBlock(scale: scale)
                         diceSection(dieSize: fittingDieSize(desired: dieDesired, count: viewModel.dieCount, available: panelWidth - 8), scale: scale)
                         actionButton(scale: scale)
-                        moveHistorySummary(scale: scale)
                         secondaryToolBar(scale: scale)
                     }
                     .frame(width: panelWidth)
@@ -725,7 +725,7 @@ struct ContentView: View {
             }
 
             // Optional pip total, shown once the dice have settled (off by default).
-            if showDiceTotal && viewModel.hasRolled && !viewModel.isRolling {
+            if showDiceTotal && viewModel.hasRolled && !viewModel.isRolling && viewModel.gameState != .selecting {
                 Text(L10n.format("Dice total %lld", viewModel.diceTotal))
                     .font(GameTypography.value(size: 16 * scale))
                     .foregroundStyle(theme.text.opacity(0.86))
@@ -738,7 +738,7 @@ struct ContentView: View {
             // so this can only ever change between turns, never mid-roll.
             if currentGameMode == .quickGame && viewModel.dieCount == 1 {
                 Text(L10n.string("One die now — only low tiles remain"))
-                    .font(GameTypography.caption(size: 12 * scale))
+                    .font(.system(size: 12 * scale, weight: .medium))
                     .foregroundStyle(theme.text.opacity(0.62))
                     .transition(.opacity)
             }
@@ -779,14 +779,14 @@ struct ContentView: View {
 
     // MARK: - Secondary tool bar (hint)
 
-    private func secondaryToolBar(scale: CGFloat) -> some View {
+    private func secondaryToolBar(scale: CGFloat, reservesSpace: Bool = false) -> some View {
         // Hint is only meaningful while selecting tiles. The strip collapses to
         // nothing when there's nothing to show.
         let showHintButton = showHints && viewModel.canSelectTiles
 
         // Quiet, almost text-only secondary action so it never pulls focus from
         // the gold Confirm button.
-        let hintTint = theme.text.opacity(0.56)
+        let hintTint = theme.text.opacity(0.80)
 
         return HStack(spacing: 10 * scale) {
             if showHintButton {
@@ -803,7 +803,7 @@ struct ContentView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: showHintButton ? 36 * scale : 0)
+        .frame(height: showHintButton || reservesSpace ? max(44, 36 * scale) : 0)
         .opacity(showHintButton ? 1 : 0)
         .animation(.easeInOut(duration: 0.2), value: showHintButton)
     }
@@ -822,27 +822,16 @@ struct ContentView: View {
                 Image(systemName: systemImage)
                     .font(.system(size: 12 * scale, weight: .semibold))
                 Text(L10n.string(title))
-                    .font(GameTypography.button(size: 14 * scale))
+                    .font(.system(size: 14 * scale, weight: .medium))
             }
             .foregroundStyle(tint)
             .padding(.horizontal, 15 * scale)
             .padding(.vertical, 7 * scale)
+            .frame(minHeight: 44)
             .background(Color.black.opacity(backgroundOpacity), in: Capsule())
             .overlay(Capsule().strokeBorder(Color.white.opacity(borderOpacity), lineWidth: 1))
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - Move history
-
-    @ViewBuilder
-    private func moveHistorySummary(scale: CGFloat) -> some View {
-        if let lastMove = viewModel.moveHistory.last {
-            Text("Last: closed \(lastMove.closedTiles.map(String.init).joined(separator: ", "))")
-                .font(GameTypography.caption(size: 13 * scale))
-                .foregroundStyle(theme.text.opacity(0.72))
-                .multilineTextAlignment(.center)
-        }
     }
 
     // MARK: - Action button
@@ -874,7 +863,7 @@ struct ContentView: View {
                         .font(.system(size: 18 * scale, weight: .bold))
                 }
                 Text(L10n.string(viewModel.isRolling ? "Rolling..." : "Roll Dice"))
-                    .font(GameTypography.button(size: 19 * scale))
+                    .font(.system(size: 19 * scale, weight: .semibold))
             }
             .frame(maxWidth: 260 * scale)
             .frame(height: 58 * scale)
@@ -908,62 +897,35 @@ struct ContentView: View {
     }
 
     private func selectingActionZone(scale: CGFloat) -> some View {
-        let total = viewModel.selectionTotal
         let isMatch = viewModel.canConfirm
-        let isEmpty = viewModel.selectedTiles.isEmpty
+        // The target appears only here; preserve the preference to hide totals.
+        let selection = showDiceTotal
+            ? L10n.format("Selected %lld / %lld", viewModel.selectionTotal, viewModel.diceTotal)
+            : L10n.format("Selected %lld", viewModel.selectionTotal)
 
-        return VStack(spacing: 7 * scale) {
-            // Instruction only while nothing is selected — once the player starts
-            // tapping, the button itself carries the selected total.
-            if isEmpty {
-                Text("Select tiles matching the dice")
-                    .font(GameTypography.label(size: 15 * scale))
-                    .foregroundStyle(theme.text.opacity(0.80))
-                    .multilineTextAlignment(.center)
-                    .transition(.opacity)
-            }
+        return VStack(spacing: 12 * scale) {
+            Text(selection)
+                .font(.system(size: 17 * scale, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(theme.text)
+                .multilineTextAlignment(.center)
+                .accessibilityValue(isMatch ? L10n.string("Ready to close") : "")
 
-            if isMatch {
-                Button(action: viewModel.confirmSelection) {
-                    HStack(spacing: 8 * scale) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 16 * scale, weight: .bold))
-                        Text("Confirm")
-                            .font(GameTypography.button(size: 20 * scale))
-                    }
-                    .frame(maxWidth: 280 * scale)
-                    .frame(height: 58 * scale)
+            Button(action: viewModel.confirmSelection) {
+                HStack(spacing: 8 * scale) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16 * scale, weight: .bold))
+                    Text(L10n.string("Close tiles"))
+                        .font(.system(size: 18 * scale, weight: .semibold))
                 }
-                .buttonStyle(BoardGameButtonStyle(isEnabled: true, tint: .amber))
-                // A warm gold halo radiates around the matched button so it clearly
-                // reads as the single most important action on screen.
-                .shadow(color: Color(red: 1.0, green: 0.74, blue: 0.24).opacity(0.55), radius: 18, x: 0, y: 0)
-                .shadow(color: Color(red: 1.0, green: 0.56, blue: 0.12).opacity(0.40), radius: 7, x: 0, y: 2)
-                .transition(.scale(scale: 0.94).combined(with: .opacity))
-                .animation(.spring(response: 0.30, dampingFraction: 0.7), value: isMatch)
-            } else {
-                // Disabled state is a flat status card — ~15% shorter than the active
-                // button, no raised chrome or shadow, so it reads as information
-                // rather than something tappable. Held in the same slot so the
-                // Hint button and everything below it stay exactly in place.
-                Text("Selected \(total)")
-                    .font(GameTypography.label(size: 17 * scale))
-                    .foregroundStyle(theme.text.opacity(0.72))
-                    .frame(maxWidth: 280 * scale)
-                    .frame(height: 49 * scale)
-                    .background(
-                        RoundedRectangle(cornerRadius: 13 * scale)
-                            .fill(Color.black.opacity(0.18))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 13 * scale)
-                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-                    )
-                    .frame(height: 58 * scale)
-                    .animation(.spring(response: 0.28, dampingFraction: 0.72), value: isMatch)
+                .frame(maxWidth: 280 * scale)
+                .frame(minHeight: 54 * scale)
             }
+            .buttonStyle(BoardGameButtonStyle(isEnabled: isMatch, tint: .amber))
+            .disabled(!isMatch)
+            .shadow(color: theme.accent.opacity(isMatch ? 0.18 : 0), radius: 8, y: 2)
         }
-        .animation(.easeInOut(duration: 0.15), value: isEmpty)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: isMatch)
     }
 
     // MARK: - Game flow
@@ -1028,10 +990,10 @@ struct ContentView: View {
         guard context == .firstLaunch else { return } // .replay: the game underneath is untouched
         onboardingCompletedOrSkipped = true
         hasSelectedInitialGameMode = true
-        gameModeRaw = GameMode.quickGame.rawValue
+        gameModeRaw = GameMode.classic.rawValue
         configureViewModel()
         beginNewViewModelGame(
-            settings: GameSettings.from(mode: .quickGame, diceMode: GameMode.quickGame.diceMode, moveRule: .anyCombination),
+            settings: GameSettings.from(mode: .classic, diceMode: GameMode.classic.diceMode, moveRule: .anyCombination),
             isTimed: false
         )
     }

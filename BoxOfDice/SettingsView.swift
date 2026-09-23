@@ -29,7 +29,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationContainer {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     lookAndFeelSection
@@ -39,7 +39,7 @@ struct SettingsView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 32)
             }
-            .scrollContentBackground(.hidden)
+            .compatibleHiddenScrollBackground()
             .background(ThemedSheetBackground(theme: theme))
             .tint(theme.accent)
             .navigationTitle("Settings")
@@ -47,7 +47,7 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
-                        .fontWeight(.semibold)
+                        .compatibleSemibold()
                         .foregroundStyle(theme.accent)
                 }
             }
@@ -71,37 +71,39 @@ struct SettingsView: View {
 
     private var lookAndFeelSection: some View {
         settingsCard(title: "Look & Feel") {
-            HStack {
-                rowLabel("Language")
-                Spacer()
-                Picker("", selection: $languageRawValue) {
-                    ForEach(AppLanguage.allCases) { lang in
-                        Text(lang.title).tag(lang.rawValue)
+            Menu {
+                ForEach(AppLanguage.allCases) { lang in
+                    Button {
+                        languageRawValue = lang.rawValue
+                    } label: {
+                        if languageRawValue == lang.rawValue {
+                            Label(lang.title, systemImage: "checkmark")
+                        } else {
+                            Text(lang.title)
+                        }
                     }
                 }
-                .pickerStyle(.menu)
-                .tint(theme.accent)
-                .font(GameTypography.label(size: 18))
+            } label: {
+                selectionRowContent("Language", value: (AppLanguage(rawValue: languageRawValue) ?? .system).title)
             }
-            .rowPadding()
 
             cardDivider
 
-            HStack {
-                rowLabel("Theme")
-                Spacer()
-                Picker("", selection: $themeRawValue) {
-                    ForEach(GameThemeName.allCases) { t in
-                        Text(t.title)
-                            .font(GameTypography.label(size: 18))
-                            .tag(t.rawValue)
+            Menu {
+                ForEach(GameThemeName.allCases) { selectedTheme in
+                    Button {
+                        themeRawValue = selectedTheme.rawValue
+                    } label: {
+                        if themeRawValue == selectedTheme.rawValue {
+                            Label(selectedTheme.title, systemImage: "checkmark")
+                        } else {
+                            Text(selectedTheme.title)
+                        }
                     }
                 }
-                .pickerStyle(.menu)
-                .tint(theme.accent)
-                .font(GameTypography.label(size: 18))
+            } label: {
+                selectionRowContent("Theme", value: (GameThemeName(rawValue: themeRawValue) ?? .greenFelt).title)
             }
-            .rowPadding()
 
             cardDivider
 
@@ -110,19 +112,21 @@ struct SettingsView: View {
             toggleRow("Sound Effects", isOn: $soundsEnabled)
             cardDivider
 
-            HStack {
-                rowLabel("Dice Animation")
-                Spacer()
-                Picker("", selection: $diceAnimationSpeedRawValue) {
-                    ForEach(DiceAnimationSpeed.allCases) { speed in
-                        Text(speed.title).tag(speed.rawValue)
+            Menu {
+                ForEach(DiceAnimationSpeed.allCases) { speed in
+                    Button {
+                        diceAnimationSpeedRawValue = speed.rawValue
+                    } label: {
+                        if diceAnimationSpeedRawValue == speed.rawValue {
+                            Label(speed.title, systemImage: "checkmark")
+                        } else {
+                            Text(speed.title)
+                        }
                     }
                 }
-                .pickerStyle(.menu)
-                .tint(theme.accent)
-                .font(GameTypography.label(size: 18))
+            } label: {
+                selectionRowContent("Dice Animation", value: (DiceAnimationSpeed(rawValue: diceAnimationSpeedRawValue) ?? .normal).title)
             }
-            .rowPadding()
 
             cardDivider
 
@@ -174,6 +178,60 @@ struct SettingsView: View {
 
     // MARK: - Row components
 
+    private func selectionRowContent(_ label: String, value: String, chevron: String = "chevron.down") -> some View {
+        Group {
+            if #available(iOS 16.0, *) {
+                ViewThatFits(in: .horizontal) {
+                    horizontalSelectionRow(label, value: value, chevron: chevron)
+                    verticalSelectionRow(label, value: value, chevron: chevron)
+                }
+            } else {
+                // The two-line layout avoids clipped localized values on iOS 15.
+                verticalSelectionRow(label, value: value, chevron: chevron)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+    }
+
+    private func horizontalSelectionRow(_ label: String, value: String, chevron: String) -> some View {
+        HStack(spacing: 8) {
+            rowLabel(label)
+                .fixedSize(horizontal: true, vertical: false)
+            Spacer(minLength: 8)
+            selectedValue(value)
+                .fixedSize(horizontal: true, vertical: false)
+            selectionChevron(chevron)
+        }
+    }
+
+    private func verticalSelectionRow(_ label: String, value: String, chevron: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            rowLabel(label)
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                selectedValue(value)
+                    .multilineTextAlignment(.trailing)
+                selectionChevron(chevron)
+            }
+        }
+    }
+
+    private func selectedValue(_ value: String) -> some View {
+        Text(value)
+            .font(GameTypography.label(size: 18))
+            .foregroundStyle(theme.accent)
+    }
+
+    private func selectionChevron(_ name: String) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(theme.text.opacity(0.40))
+            .accessibilityHidden(true)
+    }
+
     private func toggleRow(_ label: String, isOn: Binding<Bool>) -> some View {
         HStack {
             rowLabel(label)
@@ -204,17 +262,7 @@ struct SettingsView: View {
     /// picker lives on its own screen rather than an inline menu.
     private func valueNavigationRow(_ label: String, value: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack {
-                rowLabel(label)
-                Spacer()
-                Text(value)
-                    .font(GameTypography.label(size: 18))
-                    .foregroundStyle(theme.accent)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(theme.text.opacity(0.40))
-            }
-            .rowPadding()
+            selectionRowContent(label, value: value, chevron: "chevron.right")
         }
         .buttonStyle(.plain)
     }

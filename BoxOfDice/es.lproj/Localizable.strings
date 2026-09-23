@@ -61,6 +61,7 @@
 "Next" = "Siguiente";
 "See Results" = "Ver resultados";
 "Lowest score wins!" = "¡Gana la puntuación más baja!";
+"1 pt" = "1 punto";
 "%d pts" = "%d pts";
 "%lld pts" = "%lld pts";
 "Look & Feel" = "Aspecto";
@@ -195,3 +196,9 @@
 "Dice style preview" = "Vista previa del estilo de dado";
 "Double-tap to roll the preview die" = "Toca dos veces para lanzar el dado de vista previa";
 "Tap to roll" = "Toca para lanzar";
+"Selected %lld / %lld" = "Selección: %lld / %lld";
+"Close tiles" = "Cerrar casillas";
+"Ready to close" = "Listo para cerrar";
+"Would you like a quick tutorial?" = "¿Quieres ver un tutorial breve?";
+"Show Tutorial" = "Ver tutorial";
+"The tutorial is also available in Settings." = "El tutorial también estará disponible en Ajustes.";

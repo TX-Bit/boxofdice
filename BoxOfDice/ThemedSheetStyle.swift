@@ -91,7 +91,7 @@ private struct HeightCappedScrollable: ViewModifier {
                         }
                     )
             }
-            .scrollBounceBehavior(.basedOnSize)
+            .compatibleBounceBasedOnSize()
             .frame(height: cappedHeight)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

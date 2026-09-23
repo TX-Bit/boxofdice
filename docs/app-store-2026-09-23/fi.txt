@@ -1,0 +1,28 @@
+PROMOTIONAL TEXT
+Heitä noppia, sulje laattoja ja tavoittele nollatulosta. Valitse 9 laatan pikapeli, klassinen peli, aikahaaste, Big Box tai moninpeli samalla laitteella.
+
+DESCRIPTION
+Noppalaatikko on yksinkertainen ja koukuttava noppapeli, joka perustuu klassiseen Shut the Box -lautapeliin.
+
+Heitä noppia, valitse laatat, joiden summa vastaa noppien summaa, ja sulje ne pois laudalta. Tavoite on jättää mahdollisimman pieni pistemäärä. Parhaassa tapauksessa suljet koko laudan ja saat tulokseksi 0.
+
+Peli on helppo oppia, mutta jokainen heitto tuo uuden päätöksen: suljetko yhden ison numeron vai useamman pienen?
+
+Ominaisuudet:
+• Klassinen 12 laatan peli
+• 9 laatan pikapeli
+• Speed Run -aikapeli
+• Big Box -pelimuoto: 18 laattaa ja kolme noppaa
+• Big Box Speed -aikahaaste
+• Paikallinen moninpeli samalla laitteella
+• Tilastot ja parhaat tulokset
+• Teemat ja selkeä lautapelimäinen ulkoasu
+
+Noppalaatikko sopii nopeisiin pelihetkiin, rentoon pelaamiseen ja oman ennätyksen parantamiseen.
+
+WHAT’S NEW
+• Uusi 9 laatan pikapeli
+• Pieniä virhekorjauksia
+
+KEYWORDS
+noppapeli,nopat,lautapeli,shut the box,klassikko,pulma,taktiikka,laatat,moninpeli

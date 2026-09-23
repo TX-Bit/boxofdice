@@ -1,0 +1,28 @@
+PROMOTIONAL TEXT
+Lancez les dés, fermez les cases et visez zéro ! Partie rapide à 9 cases, mode classique, défis chronométrés ou jeu à plusieurs sur un même appareil.
+
+DESCRIPTION
+Box of Dice est un jeu de dés simple et captivant, inspiré du jeu de société classique Shut the Box.
+
+Lancez les dés, choisissez des cases dont les nombres correspondent ensemble au total des dés, puis fermez-les. Le but est de garder le moins de points possible. Fermez toutes les cases pour obtenir le score parfait : 0.
+
+Le jeu est facile à apprendre, mais chaque lancer vous invite à faire un choix : fermer un grand nombre ou plusieurs petits ?
+
+Fonctionnalités :
+• Mode Classique à 12 cases
+• Partie rapide à 9 cases
+• Mode Contre-la-montre
+• Grande boîte : 18 cases et trois dés
+• Grande boîte rapide : un défi chronométré
+• Multijoueur local sur un même appareil
+• Statistiques et records personnels
+• Thèmes et interface claire inspirée des jeux de société
+
+Box of Dice se prête aussi bien à une petite pause qu’à une partie détendue ou à la recherche d’un nouveau record personnel.
+
+WHAT’S NEW
+• Nouvelle Partie rapide à 9 cases
+• Corrections de bugs mineurs
+
+KEYWORDS
+shut the box,dés,jeu de société,réflexion,stratégie,cases,multijoueur

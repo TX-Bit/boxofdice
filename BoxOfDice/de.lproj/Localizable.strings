@@ -61,6 +61,7 @@
 "Next" = "Weiter";
 "See Results" = "Ergebnisse ansehen";
 "Lowest score wins!" = "Die niedrigste Punktzahl gewinnt!";
+"1 pt" = "1 Punkt";
 "%d pts" = "%d Pkt.";
 "%lld pts" = "%lld Pkt.";
 "Look & Feel" = "Erscheinungsbild";
@@ -195,3 +196,9 @@
 "Dice style preview" = "Vorschau des Würfelstils";
 "Double-tap to roll the preview die" = "Doppeltippen, um den Vorschauwürfel zu würfeln";
 "Tap to roll" = "Zum Würfeln tippen";
+"Selected %lld / %lld" = "Ausgewählt %lld / %lld";
+"Close tiles" = "Felder schließen";
+"Ready to close" = "Bereit zum Schließen";
+"Would you like a quick tutorial?" = "Möchtest du eine kurze Einführung?";
+"Show Tutorial" = "Einführung ansehen";
+"The tutorial is also available in Settings." = "Die Einführung findest du später in den Einstellungen.";

@@ -11,8 +11,8 @@ import Foundation
 /// WatchContentView; the save rule below has to be identical on both, so it
 /// lives with the rule).
 enum OnboardingContext {
-    /// A brand-new install; finishing (or skipping) starts a real, random
-    /// Quick Game.
+    /// A brand-new install. Each platform starts its own default game
+    /// after the tutorial is completed or skipped.
     case firstLaunch
     /// Reopened from Settings → "How to Play"; the game underneath is
     /// untouched and finishing just dismisses back to it.
@@ -41,7 +41,8 @@ enum OnboardingContext {
 }
 
 /// A tiny, self-contained state machine for the first-launch tutorial
-/// (BOD-012) — a fixed practice roll on a nine-tile board. Deliberately NOT
+/// (BOD-012) — a fixed practice roll on a configurable board (12 tiles on
+/// iOS, 9 on Watch). Deliberately NOT
 /// built on `GameEngine`/`GameViewModel`: it never rolls real random dice,
 /// never records statistics, never persists a save, and never schedules an
 /// auto-roll, so none of that logic needs a special "am I in the tutorial"
@@ -74,8 +75,8 @@ final class OnboardingViewModel: ObservableObject {
     @Published private(set) var selectedTiles: Set<Int> = []
     @Published private(set) var dice: [Int] = [0, 0, 0]
 
-    init() {
-        tiles = (1...9).map { Tile(id: $0) }
+    init(tileCount: Int = 9) {
+        tiles = (1...tileCount).map { Tile(id: $0) }
     }
 
     var diceTotal: Int { dice.reduce(0, +) }
@@ -100,7 +101,7 @@ final class OnboardingViewModel: ObservableObject {
 
     /// Closes the selected tiles. Any rule-valid sum-8 combination is
     /// accepted — not just the two examples shown in the prompt — since
-    /// there's no move rule restricting combinations in Quick Game.
+    /// both Classic and Quick Game permit any combination matching the dice.
     func confirm() {
         guard canConfirm else { return }
         for index in tiles.indices where selectedTiles.contains(tiles[index].id) {

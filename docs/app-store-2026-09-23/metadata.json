@@ -1,0 +1,51 @@
+{
+  "fi": {
+    "language": "Suomi / Finnish",
+    "promotionalText": "Heitä noppia, sulje laattoja ja tavoittele nollatulosta. Valitse 9 laatan pikapeli, klassinen peli, aikahaaste, Big Box tai moninpeli samalla laitteella.",
+    "description": "Noppalaatikko on yksinkertainen ja koukuttava noppapeli, joka perustuu klassiseen Shut the Box -lautapeliin.\n\nHeitä noppia, valitse laatat, joiden summa vastaa noppien summaa, ja sulje ne pois laudalta. Tavoite on jättää mahdollisimman pieni pistemäärä. Parhaassa tapauksessa suljet koko laudan ja saat tulokseksi 0.\n\nPeli on helppo oppia, mutta jokainen heitto tuo uuden päätöksen: suljetko yhden ison numeron vai useamman pienen?\n\nOminaisuudet:\n• Klassinen 12 laatan peli\n• 9 laatan pikapeli\n• Speed Run -aikapeli\n• Big Box -pelimuoto: 18 laattaa ja kolme noppaa\n• Big Box Speed -aikahaaste\n• Paikallinen moninpeli samalla laitteella\n• Tilastot ja parhaat tulokset\n• Teemat ja selkeä lautapelimäinen ulkoasu\n\nNoppalaatikko sopii nopeisiin pelihetkiin, rentoon pelaamiseen ja oman ennätyksen parantamiseen.",
+    "whatsNew": "• Uusi 9 laatan pikapeli\n• Pieniä virhekorjauksia",
+    "keywords": "noppapeli,nopat,lautapeli,shut the box,klassikko,pulma,taktiikka,laatat,moninpeli"
+  },
+  "en-US": {
+    "language": "Englanti / English (U.S.)",
+    "promotionalText": "Roll the dice, close the tiles and aim for zero. Try a quick 9-tile game, Classic, timed challenges, Big Box or multiplayer on one device.",
+    "description": "Box of Dice is a simple, engaging dice game based on the classic board game Shut the Box.\n\nRoll the dice, choose tiles that add up to the dice total, and close them. The goal is to leave as few points as possible. Close every tile for a perfect score of 0.\n\nThe game is easy to learn, but every roll brings a choice: close one high number or several smaller ones?\n\nFeatures:\n• Classic mode with 12 tiles\n• Quick Game with 9 tiles\n• Speed Run timed mode\n• Big Box with 18 tiles and three dice\n• Big Box Speed timed challenge\n• Local multiplayer on the same device\n• Statistics and personal bests\n• Themes and a clean, board-game-inspired look\n\nBox of Dice is perfect for a quick break, relaxed play or beating your personal best.",
+    "whatsNew": "• New 9-tile Quick Game\n• Minor bug fixes",
+    "keywords": "shut the box,dice,board game,puzzle,strategy,classic,tiles,multiplayer"
+  },
+  "de-DE": {
+    "language": "Saksa / German",
+    "promotionalText": "Würfle, schließe die Felder und erreiche null Punkte. Spiele mit 9 oder 12 Feldern, gegen die Zeit, mit der Großen Box oder gemeinsam an einem Gerät.",
+    "description": "Box of Dice ist ein einfaches, fesselndes Würfelspiel, das auf dem klassischen Brettspiel Shut the Box basiert.\n\nWürfle und wähle Felder, deren Zahlen zusammen die Würfelsumme ergeben. Schließe diese Felder und versuche, möglichst wenige Punkte übrig zu lassen. Wenn du alle Felder schließt, erreichst du das perfekte Ergebnis: 0 Punkte.\n\nDas Spiel ist leicht zu lernen, doch jeder Wurf stellt dich vor eine Entscheidung: Schließt du eine hohe Zahl oder mehrere kleinere?\n\nFunktionen:\n• Klassischer Modus mit 12 Feldern\n• Schnellspiel mit 9 Feldern\n• Speedrun: Spielen gegen die Zeit\n• Große Box mit 18 Feldern und drei Würfeln\n• Große Box Speed: die große Herausforderung auf Zeit\n• Lokaler Mehrspielermodus an einem Gerät\n• Statistiken und persönliche Bestleistungen\n• Designs und eine übersichtliche Oberfläche im Brettspielstil\n\nBox of Dice eignet sich für eine kurze Pause, eine entspannte Partie oder die Jagd nach einem neuen persönlichen Rekord.",
+    "whatsNew": "• Neues Schnellspiel mit 9 Feldern\n• Kleinere Fehlerbehebungen",
+    "keywords": "shut the box,knobelspiel,klappenspiel,würfel,brettspiel,taktik,mehrspieler"
+  },
+  "fr-FR": {
+    "language": "Ranska / French",
+    "promotionalText": "Lancez les dés, fermez les cases et visez zéro ! Partie rapide à 9 cases, mode classique, défis chronométrés ou jeu à plusieurs sur un même appareil.",
+    "description": "Box of Dice est un jeu de dés simple et captivant, inspiré du jeu de société classique Shut the Box.\n\nLancez les dés, choisissez des cases dont les nombres correspondent ensemble au total des dés, puis fermez-les. Le but est de garder le moins de points possible. Fermez toutes les cases pour obtenir le score parfait : 0.\n\nLe jeu est facile à apprendre, mais chaque lancer vous invite à faire un choix : fermer un grand nombre ou plusieurs petits ?\n\nFonctionnalités :\n• Mode Classique à 12 cases\n• Partie rapide à 9 cases\n• Mode Contre-la-montre\n• Grande boîte : 18 cases et trois dés\n• Grande boîte rapide : un défi chronométré\n• Multijoueur local sur un même appareil\n• Statistiques et records personnels\n• Thèmes et interface claire inspirée des jeux de société\n\nBox of Dice se prête aussi bien à une petite pause qu’à une partie détendue ou à la recherche d’un nouveau record personnel.",
+    "whatsNew": "• Nouvelle Partie rapide à 9 cases\n• Corrections de bugs mineurs",
+    "keywords": "shut the box,dés,jeu de société,réflexion,stratégie,cases,multijoueur"
+  },
+  "es-ES": {
+    "language": "Espanja / Spanish (Spain)",
+    "promotionalText": "¡Lanza los dados, cierra las casillas y busca el cero! Prueba partidas de 9 o 12 casillas, retos contrarreloj o multijugador en un mismo dispositivo.",
+    "description": "Box of Dice es un juego de dados sencillo y entretenido, basado en el clásico juego de mesa Shut the Box.\n\nLanza los dados, elige las casillas cuyos números sumen el total de los dados y ciérralas. El objetivo es dejar la menor cantidad de puntos posible. Si cierras todas las casillas, conseguirás la puntuación perfecta: 0.\n\nEs fácil aprender a jugar, pero cada lanzamiento plantea una decisión: ¿cerrar un número alto o varios más pequeños?\n\nCaracterísticas:\n• Modo Clásico con 12 casillas\n• Partida rápida con 9 casillas\n• Modo Contrarreloj\n• Caja grande: 18 casillas y tres dados\n• Caja grande rápida: un reto contrarreloj\n• Multijugador local en un mismo dispositivo\n• Estadísticas y récords personales\n• Temas y una interfaz clara inspirada en los juegos de mesa\n\nBox of Dice es ideal para una partida corta, un rato de juego relajado o un nuevo intento de superar tu récord personal.",
+    "whatsNew": "• Nueva Partida rápida con 9 casillas\n• Correcciones de errores menores",
+    "keywords": "shut the box,dados,juego de mesa,puzle,estrategia,casillas,multijugador"
+  },
+  "it": {
+    "language": "Italia / Italian",
+    "promotionalText": "Lancia i dadi, chiudi le caselle e punta a zero! Prova partite con 9 o 12 caselle, sfide a tempo o il multigiocatore sullo stesso dispositivo.",
+    "description": "Box of Dice è un gioco di dadi semplice e coinvolgente, ispirato al classico gioco da tavolo Shut the Box.\n\nLancia i dadi, scegli le caselle i cui numeri danno come somma il totale dei dadi e chiudile. L’obiettivo è lasciare meno punti possibile. Chiudi tutte le caselle per ottenere il punteggio perfetto: 0.\n\nImparare è facile, ma ogni lancio richiede una scelta: chiudere un numero alto o più numeri piccoli?\n\nCaratteristiche:\n• Modalità Classico con 12 caselle\n• Partita rapida con 9 caselle\n• Modalità Corsa a tempo\n• Scatola grande: 18 caselle e tre dadi\n• Scatola grande veloce: una sfida a tempo\n• Multigiocatore locale sullo stesso dispositivo\n• Statistiche e record personali\n• Temi e un’interfaccia chiara ispirata ai giochi da tavolo\n\nBox of Dice è perfetto per una breve pausa, una partita rilassante o un nuovo tentativo di battere il tuo record personale.",
+    "whatsNew": "• Nuova Partita rapida con 9 caselle\n• Correzioni di piccoli errori",
+    "keywords": "shut the box,dadi,gioco da tavolo,rompicapo,strategia,caselle,multigiocatore"
+  },
+  "pt-BR": {
+    "language": "Portugali (Brasilia) / Portuguese (Brazil)",
+    "promotionalText": "Role os dados, feche as casas e tente zerar! Jogue com 9 ou 12 casas, encare desafios contra o tempo ou divirta-se com amigos no mesmo aparelho.",
+    "description": "Box of Dice é um jogo de dados simples e envolvente, baseado no clássico jogo de tabuleiro Shut the Box.\n\nRole os dados, escolha as casas cujos números somam o total dos dados e feche-as. O objetivo é deixar o menor número de pontos possível. Feche todas as casas para alcançar a pontuação perfeita: 0.\n\nÉ fácil aprender a jogar, mas cada rodada traz uma escolha: fechar um número alto ou vários menores?\n\nRecursos:\n• Modo Clássico com 12 casas\n• Jogo rápido com 9 casas\n• Modo Contra o tempo\n• Caixa grande: 18 casas e três dados\n• Caixa grande rápida: um desafio contra o tempo\n• Multijogador local no mesmo aparelho\n• Estatísticas e recordes pessoais\n• Temas e um visual simples inspirado em jogos de tabuleiro\n\nBox of Dice é ideal para uma partida rápida, um momento de diversão tranquila ou uma nova tentativa de superar seu recorde pessoal.",
+    "whatsNew": "• Novo Jogo rápido com 9 casas\n• Pequenas correções de erros",
+    "keywords": "shut the box,dados,tabuleiro,quebra-cabeça,estratégia,casas,multijogador"
+  }
+}

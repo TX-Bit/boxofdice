@@ -35,7 +35,7 @@ struct BoxOfDiceApp: App {
                         _ = PhoneConnectivityManager.shared
                         PhoneConnectivityManager.shared.sendTheme(themeRaw)
                     }
-                    .onChange(of: themeRaw) { _, newValue in
+                    .onChange(of: themeRaw) { newValue in
                         PhoneConnectivityManager.shared.sendTheme(newValue)
                     }
             }

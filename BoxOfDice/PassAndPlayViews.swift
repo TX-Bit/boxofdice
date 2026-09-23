@@ -273,7 +273,7 @@ struct PassAndPlayResultsView: View {
 
             Spacer()
 
-            Text(L10n.format("%d pts", score))
+            Text(score == 1 ? L10n.string("1 pt") : L10n.format("%d pts", score))
                 .font(GameTypography.value(size: isCompact ? 14 : 17))
                 .foregroundStyle(isWinner ? Color(red: 1.0, green: 0.92, blue: 0.70) : Color(red: 1.0, green: 0.82, blue: 0.52).opacity(0.80))
 

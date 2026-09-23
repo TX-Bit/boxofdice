@@ -25,7 +25,7 @@ struct DiceStylePickerView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationContainer {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
                     preview
@@ -35,7 +35,7 @@ struct DiceStylePickerView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 32)
             }
-            .scrollContentBackground(.hidden)
+            .compatibleHiddenScrollBackground()
             .background(ThemedSheetBackground(theme: theme))
             .tint(theme.accent)
             .navigationTitle(L10n.string("Dice Style"))
@@ -43,7 +43,7 @@ struct DiceStylePickerView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L10n.string("Done")) { dismiss() }
-                        .fontWeight(.semibold)
+                        .compatibleSemibold()
                         .foregroundStyle(theme.accent)
                 }
             }

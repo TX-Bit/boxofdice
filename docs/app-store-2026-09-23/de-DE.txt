@@ -1,0 +1,28 @@
+PROMOTIONAL TEXT
+Würfle, schließe die Felder und erreiche null Punkte. Spiele mit 9 oder 12 Feldern, gegen die Zeit, mit der Großen Box oder gemeinsam an einem Gerät.
+
+DESCRIPTION
+Box of Dice ist ein einfaches, fesselndes Würfelspiel, das auf dem klassischen Brettspiel Shut the Box basiert.
+
+Würfle und wähle Felder, deren Zahlen zusammen die Würfelsumme ergeben. Schließe diese Felder und versuche, möglichst wenige Punkte übrig zu lassen. Wenn du alle Felder schließt, erreichst du das perfekte Ergebnis: 0 Punkte.
+
+Das Spiel ist leicht zu lernen, doch jeder Wurf stellt dich vor eine Entscheidung: Schließt du eine hohe Zahl oder mehrere kleinere?
+
+Funktionen:
+• Klassischer Modus mit 12 Feldern
+• Schnellspiel mit 9 Feldern
+• Speedrun: Spielen gegen die Zeit
+• Große Box mit 18 Feldern und drei Würfeln
+• Große Box Speed: die große Herausforderung auf Zeit
+• Lokaler Mehrspielermodus an einem Gerät
+• Statistiken und persönliche Bestleistungen
+• Designs und eine übersichtliche Oberfläche im Brettspielstil
+
+Box of Dice eignet sich für eine kurze Pause, eine entspannte Partie oder die Jagd nach einem neuen persönlichen Rekord.
+
+WHAT’S NEW
+• Neues Schnellspiel mit 9 Feldern
+• Kleinere Fehlerbehebungen
+
+KEYWORDS
+shut the box,knobelspiel,klappenspiel,würfel,brettspiel,taktik,mehrspieler

@@ -1,0 +1,28 @@
+PROMOTIONAL TEXT
+Roll the dice, close the tiles and aim for zero. Try a quick 9-tile game, Classic, timed challenges, Big Box or multiplayer on one device.
+
+DESCRIPTION
+Box of Dice is a simple, engaging dice game based on the classic board game Shut the Box.
+
+Roll the dice, choose tiles that add up to the dice total, and close them. The goal is to leave as few points as possible. Close every tile for a perfect score of 0.
+
+The game is easy to learn, but every roll brings a choice: close one high number or several smaller ones?
+
+Features:
+• Classic mode with 12 tiles
+• Quick Game with 9 tiles
+• Speed Run timed mode
+• Big Box with 18 tiles and three dice
+• Big Box Speed timed challenge
+• Local multiplayer on the same device
+• Statistics and personal bests
+• Themes and a clean, board-game-inspired look
+
+Box of Dice is perfect for a quick break, relaxed play or beating your personal best.
+
+WHAT’S NEW
+• New 9-tile Quick Game
+• Minor bug fixes
+
+KEYWORDS
+shut the box,dice,board game,puzzle,strategy,classic,tiles,multiplayer

@@ -66,6 +66,7 @@
 "Next" = "Seuraava";
 "See Results" = "Näytä tulokset";
 "Lowest score wins!" = "Alin pistemäärä voittaa!";
+"1 pt" = "1 piste";
 "%d pts" = "%d pist.";
 "%lld pts" = "%lld pist.";
 
@@ -208,3 +209,9 @@
 "Dice style preview" = "Noppatyylin esikatselu";
 "Double-tap to roll the preview die" = "Kaksoisnapauta heittääksesi esikatselunopan";
 "Tap to roll" = "Napauta heittääksesi";
+"Selected %lld / %lld" = "Valittu %lld / %lld";
+"Close tiles" = "Sulje laatat";
+"Ready to close" = "Valmis suljettavaksi";
+"Would you like a quick tutorial?" = "Haluatko lyhyen opastuksen?";
+"Show Tutorial" = "Näytä opastus";
+"The tutorial is also available in Settings." = "Opastus löytyy myöhemmin asetuksista.";

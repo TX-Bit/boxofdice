@@ -29,7 +29,7 @@ struct GameModeSelectionView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationContainer {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     modeGroup("Quick", modes: [.quickGame])
@@ -48,7 +48,7 @@ struct GameModeSelectionView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 32)
             }
-            .scrollContentBackground(.hidden)
+            .compatibleHiddenScrollBackground()
             .background(ThemedSheetBackground(theme: theme))
             .tint(theme.accent)
             .navigationTitle("Choose Mode")
@@ -56,7 +56,7 @@ struct GameModeSelectionView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
-                        .fontWeight(.semibold)
+                        .compatibleSemibold()
                         .foregroundStyle(theme.accent)
                 }
             }

@@ -5,6 +5,16 @@
 
 import SwiftUI
 
+private struct LegacyShareSheet: UIViewControllerRepresentable {
+    let message: String
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [message], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
 // Warm "premium board game" palette used only when the Light theme is active, so
 // the result/celebration card reads as ivory & walnut instead of washed-out gray.
 private enum WarmLight {
@@ -43,6 +53,7 @@ struct GameOverView: View {
     let onStats: () -> Void
 
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @State private var isShowingLegacyShareSheet = false
 
     var won: Bool { kind == .boardCleared || kind == .perfectClear }
     var finalScore: Int { isTimed ? tileScore + elapsedSeconds : tileScore }
@@ -299,26 +310,43 @@ struct GameOverView: View {
             }
             .buttonStyle(ModalButtonStyle(theme: theme, isLight: isLight))
 
-            ShareLink(item: shareMessage) {
-                HStack(spacing: 7) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: isCompact ? 13 : 14, weight: .semibold))
-                    Text("Share")
-                        .font(GameTypography.button(size: isCompact ? 14 : 16))
+            if #available(iOS 16.0, *) {
+                ShareLink(item: shareMessage) {
+                    shareButtonLabel(isCompact: isCompact)
                 }
-                .foregroundStyle(isLight ? WarmLight.secondaryText : theme.text.opacity(0.82))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, isCompact ? 9 : 12)
-                .background(isLight ? WarmLight.secondaryFill : Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 13))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 13)
-                        .strokeBorder(isLight ? WarmLight.secondaryBorder : Color.white.opacity(0.12), lineWidth: 1)
-                )
+                .buttonStyle(.plain)
+                .accessibilityLabel("Share")
+            } else {
+                Button {
+                    isShowingLegacyShareSheet = true
+                } label: {
+                    shareButtonLabel(isCompact: isCompact)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Share")
+                .sheet(isPresented: $isShowingLegacyShareSheet) {
+                    LegacyShareSheet(message: shareMessage)
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Share")
         }
         .padding(.top, 2)
+    }
+
+    private func shareButtonLabel(isCompact: Bool) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: isCompact ? 13 : 14, weight: .semibold))
+            Text("Share")
+                .font(GameTypography.button(size: isCompact ? 14 : 16))
+        }
+        .foregroundStyle(isLight ? WarmLight.secondaryText : theme.text.opacity(0.82))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, isCompact ? 9 : 12)
+        .background(isLight ? WarmLight.secondaryFill : Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 13))
+        .overlay(
+            RoundedRectangle(cornerRadius: 13)
+                .strokeBorder(isLight ? WarmLight.secondaryBorder : Color.white.opacity(0.12), lineWidth: 1)
+        )
     }
 
     // MARK: - Result-specific copy & colour

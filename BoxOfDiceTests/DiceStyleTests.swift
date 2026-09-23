@@ -20,14 +20,13 @@ final class DiceStyleTests: XCTestCase {
 
     /// WCAG relative luminance of an sRGB color.
     private func relativeLuminance(_ color: Color) -> Double {
-        let resolved = color.resolve(in: EnvironmentValues())
-        func linearize(_ c: Float) -> Double {
-            let v = Double(c)
+        let components = colorComponents(color)
+        func linearize(_ v: Double) -> Double {
             return v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
         }
-        let r = linearize(resolved.red)
-        let g = linearize(resolved.green)
-        let b = linearize(resolved.blue)
+        let r = linearize(components.red)
+        let g = linearize(components.green)
+        let b = linearize(components.blue)
         return 0.2126 * r + 0.7152 * g + 0.0722 * b
     }
 
@@ -92,9 +91,18 @@ final class DiceStyleTests: XCTestCase {
 
     private func assertColorEqual(_ color: Color, red: Double, green: Double, blue: Double,
                                    accuracy: Double = 0.001, file: StaticString = #filePath, line: UInt = #line) {
-        let resolved = color.resolve(in: EnvironmentValues())
-        XCTAssertEqual(Double(resolved.red), red, accuracy: accuracy, file: file, line: line)
-        XCTAssertEqual(Double(resolved.green), green, accuracy: accuracy, file: file, line: line)
-        XCTAssertEqual(Double(resolved.blue), blue, accuracy: accuracy, file: file, line: line)
+        let components = colorComponents(color)
+        XCTAssertEqual(components.red, red, accuracy: accuracy, file: file, line: line)
+        XCTAssertEqual(components.green, green, accuracy: accuracy, file: file, line: line)
+        XCTAssertEqual(components.blue, blue, accuracy: accuracy, file: file, line: line)
+    }
+
+    private func colorComponents(_ color: Color) -> (red: Double, green: Double, blue: Double) {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        XCTAssertTrue(UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &alpha))
+        return (Double(red), Double(green), Double(blue))
     }
 }

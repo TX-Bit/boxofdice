@@ -54,7 +54,7 @@ struct TileView: View {
             visualIsOpen = isOpen
             showsNumber = isOpen
         }
-        .onChange(of: isOpen) { _, newValue in
+        .onChange(of: isOpen) { newValue in
             animateOpenState(newValue)
         }
         .onDisappear { flipTask?.cancel() }

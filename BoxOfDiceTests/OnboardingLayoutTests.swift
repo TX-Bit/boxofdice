@@ -9,8 +9,8 @@
 //  scrolling. It was: laid out at its natural size the column needed ~547pt,
 //  against 390pt on a landscape iPhone and 375pt on the smallest supported
 //  screen — so "Roll" and "Skip" sat below the bottom edge with no way to
-//  reach them. Since this is a brand-new player's very first screen, that is
-//  a dead end, not a cosmetic issue.
+//  reach them. The welcome choice and practice turn must both keep their
+//  actions reachable without routine scrolling on supported devices.
 //
 //  These tests measure the hosted view instead of eyeballing a screenshot,
 //  so every supported geometry is covered on every run — including the ones
@@ -44,6 +44,7 @@ final class OnboardingLayoutTests: XCTestCase {
     /// off-screen. Only `contentSize` vs `bounds` tells the truth.
     private func measureScrollGeometry(
         size: CGSize,
+        isReplay: Bool = false,
         file: StaticString = #filePath,
         line: UInt = #line
     ) -> (bounds: CGFloat, content: CGFloat)? {
@@ -54,7 +55,7 @@ final class OnboardingLayoutTests: XCTestCase {
         let host = UIHostingController(
             rootView: OnboardingView(
                 theme: GameTheme.palette(for: .greenFelt),
-                isReplay: false,
+                isReplay: isReplay,
                 onFinish: {}
             )
             .ignoresSafeArea()
@@ -96,16 +97,15 @@ final class OnboardingLayoutTests: XCTestCase {
     /// predict (huge Dynamic Type, a future device); it is not meant to be
     /// the normal experience, and on the first screen a new player ever sees,
     /// an action below the fold is an action they may never find.
-    func testTutorialFitsEverySupportedGeometryWithoutScrolling() {
+    func testWelcomeAndTutorialFitEverySupportedGeometryWithoutScrolling() {
         for geometry in Self.supportedGeometries {
-            guard let measured = measureScrollGeometry(size: geometry.size) else { continue }
-            XCTAssertLessThanOrEqual(
-                measured.content, measured.bounds + 0.5,
-                """
-                \(geometry.name): the tutorial's content is \(measured.content)pt tall in a \
-                \(measured.bounds)pt viewport, so the Roll/Skip buttons start below the fold.
-                """
-            )
+            for isReplay in [false, true] {
+                guard let measured = measureScrollGeometry(size: geometry.size, isReplay: isReplay) else { continue }
+                XCTAssertLessThanOrEqual(
+                    measured.content, measured.bounds + 0.5,
+                    "\(geometry.name), \(isReplay ? "tutorial" : "welcome"): content \(measured.content)pt exceeds viewport \(measured.bounds)pt"
+                )
+            }
         }
     }
 

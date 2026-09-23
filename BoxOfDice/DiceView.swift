@@ -44,10 +44,10 @@ struct DiceView: View {
             .offset(x: drift, y: lift)
         }
         .frame(width: 112, height: 112)
-        .onChange(of: isRolling) { _, rolling in
+        .onChange(of: isRolling) { rolling in
             if rolling { beginRolling() } else { settle() }
         }
-        .onChange(of: value) {
+        .onChange(of: value) { _ in
             guard isRolling else { return }
             tumbleFrame()
         }

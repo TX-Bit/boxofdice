@@ -40,3 +40,44 @@ enum GameTypography {
         .custom("AvenirNextCondensed-Heavy", size: size, relativeTo: .caption)
     }
 }
+
+/// Keep NavigationStack on iOS 16 and later. iOS 15 uses the equivalent
+/// single-column NavigationView so the existing sheet content stays usable.
+struct CompatibleNavigationContainer<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    @ViewBuilder var body: some View {
+        if #available(iOS 16.0, *) {
+            NavigationStack { content() }
+        } else {
+            NavigationView { content() }
+                .navigationViewStyle(.stack)
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder func compatibleHiddenScrollBackground() -> some View {
+        if #available(iOS 16.0, *) {
+            scrollContentBackground(.hidden)
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder func compatibleSemibold() -> some View {
+        if #available(iOS 16.0, *) {
+            fontWeight(.semibold)
+        } else {
+            font(.body.weight(.semibold))
+        }
+    }
+
+    @ViewBuilder func compatibleBounceBasedOnSize() -> some View {
+        if #available(iOS 16.4, *) {
+            scrollBounceBehavior(.basedOnSize)
+        } else {
+            self
+        }
+    }
+}

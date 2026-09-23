@@ -26,6 +26,22 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertFalse(model.hasRolled)
     }
 
+    func testClassicPracticeUsesTwelveTilesAndKeepsFixedRoll() {
+        let model = OnboardingViewModel(tileCount: 12)
+        XCTAssertEqual(model.tiles.map(\.id), Array(1...12))
+        model.rollTutorialDice()
+        XCTAssertEqual(model.diceTotal, 8)
+        model.toggleTile(12)
+        XCTAssertFalse(model.canConfirm)
+        model.toggleTile(12)
+        model.toggleTile(3)
+        model.toggleTile(5)
+        XCTAssertTrue(model.canConfirm)
+        model.confirm()
+        XCTAssertFalse(model.tiles.first(where: { $0.id == 3 })!.isOpen)
+        XCTAssertTrue(model.tiles.first(where: { $0.id == 12 })!.isOpen)
+    }
+
     func testRollIsAlwaysTheFixedThreeAndFive() {
         for _ in 0..<5 {
             let model = OnboardingViewModel()

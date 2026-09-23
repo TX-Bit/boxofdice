@@ -61,6 +61,7 @@
 "Next" = "Suivant";
 "See Results" = "Voir les résultats";
 "Lowest score wins!" = "Le score le plus bas gagne !";
+"1 pt" = "1 point";
 "%d pts" = "%d pts";
 "%lld pts" = "%lld pts";
 "Look & Feel" = "Apparence";
@@ -195,3 +196,9 @@
 "Dice style preview" = "Aperçu du style de dé";
 "Double-tap to roll the preview die" = "Appuyez deux fois pour lancer le dé d'aperçu";
 "Tap to roll" = "Appuyez pour lancer";
+"Selected %lld / %lld" = "Sélection : %lld / %lld";
+"Close tiles" = "Fermer les cases";
+"Ready to close" = "Prêt à fermer";
+"Would you like a quick tutorial?" = "Voulez-vous suivre un court tutoriel ?";
+"Show Tutorial" = "Voir le tutoriel";
+"The tutorial is also available in Settings." = "Le tutoriel reste disponible dans les réglages.";

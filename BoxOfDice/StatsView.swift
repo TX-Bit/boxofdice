@@ -45,7 +45,7 @@ struct StatsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationContainer {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 22) {
                     summaryGrid
@@ -66,7 +66,7 @@ struct StatsView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 32)
             }
-            .scrollContentBackground(.hidden)
+            .compatibleHiddenScrollBackground()
             .background(ThemedSheetBackground(theme: theme))
             .tint(theme.accent)
             .navigationTitle("Statistics")
@@ -78,7 +78,7 @@ struct StatsView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
-                        .fontWeight(.semibold)
+                        .compatibleSemibold()
                 }
             }
             .confirmationDialog("Reset all statistics?", isPresented: $showResetConfirm, titleVisibility: .visible) {
