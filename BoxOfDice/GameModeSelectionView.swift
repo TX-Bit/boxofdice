@@ -8,7 +8,7 @@ import SwiftUI
 struct GameModeSelectionView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
+    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.defaultTheme.rawValue
 
     @State private var selectedMode: GameMode
     @State private var playerCount: Int
@@ -29,7 +29,7 @@ struct GameModeSelectionView: View {
     }
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .greenFelt)
+        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .defaultTheme)
     }
 
     var body: some View {

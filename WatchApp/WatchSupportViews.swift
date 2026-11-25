@@ -7,7 +7,7 @@ import SwiftUI
 
 struct WatchModeSelectionView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.greenFelt.rawValue
+    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.defaultTheme.rawValue
 
     @State private var selectedMode: GameMode
     @State private var playerCount: Int
@@ -24,7 +24,7 @@ struct WatchModeSelectionView: View {
     }
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .greenFelt)
+        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .defaultTheme)
     }
 
     var body: some View {
@@ -108,7 +108,7 @@ struct WatchSettingsView: View {
     var onShowHowToPlay: (() -> Void)? = nil
 
     @AppStorage(SettingsStorageKey.gameMode) private var gameModeRaw = GameMode.classic.rawValue
-    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.greenFelt.rawValue
+    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.defaultTheme.rawValue
     @AppStorage(SettingsStorageKey.hapticsEnabled) private var hapticsEnabled = true
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
@@ -116,7 +116,7 @@ struct WatchSettingsView: View {
     @AppStorage(SettingsStorageKey.showDiceTotal) private var showDiceTotal = true
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .greenFelt)
+        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .defaultTheme)
     }
 
     private var currentMode: GameMode {
@@ -198,7 +198,7 @@ struct WatchSettingsView: View {
     }
 
     private var themePickerRow: some View {
-        let current = GameThemeName(rawValue: watchThemeRawValue) ?? .greenFelt
+        let current = GameThemeName(rawValue: watchThemeRawValue) ?? .defaultTheme
         return navPickerRow(title: "Theme", valueLabel: current.title) {
             ForEach(GameThemeName.allCases) { name in
                 selectionButton(label: name.title, isSelected: current == name) {
@@ -297,12 +297,12 @@ struct WatchStatsView: View {
     @AppStorage(StatisticsStorageKey.modeScoreCountClassic) private var modeScoreCountClassic = 0
     @AppStorage(StatisticsStorageKey.modeScoreCountSpeedRun) private var modeScoreCountSpeedRun = 0
 
-    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.greenFelt.rawValue
+    @AppStorage(SettingsStorageKey.watchTheme) private var watchThemeRawValue = GameThemeName.defaultTheme.rawValue
 
     @State private var showResetConfirm = false
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .greenFelt)
+        GameTheme.palette(for: GameThemeName(rawValue: watchThemeRawValue) ?? .defaultTheme)
     }
 
     var body: some View {

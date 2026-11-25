@@ -1,0 +1,37 @@
+{
+  "identifier" : "6DB58189-2821-44E5-930E-587981488766",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : true,
+      "internalID" : "6C742A79-1A41-4A10-8A98-25339997860E",
+      "localizations" : [
+        {
+          "description" : "Unlimited rounds with a one-time purchase.",
+          "displayName" : "Full Version",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "Rajattomat pelikierrokset kertamaksulla.",
+          "displayName" : "Täysversio",
+          "locale" : "fi_FI"
+        }
+      ],
+      "productID" : "com.mm.BoxOfDice.fullversion",
+      "referenceName" : "Full Version",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_storeKitErrors" : [],
+    "_locale" : "fi_FI",
+    "_storefront" : "FIN"
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

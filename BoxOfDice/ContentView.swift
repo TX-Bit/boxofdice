@@ -3,10 +3,13 @@
 //  BoxOfDice
 //
 
+import StoreKit
 import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = GameViewModel()
+    @ObservedObject private var fullGameStore = FullGameStore.shared
+    @State private var isShowingRoundLimit = false
     @State private var isShowingSettings = false
     @State private var isShowingStats = false
     @State private var isShowingModeSelection = false
@@ -25,7 +28,7 @@ struct ContentView: View {
     @State private var isShowingPassAndPlayResults = false
 
     @AppStorage(SettingsStorageKey.gameMode) private var gameModeRaw = GameMode.classic.rawValue
-    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
+    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.defaultTheme.rawValue
     @AppStorage(SettingsStorageKey.hapticsEnabled) private var hapticsEnabled = true
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
@@ -71,6 +74,7 @@ struct ContentView: View {
     @State private var resultRecordGuard = GameResultRecordGuard()
 
     private let horizontalPadding: CGFloat = 12
+    private let roundAllowance = DailyRoundAllowance()
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -190,6 +194,13 @@ struct ContentView: View {
             configureViewModel()
             beginAppLaunchFlow()
         }
+        .task { await fullGameStore.prepare() }
+        .task(id: isGameOverVisible) {
+            guard isGameOverVisible else { return }
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !Task.isCancelled else { return }
+            requestRoundReviewIfDue()
+        }
         .onChange(of: viewModel.revision) { _ in persistCurrentGame() }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .background {
@@ -207,6 +218,10 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isShowingStats) {
             StatsView()
+        }
+        .sheet(isPresented: $isShowingRoundLimit) {
+            FullGamePurchaseView(store: fullGameStore, theme: theme, reachedDailyLimit: true)
+                .environment(\.locale, appLocale)
         }
         .onChange(of: viewModel.gameState) { newState in
             if case .gameOver(let won) = newState {
@@ -743,7 +758,7 @@ struct ContentView: View {
     }
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .greenFelt)
+        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .defaultTheme)
     }
 
     // Dice style is chosen independently of the board theme (see
@@ -1154,7 +1169,8 @@ struct ContentView: View {
     }
 
     private func rollButton(scale: CGFloat) -> some View {
-        Button(action: viewModel.rollDice) {
+        let canRoll = viewModel.canRoll && fullGameStore.hasCheckedEntitlements
+        return Button(action: beginRound) {
             HStack(spacing: 10 * scale) {
                 if !viewModel.isRolling {
                     Image(systemName: "dice.fill")
@@ -1166,8 +1182,8 @@ struct ContentView: View {
             .frame(maxWidth: 260 * scale)
             .frame(height: 58 * scale)
         }
-        .buttonStyle(BoardGameButtonStyle(isEnabled: viewModel.canRoll, tint: .amber))
-        .disabled(!viewModel.canRoll)
+        .buttonStyle(BoardGameButtonStyle(isEnabled: canRoll, tint: .amber))
+        .disabled(!canRoll)
         .animation(.easeInOut(duration: 0.2), value: viewModel.isRolling)
     }
 
@@ -1253,6 +1269,7 @@ struct ContentView: View {
     }
 
     private func restartCurrentGame() {
+        guard canStartAnotherRound() else { return }
         startNewGame(mode: currentGameMode, playerCount: passAndPlayPlayerCount)
     }
 
@@ -1261,6 +1278,42 @@ struct ContentView: View {
         currentPassAndPlayPlayer += 1
         configureViewModel()
         beginNewViewModelGame(settings: currentSettings, isTimed: false)
+    }
+
+    private func canStartAnotherRound() -> Bool {
+        guard fullGameStore.hasCheckedEntitlements else { return false }
+        guard roundAllowance.canStartRound(isUnlocked: fullGameStore.isUnlocked) else {
+            isShowingRoundLimit = true
+            return false
+        }
+        return true
+    }
+
+    private func beginRound() {
+        // Initial roll only. Automatic rolls and restored rounds already in play
+        // continue through the view model without consuming another round.
+        guard viewModel.canRoll, !viewModel.hasRolled, fullGameStore.hasCheckedEntitlements else { return }
+        guard roundAllowance.startRound(isUnlocked: fullGameStore.isUnlocked) else {
+            isShowingRoundLimit = true
+            return
+        }
+        viewModel.rollDice()
+        persistCurrentGame()
+    }
+
+    private func requestRoundReviewIfDue() {
+        guard scenePhase == .active, isGameOverVisible,
+              !isShowingRoundLimit, !isShowingSettings, !isShowingStats,
+              fullGameStore.hasCheckedEntitlements, !fullGameStore.isProcessing,
+              let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
+                .first(where: { $0.activationState == .foregroundActive && $0.windows.contains(where: \.isKeyWindow) }),
+              roundAllowance.takeReviewRequest(isUnlocked: fullGameStore.isUnlocked) else { return }
+
+        if #available(iOS 18.0, *) {
+            AppStore.requestReview(in: scene)
+        } else {
+            SKStoreReviewController.requestReview(in: scene)
+        }
     }
 
     // MARK: - Launch routing (BOD-012)
@@ -1396,10 +1449,21 @@ struct ContentView: View {
     }
 
     private func handleGameOver(won: Bool) {
+        guard resultRecordGuard.recordIfNeeded() else { return }
+        if fullGameStore.hasCheckedEntitlements {
+            roundAllowance.recordCompletedRound(isUnlocked: fullGameStore.isUnlocked)
+        } else {
+            // A saved roll can finish as soon as the app opens, while StoreKit
+            // is still resolving whether the player owns the full version.
+            Task {
+                await fullGameStore.prepare()
+                if fullGameStore.hasCheckedEntitlements {
+                    roundAllowance.recordCompletedRound(isUnlocked: fullGameStore.isUnlocked)
+                }
+            }
+        }
         // Don't record stats for multiplayer — results screen handles that
         guard !currentGameMode.isMultiplayer else { return }
-        // Never record the same finished game's stats twice.
-        guard resultRecordGuard.recordIfNeeded() else { return }
         // Resolve the celebration BEFORE recording, so we still know the previous
         // best for this mode (recordCompletedGame overwrites it).
         celebrationOutcome = makeCelebrationOutcome(won: won)

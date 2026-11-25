@@ -62,6 +62,9 @@
             ReferencedContainer = "container:BoxOfDice.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <StoreKitConfigurationFileReference
+         identifier = "../../BoxOfDiceTests/FullVersion.storekit">
+      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

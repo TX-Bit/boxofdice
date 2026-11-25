@@ -218,3 +218,18 @@
 "Would you like a quick tutorial?" = "Haluatko lyhyen opastuksen?";
 "Show Tutorial" = "Näytä opastus";
 "The tutorial is also available in Settings." = "Opastus löytyy myöhemmin asetuksista.";
+
+/* Full version and daily rounds */
+"Full Version" = "Täysversio";
+"Full Version Unlocked" = "Täysversio käytössä";
+"Unlock Unlimited Play" = "Avaa rajaton pelaaminen";
+"You've played your rounds for today." = "Olet pelannut päivän kierroksesi.";
+"Play unlimited rounds. Pay once." = "Pelaa rajattomasti. Maksa vain kerran.";
+"Unlock for %@" = "Avaa hintaan %@";
+"Restore Purchases" = "Palauta ostot";
+"Try Again" = "Yritä uudelleen";
+"The App Store price is currently unavailable." = "App Storen hintaa ei juuri nyt saatu.";
+"Your purchase is awaiting approval." = "Ostosi odottaa hyväksyntää.";
+"The App Store could not complete the request. Try again." = "App Store ei voinut suorittaa pyyntöä. Yritä uudelleen.";
+"No full version purchase was found for this Apple Account." = "Tältä Apple-tililtä ei löytynyt täysversion ostoa.";
+"Supports Family Sharing" = "Tukee Perhejakoa";

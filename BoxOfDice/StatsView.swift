@@ -36,12 +36,12 @@ struct StatsView: View {
     @AppStorage(StatisticsStorageKey.modeScoreCountBigBox) private var modeScoreCountBigBox = 0
     @AppStorage(StatisticsStorageKey.modeScoreCountBigBoxSpeed) private var modeScoreCountBigBoxSpeed = 0
 
-    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
+    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.defaultTheme.rawValue
 
     @State private var showResetConfirm = false
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .greenFelt)
+        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .defaultTheme)
     }
 
     var body: some View {

@@ -205,3 +205,18 @@
 "Would you like a quick tutorial?" = "Voulez-vous suivre un court tutoriel ?";
 "Show Tutorial" = "Voir le tutoriel";
 "The tutorial is also available in Settings." = "Le tutoriel reste disponible dans les réglages.";
+
+/* Full version and daily rounds */
+"Full Version" = "Version complète";
+"Full Version Unlocked" = "Version complète débloquée";
+"Unlock Unlimited Play" = "Débloquer le jeu illimité";
+"You've played your rounds for today." = "Tu as joué toutes tes parties du jour.";
+"Play unlimited rounds. Pay once." = "Joue sans limite. Paie une seule fois.";
+"Unlock for %@" = "Débloquer pour %@";
+"Restore Purchases" = "Restaurer les achats";
+"Try Again" = "Réessayer";
+"The App Store price is currently unavailable." = "Le prix sur l’App Store est actuellement indisponible.";
+"Your purchase is awaiting approval." = "Ton achat est en attente d’approbation.";
+"The App Store could not complete the request. Try again." = "L’App Store n’a pas pu traiter la demande. Réessaie.";
+"No full version purchase was found for this Apple Account." = "Aucun achat de la version complète n’a été trouvé pour ce compte Apple.";
+"Supports Family Sharing" = "Compatible avec le partage familial";

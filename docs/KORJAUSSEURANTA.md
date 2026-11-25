@@ -135,6 +135,19 @@ Tilat: **Tutkimatta**, **Koodihavainto**, **Toistettu**, **Suunniteltu**, **Työ
 
 ## Muutosloki
 
+### 25.11.2026 — Keskiyö oletusteemaksi ja keskitetty ostoruutu
+
+- Keskiyö on iOS- ja watchOS-kohteiden oletusteema. Sovellus käyttää tallennettua teemavalintaa, jos pelaaja on jo valinnut teeman.
+- Täysversion näkymän otsikko, kuvaus, hinta ja ostojen palautus ovat keskitetyn, valittuun teemaan mukautuvan kortin sisällä. Matalassa näkymässä noppakuvake on otsikon vieressä ja ostopainike ostojen palautuksen vieressä.
+
+### 25.11.2026 — Päivittäinen kierrosraja ja täysversio
+
+- Ilmaisversiossa voi aloittaa 10 kierrosta kalenteripäivässä laitteen paikallisen ajan mukaan. Ensimmäinen nopanheitto käyttää kierroksen. Tallennetun kierroksen jatkaminen ja harjoittelu ovat mahdollisia myös päivärajalla. Vuoropelissä jokaisen pelaajan kierros lasketaan erikseen.
+- StoreKitin vahvistama kertamaksullinen täysversio poistaa kierrosrajan ja arvostelupyynnöt. Oston ja ostojen palautuksen voi avata asetuksista tai päivärajan näkymästä. Sovellus näyttää StoreKitin paikallisen hinnan.
+- App Storen järjestelmäpyyntö tehdään joka kahdeksannen loppuun pelatun ilmaiskierroksen jälkeen. Apple päättää ikkunan näyttämisestä.
+- App Store Connectin tuoteluonnos on **Non-Consumable**, tuotetunnus `com.mm.BoxOfDice.fullversion` ja Yhdysvaltain perushinta **1,99 USD**. Perhejako on käytössä. Ensimmäinen ostotuote lähetetään arviointiin uuden sovellusversion mukana. [Applen hintaohje](https://developer.apple.com/help/app-store-connect/manage-in-app-purchases/set-a-price-for-an-in-app-purchase) · [Applen arviointiohje](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-in-app-purchase)
+- Päivärajan ostoruudun teksti lyhennettiin. Hinta haetaan ostoruudun avautuessa näkyviin ostajan App Store -alueen valuutassa. App Store Connectissa Suomen hinnaksi tarkistettiin **1,99 €**.
+
 ### 25.11.2026 — iPhonen, iPadin ja Duon tulosruudut
 
 - Yksinpelin tuloskortti käyttää samaa kompaktia yhden palstan asettelua pystyssä ja vaakatasossa. Kortti näyttää loppupisteet, mahdollisen aikatuloksen ja ennätystiedon. Avoimien laattojen lista poistettiin tuloskortista. Duon etunäytön vaakakortti keskitetään, ja osittain avattuna kortti sijoitetaan taitoksen ohjainpuolelle.

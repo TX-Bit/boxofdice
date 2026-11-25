@@ -41,6 +41,8 @@
 		E5F607182930A1B2C3D4E5F6 /* DiceRollAndTileInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F607182930A1B2C3D4E5F7 /* DiceRollAndTileInteractionTests.swift */; };
 		F81AC01E4CE7AB353F37EA3B /* WatchGameCoreRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA12CD1C8E9B2337FDA3FE1 /* WatchGameCoreRegressionTests.swift */; };
 		F88BE945806D145A67E9AC57 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EA8998E0450BE736D87231F5 /* Foundation.framework */; };
+		F9D38659B93C4600A121D985 /* PlayAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D38659B93C4600A121D986 /* PlayAccessTests.swift */; };
+		F9D38659B93C4600A121D987 /* FullVersion.storekit in Resources */ = {isa = PBXBuildFile; fileRef = F9D38659B93C4600A121D988 /* FullVersion.storekit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -104,6 +106,8 @@
 		E5F607182930A1B2C3D4E5F7 /* DiceRollAndTileInteractionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiceRollAndTileInteractionTests.swift; sourceTree = "<group>"; };
 		E6C9A2D2CBFA3334E0D0636F /* GameStatisticsRecorderTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GameStatisticsRecorderTests.swift; sourceTree = "<group>"; };
 		EA8998E0450BE736D87231F5 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		F9D38659B93C4600A121D986 /* PlayAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayAccessTests.swift; sourceTree = "<group>"; };
+		F9D38659B93C4600A121D988 /* FullVersion.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = FullVersion.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -171,6 +175,8 @@
 				1AE281D856EF361A4C488FD2 /* LocalizationResourceTests.swift */,
 				04DE9BAC01D29AE123644343 /* OnboardingLifecycleTests.swift */,
 				550F0AE43E11B51C7C14BFB2 /* OnboardingLayoutTests.swift */,
+				F9D38659B93C4600A121D986 /* PlayAccessTests.swift */,
+				F9D38659B93C4600A121D988 /* FullVersion.storekit */,
 				D4E5F607182930A1B2C3D4E6 /* DiceStyleTests.swift */,
 				E5F607182930A1B2C3D4E5F7 /* DiceRollAndTileInteractionTests.swift */,
 			);
@@ -391,6 +397,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F9D38659B93C4600A121D987 /* FullVersion.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -466,6 +473,7 @@
 				B381F76A95336BCC3A9F5322 /* LocalizationResourceTests.swift in Sources */,
 				DFF28BD2E1E058EF317E8461 /* OnboardingLifecycleTests.swift in Sources */,
 				B157ED25DD78AC5A92AE1183 /* OnboardingLayoutTests.swift in Sources */,
+				F9D38659B93C4600A121D985 /* PlayAccessTests.swift in Sources */,
 				D4E5F607182930A1B2C3D4E5 /* DiceStyleTests.swift in Sources */,
 				E5F607182930A1B2C3D4E5F6 /* DiceRollAndTileInteractionTests.swift in Sources */,
 			);
@@ -808,7 +816,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = CXCUP4DV54;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -825,7 +833,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -844,7 +852,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = CXCUP4DV54;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -861,7 +869,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mm.BoxOfDice;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

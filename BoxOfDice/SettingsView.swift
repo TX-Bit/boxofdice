@@ -7,13 +7,15 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var fullGameStore = FullGameStore.shared
+    @State private var isShowingFullVersion = false
 
     /// BOD-012: reopens the first-launch tutorial as a replay. Defaults to
     /// a no-op so `#Preview` and any other caller that doesn't need this
     /// doesn't have to pass it.
     var onShowHowToPlay: () -> Void = {}
 
-    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.greenFelt.rawValue
+    @AppStorage(SettingsStorageKey.theme) private var themeRawValue = GameThemeName.defaultTheme.rawValue
     @AppStorage(SettingsStorageKey.hapticsEnabled) private var hapticsEnabled = true
     @AppStorage(SettingsStorageKey.soundsEnabled) private var soundsEnabled = true
     @AppStorage(SettingsStorageKey.diceAnimationSpeed) private var diceAnimationSpeedRawValue = DiceAnimationSpeed.normal.rawValue
@@ -25,13 +27,14 @@ struct SettingsView: View {
     @AppStorage(SettingsStorageKey.language) private var languageRawValue = AppLanguage.system.rawValue
 
     private var theme: GameTheme {
-        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .greenFelt)
+        GameTheme.palette(for: GameThemeName(rawValue: themeRawValue) ?? .defaultTheme)
     }
 
     var body: some View {
         CompatibleNavigationContainer {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
+                    fullVersionSection
                     lookAndFeelSection
                     gameFlowSection
                 }
@@ -54,6 +57,10 @@ struct SettingsView: View {
             .sheet(isPresented: $isShowingDiceStylePicker) {
                 DiceStylePickerView(theme: theme)
             }
+            .sheet(isPresented: $isShowingFullVersion) {
+                FullGamePurchaseView(store: fullGameStore, theme: theme)
+                    .environment(\.locale, languageLocale)
+            }
         }
         // Menu pickers don't refresh their displayed label from a plain state
         // change when the selection tag is unchanged — rebuild the whole sheet so
@@ -68,6 +75,14 @@ struct SettingsView: View {
     }
 
     // MARK: - Sections
+
+    private var fullVersionSection: some View {
+        settingsCard(title: "Full Version") {
+            navigationRow(fullGameStore.isUnlocked ? "Full Version Unlocked" : "Unlock Unlimited Play") {
+                isShowingFullVersion = true
+            }
+        }
+    }
 
     private var lookAndFeelSection: some View {
         settingsCard(title: "Look & Feel") {
@@ -102,7 +117,7 @@ struct SettingsView: View {
                     }
                 }
             } label: {
-                selectionRowContent("Theme", value: (GameThemeName(rawValue: themeRawValue) ?? .greenFelt).title)
+                selectionRowContent("Theme", value: (GameThemeName(rawValue: themeRawValue) ?? .defaultTheme).title)
             }
 
             cardDivider

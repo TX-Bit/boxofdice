@@ -201,6 +201,8 @@ enum GameThemeName: String, CaseIterable, Identifiable {
     case minimalLight
     case darkWalnut
 
+    static let defaultTheme: Self = .midnight
+
     var id: String { rawValue }
 
     var title: String {
