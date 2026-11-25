@@ -14,6 +14,8 @@
 "Choose Mode" = "Modus wählen";
 "Start" = "Start";
 "Start Game" = "Spiel starten";
+"Start a new game?" = "Neues Spiel starten?";
+"Your current game will end." = "Dein laufendes Spiel wird beendet.";
 "Cancel" = "Abbrechen";
 "Done" = "Fertig";
 "New Game" = "Neues Spiel";
@@ -146,7 +148,7 @@
 "Current win streak" = "Aktuelle Siegesserie";
 "Best win streak" = "Beste Siegesserie";
 "Longest game" = "Längstes Spiel";
-"Shortest clear" = "Wenigste Züge bis zum Sieg";
+"Fewest moves to win" = "Wenigste Züge bis zum Sieg";
 "Most Common Remaining Tiles" = "Häufigste verbleibende Felder";
 "No data yet — play a few games first" = "Noch keine Daten — spiele erst ein paar Spiele";
 "Played" = "Gespielt";
@@ -159,7 +161,8 @@
 "Longest" = "Längstes";
 "Shortest" = "Kürzestes";
 "Best Score" = "Bestleistung";
-"%d turns" = "%d Züge";
+"%d move" = "%d Zug";
+"%d moves" = "%d Züge";
 "%lld turns" = "%lld Züge";
 "Tile %d, open" = "Feld %d, offen";
 "Tile %d, closed" = "Feld %d, geschlossen";

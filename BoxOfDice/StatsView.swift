@@ -56,8 +56,8 @@ struct StatsView: View {
                     statsSection(title: "Streaks & Length", rows: [
                         ("Current win streak", "\(currentWinStreak)"),
                         ("Best win streak",    "\(bestWinStreak)"),
-                        ("Longest game",       turnsText(longestGameTurns)),
-                        ("Shortest clear",     turnsText(shortestClearTurns)),
+                        ("Longest game",       movesText(longestGameTurns)),
+                        ("Fewest moves to win",     movesText(shortestClearTurns)),
                     ])
 
                     remainingTilesSection
@@ -282,8 +282,9 @@ struct StatsView: View {
         return average.formatted(.number.precision(.fractionLength(1)).locale(L10n.locale))
     }
 
-    private func turnsText(_ turns: Int) -> String {
-        turns == 0 ? "-" : L10n.format("%d turns", turns)
+    private func movesText(_ moves: Int) -> String {
+        guard moves > 0 else { return "-" }
+        return L10n.format(moves == 1 ? "%d move" : "%d moves", moves)
     }
 }
 

@@ -135,6 +135,51 @@ Tilat: **Tutkimatta**, **Koodihavainto**, **Toistettu**, **Suunniteltu**, **Työ
 
 ## Muutosloki
 
+### 25.11.2026 — iPhonen, iPadin ja Duon tulosruudut
+
+- Yksinpelin tuloskortti käyttää samaa kompaktia yhden palstan asettelua pystyssä ja vaakatasossa. Kortti näyttää loppupisteet, mahdollisen aikatuloksen ja ennätystiedon. Avoimien laattojen lista poistettiin tuloskortista. Duon etunäytön vaakakortti keskitetään, ja osittain avattuna kortti sijoitetaan taitoksen ohjainpuolelle.
+- XCTest tarkistaa vieritystarpeen 13 koossa, mukaan lukien pienet iPhonet, iPadin jaettu ikkuna ja Duon taittoasennot. Testit kattavat ajastetun yksinpelin ennätystietoineen, Vuoropelin kierrostuloksen ja neljän pelaajan lopputuloksen.
+
+### 25.11.2026 — iPhone Duo: yhtenäinen sisänäytön pystyasettelu
+
+- Osittain ja kokonaan avattu sisänäyttö käyttävät samaa pystyasettelua. Otsikko ja lauta ovat taitoksen yläpuolella, nopat ja vuoropainike alapuolella. Klassisen 4 × 3 -lauta on osittain avattuna hieman pienempi.
+- Vertailukuvat otettiin simulaattorissa Pikapelistä, Klassisesta ja Isosta laatikosta molemmissa taittoasennoissa.
+- Palautteen perusteella 12 laatan pelit käyttävät molemmissa pystyasennon taittoasennoissa kahta kuuden laatan riviä. Laatoille jää enemmän tilaa, ja otsikon, noppien sekä vuoropainikkeen paikat säilyvät.
+
+### 25.11.2026 — iPhone Duo: yhtenäinen ulkonäytön pystyasettelu
+
+- Otsikko, pistetieto, pelimuotovalitsin, nopat ja vuoropainike käyttävät yhteisiä paikkoja laattamäärästä riippumatta. Pikapelin 3 × 3 -lautaa madallettiin ja Klassisen laattoja pidennettiin hieman.
+- Build onnistui. Duon simulaattorista otettiin vertailukuvat 9, 12 ja 18 laatan peleistä. Pikapelissä Sulje laatat ja Vihje näkyivät samalla ruudulla heiton jälkeen.
+
+### 25.11.2026 — iPhone Duo: yhtenäiset sisänäytön vaakanäkymät
+
+- Täysin avoin ja osittain avoin vaakanäkymä käyttävät samaa laudan ja ohjainten asettelua. Taitos määrää palstojen välisen vapaan alueen. Noppien enimmäiskokoa kasvatettiin ja vuoron painiketta laskettiin.
+- Build onnistui. Device Hubissa heitettiin Ison laatikon kolme noppaa molemmissa asennoissa. Vertailukuvat otettiin samasta pelitilanteesta ja näytettiin käyttäjälle esikatseluna.
+
+### 25.11.2026 — iPhone Duo: pelilautojen ja pelimuotovalikon esikatselu
+
+- Classicin oikeaa palstaa väljennettiin kirjataitossa. Pikapeli käyttää 3 × 3 -ruudukkoa sisänäytöllä. Ison laatikon laattoja ja ohjainpalstaa väljennettiin kirja-asennossa.
+- Pelimuotovalikko mukautuu käytettävissä olevaan tilaan. Duon kirjataitossa ja käännetyllä ulkonäytöllä kaikki kuusi pelimuotoa, Vuoropelin pelaajamäärä ja aloituspainike näkyivät ilman vieritystä. Build onnistui. Asettelut ovat käyttäjän esikatselussa.
+- Palautteen perusteella valikko palautettiin alkuperäisiin ryhmiin ja kuvauksiin. Ryhmät ovat tavallisesti allekkain. Matalassa vaakanäkymässä ne voivat olla kahdessa palstassa, ja Vuoropelin pelaajamäärä mahtuu aloituspainikkeen viereen. Uusi build onnistui ja kuvat otettiin Duon simulaattorista Vuoropeli valittuna.
+
+### 25.11.2026 — iPhone Duo: pelilaudan mittasuhteet ja pystynäkymä
+
+- Pienennettiin pelilautaa Duon vaakanäkymissä. Osittain avatun näytön ohjaimiin palautettiin Noppalauta-otsikko. Täysin avatulla vaakanäytöllä tilasto- ja asetuskuvakkeet sijoitettiin pistetietojen yhteyteen.
+- Duon pystynäkymä valitsee normaalin tai tiiviin asettelun vapaan korkeuden mukaan. Vieritys on varalla, jos kumpikaan ei mahdu. Classicin lauta, nopat, Sulje laatat ja Vihje näkyivät ulkonäytöllä heiton jälkeen ilman vierittämistä.
+
+### 25.11.2026 — iPhone Duo: pelinäkymä osittain avattuna
+
+- Pelilauta ja vuoron ohjaimet sijoitetaan järjestelmän ilmoittaman taitosalueen eri puolille. Kirja-asennossa lauta on vasemmalla ja ohjaimet oikealla. Vaakasuorassa taitossa lauta on ylhäällä ja ohjaimet alhaalla.
+- iPhone Duo -simulaattorissa 81 XCTest-testiä läpi. Pelimoottorin hakutestit jätettiin tästä ajosta pois. Device Hubissa tarkistettiin Classicin lauta ja ohjaimet osittain avatussa kirja-asennossa.
+- Jatkosäätö: kirja-asennossa 12 laattaa asetettiin neljään sarakkeeseen ja kolmeen riviin. Ohjaimia suurennettiin. Täysin avatun vaakanäkymän 12 laatan ruudukko muutettiin samaan muotoon ja laudan yläreuna sovitettiin tilastopainikkeen alle. Ulkonäytön sisältö keskitettiin sekä pysty- että vaaka-asennossa, ja kameran sekä tilailmaisinten ympärille jätettiin tilaa. Viimeisin build onnistui ja Classic tarkistettiin Device Hubissa näissä asennoissa.
+
+### 25.11.2026 — iOS: uuden pelin vahvistus ja tilastotekstit
+
+- Pelimuotovalikon Aloita peli kysyy vahvistuksen, jos nykyisessä pelissä on heitetty tai heitto on käynnissä. Myös kesken oleva paikallinen moninpeli suojataan pelaajien vuorojen välissä. Peruutus säilyttää nykyisen pelin ja pelimuotovalikon valinnan.
+- Tilaston nimi on nyt ”Vähiten siirtoja voittoon”. iOS käyttää yksikköä ja monikkoa oikein kaikilla seitsemällä kielellä. Watch-kohteen otsikko täsmennettiin samoin.
+- iPhone Duo -suunnitelma: ulkonäytölle nykyinen pystynäkymä, leveälle sisänäytölle lauta vasemmalle ja noppien sekä vuoron ohjaimet oikealle. Valitse asettelu vapaan ikkuna-alueen mukaan. Tarkista taittamisen aikana sama peli, valitut laatat, kesken oleva heitto ja ajastin. Asettelumuutos on suunnittelussa.
+- Varmistus: iPhone Duo -simulaattorissa 81 XCTest-testiä läpi. Pelimoottorin hakutestit rajattiin tästä ajosta pois. Watch-kohde rakentui. Vahvistusdialogin käsinajo ja Duon eri taittoasentojen visuaalinen tarkistus ovat avoinna.
+
 ### 10.9.2026 — riippumaton BOD-011–014-tarkistus
 
 - Nykyinen iOS-testikokonaisuus ajettiin erillisestä lähdekoodikopiosta: **62/62 läpi**.

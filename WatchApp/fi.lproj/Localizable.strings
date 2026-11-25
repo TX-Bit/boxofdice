@@ -155,7 +155,7 @@
 "Current win streak" = "Nykyinen voittoputki";
 "Best win streak" = "Paras voittoputki";
 "Longest game" = "Pisin peli";
-"Shortest clear" = "Tyhjennys vähimmillä siirroilla";
+"Fewest moves to win" = "Vähiten siirtoja voittoon";
 "Most Common Remaining Tiles" = "Yleisimmät jäljelle jääneet laatat";
 "No data yet — play a few games first" = "Ei vielä dataa — pelaa ensin muutama peli";
 "Played" = "Pelattu";

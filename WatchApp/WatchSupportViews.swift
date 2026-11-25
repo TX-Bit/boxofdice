@@ -316,7 +316,7 @@ struct WatchStatsView: View {
                         statRow("Perfect", "\(perfectClears)")
                         statRow("Streak", "\(currentWinStreak) / \(bestWinStreak)")
                         statRow("Longest", turnsText(longestGameTurns))
-                        statRow("Shortest", turnsText(shortestClearTurns))
+                        statRow("Fewest moves to win", turnsText(shortestClearTurns))
                         statRow(modeLabel(.quickGame), bestText(bestScoreQuickGame, storageKey: StatisticsStorageKey.bestScoreQuickGame))
                         statRow(modeLabel(.classic), bestText(bestScoreClassic, storageKey: StatisticsStorageKey.bestScoreClassic))
                         statRow(modeLabel(.speedRun), bestText(bestScoreSpeedRun, storageKey: StatisticsStorageKey.bestScoreSpeedRun))

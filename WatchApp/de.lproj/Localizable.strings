@@ -143,7 +143,7 @@
 "Current win streak" = "Aktuelle Siegesserie";
 "Best win streak" = "Beste Siegesserie";
 "Longest game" = "Längstes Spiel";
-"Shortest clear" = "Wenigste Züge bis zum Sieg";
+"Fewest moves to win" = "Wenigste Züge bis zum Sieg";
 "Most Common Remaining Tiles" = "Häufigste verbleibende Felder";
 "No data yet — play a few games first" = "Noch keine Daten — spiele erst ein paar Spiele";
 "Played" = "Gespielt";

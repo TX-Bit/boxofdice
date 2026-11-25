@@ -143,7 +143,7 @@
 "Current win streak" = "Racha de victorias actual";
 "Best win streak" = "Mejor racha de victorias";
 "Longest game" = "Partida más larga";
-"Shortest clear" = "Victoria en menos turnos";
+"Fewest moves to win" = "Victoria en menos jugadas";
 "Most Common Remaining Tiles" = "Casillas restantes más comunes";
 "No data yet — play a few games first" = "Aún no hay datos — juega algunas partidas primero";
 "Played" = "Jugadas";

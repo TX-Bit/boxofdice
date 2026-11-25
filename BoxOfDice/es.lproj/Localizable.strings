@@ -14,6 +14,8 @@
 "Choose Mode" = "Elegir modo";
 "Start" = "Iniciar";
 "Start Game" = "Iniciar partida";
+"Start a new game?" = "¿Empezar una partida nueva?";
+"Your current game will end." = "La partida en curso terminará.";
 "Cancel" = "Cancelar";
 "Done" = "Listo";
 "New Game" = "Partida nueva";
@@ -146,7 +148,7 @@
 "Current win streak" = "Racha de victorias actual";
 "Best win streak" = "Mejor racha de victorias";
 "Longest game" = "Partida más larga";
-"Shortest clear" = "Victoria en menos turnos";
+"Fewest moves to win" = "Victoria en menos jugadas";
 "Most Common Remaining Tiles" = "Casillas restantes más comunes";
 "No data yet — play a few games first" = "Aún no hay datos — juega algunas partidas primero";
 "Played" = "Jugadas";
@@ -159,7 +161,8 @@
 "Longest" = "Más larga";
 "Shortest" = "Más corta";
 "Best Score" = "Mejor puntuación";
-"%d turns" = "%d turnos";
+"%d move" = "%d jugada";
+"%d moves" = "%d jugadas";
 "%lld turns" = "%lld turnos";
 "Tile %d, open" = "Casilla %d, abierta";
 "Tile %d, closed" = "Casilla %d, cerrada";

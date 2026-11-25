@@ -118,43 +118,36 @@ final class OnboardingLayoutTests: XCTestCase {
 
 @MainActor
 final class GameOverLayoutTests: XCTestCase {
-
+    // Content sizes after allowing for the status bar, home indicator or active hinge.
     private static let supportedGeometries: [(name: String, size: CGSize)] = [
-        ("iPhone portrait",         CGSize(width: 390, height: 844)),
-        ("iPhone landscape",        CGSize(width: 844, height: 390)),
-        ("smallest phone portrait",  CGSize(width: 375, height: 667)),
-        ("smallest phone landscape", CGSize(width: 667, height: 375)),
-        ("iPad portrait",           CGSize(width: 834, height: 1194)),
-        ("iPad landscape",          CGSize(width: 1194, height: 834)),
-        ("iPad split view",         CGSize(width: 320, height: 1024)),
+        ("iPhone portrait", CGSize(width: 390, height: 750)),
+        ("iPhone landscape", CGSize(width: 746, height: 350)),
+        ("small iPhone portrait", CGSize(width: 320, height: 520)),
+        ("small iPhone landscape", CGSize(width: 568, height: 300)),
+        ("iPad portrait", CGSize(width: 834, height: 1140)),
+        ("iPad landscape", CGSize(width: 1194, height: 780)),
+        ("iPad split view", CGSize(width: 320, height: 720)),
+        ("Duo outer portrait", CGSize(width: 396, height: 655)),
+        ("Duo outer landscape", CGSize(width: 618, height: 414)),
+        ("Duo inner portrait", CGSize(width: 669, height: 870)),
+        ("Duo inner landscape", CGSize(width: 905, height: 608)),
+        ("Duo tabletop pane", CGSize(width: 669, height: 405)),
+        ("Duo book pane", CGSize(width: 435, height: 608)),
     ]
 
-    private func measureGameOverGeometry(size: CGSize) -> (bounds: CGFloat, content: CGFloat)? {
-        let host = UIHostingController(
-            rootView: GameOverView(
-                kind: .gameOver,
-                tileScore: 12,
-                elapsedSeconds: 0,
-                isTimed: false,
-                remainingOpenTiles: [1, 2, 4, 5],
-                modeName: "Classic",
-                isNewBest: true,
-                isFirstScore: false,
-                previousBest: 20,
-                shareMessage: "Share",
-                theme: GameTheme.palette(for: .greenFelt),
-                onNewGame: {},
-                onSettings: {},
-                onStats: {}
-            )
-            .ignoresSafeArea()
-        )
+    private func assertFits<Content: View>(
+        _ content: Content,
+        name: String,
+        size: CGSize,
+        attachmentName: String? = nil
+    ) throws {
+        let host = UIHostingController(rootView: content.ignoresSafeArea())
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.rootViewController = host
         window.isHidden = false
-        host.view.frame = CGRect(origin: .zero, size: size)
+        host.view.frame = window.bounds
         host.view.layoutIfNeeded()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.25))
+        RunLoop.main.run(until: Date().addingTimeInterval(0.15))
         host.view.layoutIfNeeded()
 
         defer {
@@ -162,35 +155,23 @@ final class GameOverLayoutTests: XCTestCase {
             window.rootViewController = nil
         }
 
-        guard let scrollView = firstScrollView(in: host.view) else { return nil }
-        let inset = scrollView.adjustedContentInset
-        return (scrollView.bounds.height - inset.top - inset.bottom, scrollView.contentSize.height)
-    }
+        let scroll = try XCTUnwrap(firstScrollView(in: host.view), name)
+        let inset = scroll.adjustedContentInset
+        let visibleHeight = scroll.bounds.height - inset.top - inset.bottom
+        XCTAssertGreaterThan(visibleHeight, 0, name)
+        XCTAssertLessThanOrEqual(scroll.contentSize.height, visibleHeight + 1, "\(name) needs scrolling")
 
-    private func measurePassAndPlayResultsGeometry(size: CGSize) -> (bounds: CGFloat, content: CGFloat)? {
-        let host = UIHostingController(
-            rootView: PassAndPlayResultsView(
-                scores: [14, 22],
-                onNewGame: {}
-            )
-            .ignoresSafeArea()
-        )
-        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
-        window.rootViewController = host
-        window.isHidden = false
-        host.view.frame = CGRect(origin: .zero, size: size)
-        host.view.layoutIfNeeded()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.25))
-        host.view.layoutIfNeeded()
-
-        defer {
-            window.isHidden = true
-            window.rootViewController = nil
+        if let attachmentName, scroll.contentSize.height > visibleHeight + 1 {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                host.view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
+            }
+            let screenshot = XCTAttachment(image: image)
+            screenshot.name = attachmentName
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
         }
-
-        guard let scrollView = firstScrollView(in: host.view) else { return nil }
-        let inset = scrollView.adjustedContentInset
-        return (scrollView.bounds.height - inset.top - inset.bottom, scrollView.contentSize.height)
     }
 
     private func firstScrollView(in view: UIView) -> UIScrollView? {
@@ -201,22 +182,46 @@ final class GameOverLayoutTests: XCTestCase {
         return nil
     }
 
-    func testGameOverViewIsAlwaysScrollableInEveryGeometry() {
+    func testSoloResultFitsWithTimedScoreAndRecordDetails() throws {
+        let theme = GameTheme.palette(for: .greenFelt)
         for geometry in Self.supportedGeometries {
-            let measured = measureGameOverGeometry(size: geometry.size)
-            XCTAssertNotNil(
-                measured,
-                "\(geometry.name): GameOverView must be wrapped in a scroll view so its actions are never clipped or unreachable"
-            )
+            let result = ZStack {
+                LinearGradient(colors: theme.background, startPoint: .top, endPoint: .bottom)
+                Color.black.opacity(0.68)
+                GameOverView(
+                    kind: .newBest,
+                    tileScore: 171,
+                    elapsedSeconds: 27,
+                    isTimed: true,
+                    modeName: "Big Box Speed",
+                    isNewBest: true,
+                    isFirstScore: false,
+                    previousBest: 210,
+                    shareMessage: "Share",
+                    theme: theme,
+                    onNewGame: {},
+                    onSettings: {},
+                    onStats: {}
+                )
+            }
+            try assertFits(result, name: geometry.name, size: geometry.size, attachmentName: geometry.name)
         }
     }
 
-    func testPassAndPlayResultsViewIsAlwaysScrollableInEveryGeometry() {
+    func testMultiplayerRoundAndFourPlayerResultsFit() throws {
         for geometry in Self.supportedGeometries {
-            let measured = measurePassAndPlayResultsGeometry(size: geometry.size)
-            XCTAssertNotNil(
-                measured,
-                "\(geometry.name): PassAndPlayResultsView must be wrapped in a scroll view so results and actions are never clipped"
+            try assertFits(
+                PassAndPlayRoundEndView(
+                    playerNumber: 4, tileScore: 67, isLastPlayer: true, onNext: {}, onResults: {}
+                ),
+                name: "\(geometry.name), round end",
+                size: geometry.size
+            )
+            try assertFits(
+                PassAndPlayResultsView(scores: [14, 22, 67, 14], onNewGame: {}),
+                name: "\(geometry.name), four-player results",
+                size: geometry.size,
+                attachmentName: geometry.name == "Duo outer landscape" ? "Duo outer landscape, multiplayer" : nil
             )
         }
     }

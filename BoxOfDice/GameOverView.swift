@@ -15,6 +15,42 @@ private struct LegacyShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
+struct ResultCardLayout<Content: View, Background: View, Border: View>: View {
+    var usesCompactCard = false
+    @ViewBuilder let content: (Bool, Bool) -> Content
+    @ViewBuilder let background: () -> Background
+    @ViewBuilder let border: () -> Border
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+            let isWide = !usesCompactCard && size.width >= 480 && size.width > size.height
+            let isCompact = usesCompactCard || size.height < (isWide ? 450 : 590)
+            let card = content(isWide, isCompact)
+                .padding(isCompact ? 12 : 22)
+                .frame(maxWidth: usesCompactCard ? 350 : (isWide ? 620 : 372))
+                .fixedSize(horizontal: false, vertical: true)
+                .background(background())
+                .overlay(border().allowsHitTesting(false))
+                .shadow(color: .black.opacity(0.40), radius: 18, y: 9)
+                .padding(.horizontal, 12)
+                .padding(.vertical, isCompact ? 8 : 14)
+                .frame(maxWidth: .infinity, minHeight: size.height)
+
+            // The card fits supported full-screen sizes. Keep the fallback for
+            // unusually small windows where the intrinsic content is taller.
+            if #available(iOS 16.4, *) {
+                ScrollView(showsIndicators: false) { card }
+                    .scrollBounceBehavior(.basedOnSize)
+            } else {
+                ScrollView(showsIndicators: false) { card }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
+    }
+}
+
 // Warm "premium board game" palette used only when the Light theme is active, so
 // the result/celebration card reads as ivory & walnut instead of washed-out gray.
 private enum WarmLight {
@@ -24,7 +60,6 @@ private enum WarmLight {
     static let walnut         = Color(red: 0.169, green: 0.102, blue: 0.055) // #2B1A0E
     static let warmBrown      = Color(red: 0.435, green: 0.329, blue: 0.220) // #6F5438
     static let taupe          = Color(red: 0.541, green: 0.463, blue: 0.369) // #8A765E
-    static let gold           = Color(red: 0.851, green: 0.588, blue: 0.169) // #D9962B
     static let label          = Color(red: 0.604, green: 0.416, blue: 0.184) // #9A6A2F
     static let cream          = Color(red: 0.918, green: 0.863, blue: 0.773) // #EADCC5
     static let creamBorder    = Color(red: 0.847, green: 0.737, blue: 0.533) // #D8BC88
@@ -33,7 +68,6 @@ private enum WarmLight {
     static let secondaryFill  = Color(red: 0.910, green: 0.843, blue: 0.722) // #E8D7B8
     static let secondaryText  = Color(red: 0.294, green: 0.204, blue: 0.125) // #4B3420
     static let secondaryBorder = Color(red: 0.824, green: 0.706, blue: 0.486) // #D2B47C
-    static let readableGreen  = Color(red: 0.184, green: 0.478, blue: 0.133) // strong leaf green
 }
 
 struct GameOverView: View {
@@ -41,7 +75,6 @@ struct GameOverView: View {
     let tileScore: Int
     let elapsedSeconds: Int
     let isTimed: Bool
-    let remainingOpenTiles: [Int]
     let modeName: String
     let isNewBest: Bool
     let isFirstScore: Bool
@@ -52,7 +85,6 @@ struct GameOverView: View {
     let onSettings: () -> Void
     let onStats: () -> Void
 
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isShowingLegacyShareSheet = false
 
     var won: Bool { kind == .boardCleared || kind == .perfectClear }
@@ -66,92 +98,37 @@ struct GameOverView: View {
     private var sectionLabel: Color { isLight ? WarmLight.label : theme.accent.opacity(0.82) }
 
     var body: some View {
-        GeometryReader { proxy in
-            let isLandscape = proxy.size.width > proxy.size.height
-            let isCompactLandscape = isLandscape && (proxy.size.height < 560 || verticalSizeClass == .compact)
-
-            ScrollView(.vertical, showsIndicators: false) {
-                Group {
-                    if isCompactLandscape {
-                        compactLandscapeCard
-                    } else {
-                        portraitCard
-                    }
+        ResultCardLayout(usesCompactCard: true) { _, isCompact in
+            VStack(spacing: isCompact ? 8 : 16) {
+                HStack(alignment: .top, spacing: 8) {
+                    iconButton("chart.bar.fill", label: "Statistics", action: onStats)
+                    header(isCompact: isCompact)
+                        .frame(maxWidth: .infinity)
+                    iconButton("gearshape.fill", label: "Settings", action: onSettings)
                 }
-                .padding(.horizontal, isCompactLandscape ? 20 : 26)
-                .padding(.vertical, isCompactLandscape ? 16 : 28)
-                .frame(maxWidth: isCompactLandscape ? min(640, proxy.size.width - 32) : 350)
-                .background(cardBackground)
-                .overlay(cardBorder)
-                .shadow(color: isLight ? WarmLight.walnut.opacity(0.24) : .black.opacity(0.48),
-                        radius: isLight ? 24 : 28, x: 0, y: isLight ? 14 : 16)
-                .padding(.horizontal, isCompactLandscape ? 16 : 28)
-                .padding(.vertical, isCompactLandscape ? 10 : 20)
-                .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .center)
+                scorePanel(isCompact: isCompact)
+                actionButtons(isCompact: isCompact)
             }
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    // MARK: - Layout Variants
-
-    private var portraitCard: some View {
-        VStack(spacing: 20) {
-            iconBar(isCompact: false)
-            header(isCompact: false)
-            scorePanel(isCompact: false)
-            bestPanel(isCompact: false)
-            remainingTilesSection(isCompact: false)
-            actionButtons(isCompact: false)
+        } background: {
+            cardBackground
+        } border: {
+            cardBorder
         }
     }
 
-    private var compactLandscapeCard: some View {
-        HStack(alignment: .top, spacing: 20) {
-            VStack(spacing: 10) {
-                iconBar(isCompact: true)
-                header(isCompact: true)
-                scorePanel(isCompact: true)
-                bestPanel(isCompact: true)
-            }
-            .frame(maxWidth: .infinity)
-
-            VStack(spacing: 12) {
-                remainingTilesSection(isCompact: true)
-                Spacer(minLength: 4)
-                actionButtons(isCompact: true)
-            }
-            .frame(maxWidth: .infinity)
+    private func iconButton(_ systemName: String, label: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(isLight ? WarmLight.walnut : theme.text.opacity(0.78))
+                .frame(width: 34, height: 34)
+                .background(isLight ? WarmLight.secondaryFill : Color.black.opacity(0.20), in: Circle())
+                .overlay(Circle().strokeBorder(isLight ? WarmLight.secondaryBorder : Color.white.opacity(0.14), lineWidth: 1))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
-    }
-
-    // MARK: - Card Sections
-
-    private func iconBar(isCompact: Bool) -> some View {
-        HStack {
-            Button(action: onStats) {
-                iconButtonLabel("chart.bar.fill", isCompact: isCompact)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Statistics")
-
-            Spacer()
-
-            Button(action: onSettings) {
-                iconButtonLabel("gearshape.fill", isCompact: isCompact)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Settings")
-        }
-    }
-
-    private func iconButtonLabel(_ systemName: String, isCompact: Bool) -> some View {
-        Image(systemName: systemName)
-            .font(.system(size: isCompact ? 14 : 16, weight: .bold))
-            .foregroundStyle(isLight ? WarmLight.walnut : theme.text.opacity(0.70))
-            .frame(width: isCompact ? 32 : 36, height: isCompact ? 32 : 36)
-            .background(isLight ? WarmLight.secondaryFill : Color.black.opacity(0.20), in: Circle())
-            .overlay(Circle().strokeBorder(isLight ? WarmLight.secondaryBorder : Color.white.opacity(0.14), lineWidth: 1))
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     private func header(isCompact: Bool) -> some View {
@@ -163,11 +140,6 @@ struct GameOverView: View {
                 .minimumScaleFactor(0.78)
                 .shadow(color: isLight ? WarmLight.walnut.opacity(0.18) : .clear,
                         radius: isLight ? 1 : 0, x: 0, y: isLight ? 1 : 0)
-
-            Text(L10n.string(subtitleText))
-                .font(GameTypography.label(size: isCompact ? 13 : 16))
-                .foregroundStyle(secondaryText)
-                .multilineTextAlignment(.center)
 
             if !modeName.isEmpty {
                 modePill(isCompact: isCompact)
@@ -184,7 +156,7 @@ struct GameOverView: View {
             .padding(.vertical, isCompact ? 3 : 4)
             .background(Capsule().fill(isLight ? WarmLight.cream : Color.black.opacity(0.22)))
             .overlay(Capsule().strokeBorder(isLight ? WarmLight.goldBorder : Color.white.opacity(0.12), lineWidth: 1))
-            .padding(.top, 2)
+            .padding(.top, isCompact ? 0 : 2)
     }
 
     private func scorePanel(isCompact: Bool) -> some View {
@@ -195,7 +167,7 @@ struct GameOverView: View {
                 .foregroundStyle(sectionLabel)
 
             Text("\(finalScore)")
-                .font(GameTypography.display(size: isCompact ? 44 : 64))
+                .font(GameTypography.display(size: isCompact ? 40 : 64))
                 .foregroundStyle(primaryText)
 
             if isTimed && elapsedSeconds > 0 {
@@ -211,9 +183,11 @@ struct GameOverView: View {
                     .font(GameTypography.caption(size: isCompact ? 11 : 12))
                     .foregroundStyle(mutedText)
             }
+
+            bestDetails(isCompact: isCompact)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, isCompact ? 8 : 16)
+        .padding(.vertical, isCompact ? 6 : 16)
         .background(
             RoundedRectangle(cornerRadius: isCompact ? 14 : 18)
                 .fill(isLight ? WarmLight.cream : Color.black.opacity(0.18))
@@ -225,8 +199,8 @@ struct GameOverView: View {
     }
 
     @ViewBuilder
-    private func bestPanel(isCompact: Bool) -> some View {
-        if isNewBest {
+    private func bestDetails(isCompact: Bool) -> some View {
+        if isNewBest && (kind != .newBest || previousBest != nil) {
             VStack(spacing: isCompact ? 2 : 4) {
                 if kind != .newBest {
                     HStack(spacing: 6) {
@@ -244,69 +218,17 @@ struct GameOverView: View {
                         .foregroundStyle(secondaryText)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, isCompact ? 6 : 10)
-            .background(
-                RoundedRectangle(cornerRadius: isCompact ? 11 : 14)
-                    .fill((isLight ? WarmLight.gold : Color(red: 1.0, green: 0.82, blue: 0.37)).opacity(isLight ? 0.14 : 0.10))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: isCompact ? 11 : 14)
-                            .strokeBorder((isLight ? WarmLight.gold : Color(red: 1.0, green: 0.82, blue: 0.37)).opacity(isLight ? 0.55 : 0.45), lineWidth: 1)
-                    )
-            )
+            .padding(.top, 4)
         }
-    }
-
-    private func remainingTilesSection(isCompact: Bool) -> some View {
-        VStack(spacing: isCompact ? 6 : 10) {
-            Text("REMAINING OPEN TILES")
-                .font(GameTypography.section(size: isCompact ? 11 : 12))
-                .tracking(isCompact ? 1.2 : 1.4)
-                .foregroundStyle(isLight ? WarmLight.label : theme.accent.opacity(0.78))
-
-            if remainingOpenTiles.isEmpty {
-                Text("None")
-                    .font(GameTypography.button(size: isCompact ? 16 : 18))
-                    .foregroundStyle(isLight ? WarmLight.readableGreen : Color(red: 0.58, green: 1.0, blue: 0.50))
-                    .padding(.vertical, isCompact ? 2 : 4)
-            } else {
-                let columns = tileColumns(isCompact: isCompact)
-                LazyVGrid(columns: columns, spacing: isCompact ? 6 : 8) {
-                    ForEach(remainingOpenTiles, id: \.self) { tile in
-                        Text("\(tile)")
-                            .font(GameTypography.tileNumber(size: isCompact ? 15 : 18))
-                            .foregroundStyle(Color(red: 0.16, green: 0.08, blue: 0.03))
-                            .frame(width: isCompact ? 32 : 36, height: isCompact ? 30 : 34)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: theme.button,
-                                            startPoint: .top,
-                                            endPoint: .bottom
-                                        )
-                                    )
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .strokeBorder(Color.white.opacity(isLight ? 0.55 : 0.42), lineWidth: 1)
-                            )
-                            .shadow(color: isLight ? WarmLight.walnut.opacity(0.22) : .clear,
-                                    radius: isLight ? 1.5 : 0, x: 0, y: isLight ? 1 : 0)
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
     }
 
     private func actionButtons(isCompact: Bool) -> some View {
-        VStack(spacing: isCompact ? 8 : 10) {
+        HStack(spacing: 10) {
             Button(action: onNewGame) {
                 Text("New Game")
                     .font(GameTypography.button(size: isCompact ? 16 : 18))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, isCompact ? 11 : 15)
+                    .frame(minHeight: isCompact ? 44 : 48)
             }
             .buttonStyle(ModalButtonStyle(theme: theme, isLight: isLight))
 
@@ -329,7 +251,6 @@ struct GameOverView: View {
                 }
             }
         }
-        .padding(.top, 2)
     }
 
     private func shareButtonLabel(isCompact: Bool) -> some View {
@@ -341,7 +262,7 @@ struct GameOverView: View {
         }
         .foregroundStyle(isLight ? WarmLight.secondaryText : theme.text.opacity(0.82))
         .frame(maxWidth: .infinity)
-        .padding(.vertical, isCompact ? 9 : 12)
+        .frame(minHeight: isCompact ? 44 : 48)
         .background(isLight ? WarmLight.secondaryFill : Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 13))
         .overlay(
             RoundedRectangle(cornerRadius: 13)
@@ -358,19 +279,6 @@ struct GameOverView: View {
         case .newBest:      return isFirstScore ? "First Score!" : "New Best!"
         case .gameOver:     return "Game Over"
         }
-    }
-
-    private var subtitleText: String {
-        switch kind {
-        case .perfectClear: return "Flawless — every tile closed."
-        case .boardCleared: return "Every tile is closed."
-        case .newBest:      return isFirstScore ? "Your first score for this mode." : "A new personal best for this mode."
-        case .gameOver:     return "No valid move remains."
-        }
-    }
-
-    private func tileColumns(isCompact: Bool) -> [GridItem] {
-        Array(repeating: GridItem(.fixed(isCompact ? 32 : 36), spacing: isCompact ? 6 : 8), count: 6)
     }
 
     private var titleGradient: LinearGradient {
@@ -434,17 +342,7 @@ struct GameOverView: View {
                 )
         } else {
             RoundedRectangle(cornerRadius: 26)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 26)
-                        .fill(
-                            LinearGradient(
-                                colors: theme.background.map { $0.opacity(0.96) },
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
+                .fill(LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing))
         }
     }
 
@@ -500,7 +398,7 @@ private struct ModalButtonStyle: ButtonStyle {
     ZStack {
         LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing)
             .ignoresSafeArea()
-        GameOverView(kind: .gameOver, tileScore: 24, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [2, 4, 5, 6, 7], modeName: "Classic", isNewBest: false, isFirstScore: false, previousBest: 18, shareMessage: "", theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
+        GameOverView(kind: .gameOver, tileScore: 24, elapsedSeconds: 0, isTimed: false, modeName: "Classic", isNewBest: false, isFirstScore: false, previousBest: 18, shareMessage: "", theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
     }
 }
 
@@ -509,7 +407,7 @@ private struct ModalButtonStyle: ButtonStyle {
     ZStack {
         LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing)
             .ignoresSafeArea()
-        GameOverView(kind: .newBest, tileScore: 14, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [5, 9], modeName: "Classic", isNewBest: true, isFirstScore: false, previousBest: 31, shareMessage: "", theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
+        GameOverView(kind: .newBest, tileScore: 14, elapsedSeconds: 0, isTimed: false, modeName: "Classic", isNewBest: true, isFirstScore: false, previousBest: 31, shareMessage: "", theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
     }
 }
 
@@ -518,6 +416,6 @@ private struct ModalButtonStyle: ButtonStyle {
     ZStack {
         LinearGradient(colors: theme.background, startPoint: .topLeading, endPoint: .bottomTrailing)
             .ignoresSafeArea()
-        GameOverView(kind: .perfectClear, tileScore: 0, elapsedSeconds: 0, isTimed: false, remainingOpenTiles: [], modeName: "Classic", isNewBest: true, isFirstScore: false, previousBest: 6, shareMessage: "", theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
+        GameOverView(kind: .perfectClear, tileScore: 0, elapsedSeconds: 0, isTimed: false, modeName: "Classic", isNewBest: true, isFirstScore: false, previousBest: 6, shareMessage: "", theme: theme, onNewGame: {}, onSettings: {}, onStats: {})
     }
 }

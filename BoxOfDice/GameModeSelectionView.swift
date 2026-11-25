@@ -12,10 +12,14 @@ struct GameModeSelectionView: View {
 
     @State private var selectedMode: GameMode
     @State private var playerCount: Int
+    @State private var isConfirmingReplacement = false
 
+    let requiresReplacementConfirmation: () -> Bool
     let onStart: (GameMode, Int) -> Void
 
-    init(onStart: @escaping (GameMode, Int) -> Void) {
+    init(requiresReplacementConfirmation: @escaping () -> Bool = { false },
+         onStart: @escaping (GameMode, Int) -> Void) {
+        self.requiresReplacementConfirmation = requiresReplacementConfirmation
         self.onStart = onStart
         let defaults = UserDefaults.standard
         let rawMode = defaults.string(forKey: SettingsStorageKey.gameMode) ?? GameMode.classic.rawValue
@@ -30,23 +34,25 @@ struct GameModeSelectionView: View {
 
     var body: some View {
         CompatibleNavigationContainer {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    modeGroup("Quick", modes: [.quickGame])
-                    modeGroup("Classic", modes: [.classic, .speedRun])
-                    modeGroup("Big Box", modes: [.bigBox, .bigBoxSpeed])
-                    modeGroup("Multiplayer", modes: [.passAndPlay])
+            GeometryReader { proxy in
+                let canSplitGroups = proxy.size.width >= 540
+                let playersBesideStart = canSplitGroups && proxy.size.height < 430 && selectedMode == .passAndPlay
 
-                    if selectedMode == .passAndPlay {
-                        playerCountSection
-                            .transition(.opacity.combined(with: .move(edge: .top)))
+                VStack(spacing: 8) {
+                    modeList(canSplitGroups: canSplitGroups, showsPlayers: !playersBesideStart && selectedMode == .passAndPlay)
+                    if playersBesideStart {
+                        HStack(alignment: .bottom, spacing: 12) {
+                            playerCountSection
+                            startButton.frame(width: proxy.size.width * 0.30)
+                        }
+                    } else {
+                        startButton
                     }
-
-                    startButton
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 16)
-                .padding(.bottom, 32)
+                .frame(maxWidth: 640)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .compatibleHiddenScrollBackground()
             .background(ThemedSheetBackground(theme: theme))
@@ -62,12 +68,69 @@ struct GameModeSelectionView: View {
             }
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedMode)
         }
+        .alert(Text(L10n.string("Start a new game?")), isPresented: $isConfirmingReplacement) {
+            Button(role: .cancel) {} label: { Text(L10n.string("Cancel")) }
+            Button(role: .destructive, action: startSelectedGame) {
+                Text(L10n.string("Start Game"))
+            }
+        } message: {
+            Text(L10n.string("Your current game will end."))
+        }
     }
 
-    // MARK: - Mode groups
+    @ViewBuilder
+    private func modeList(canSplitGroups: Bool, showsPlayers: Bool) -> some View {
+        if #available(iOS 16.0, *) {
+            ViewThatFits(in: .vertical) {
+                groupedModes(split: false, showsPlayers: showsPlayers)
+                    .fixedSize(horizontal: false, vertical: true)
+                if canSplitGroups {
+                    groupedModes(split: true, showsPlayers: showsPlayers)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                scrollableGroups(split: canSplitGroups, showsPlayers: showsPlayers)
+            }
+        } else {
+            scrollableGroups(split: false, showsPlayers: showsPlayers)
+        }
+    }
+
+    private func scrollableGroups(split: Bool, showsPlayers: Bool) -> some View {
+        ScrollView(showsIndicators: false) {
+            groupedModes(split: split, showsPlayers: showsPlayers)
+        }
+        .compatibleBounceBasedOnSize()
+    }
+
+    private func groupedModes(split: Bool, showsPlayers: Bool) -> some View {
+        VStack(spacing: 8) {
+            if split {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(spacing: 8) {
+                        modeGroup("Quick", modes: [.quickGame])
+                        modeGroup("Classic", modes: [.classic, .speedRun])
+                    }
+                    .frame(maxWidth: .infinity)
+                    VStack(spacing: 8) {
+                        modeGroup("Big Box", modes: [.bigBox, .bigBoxSpeed])
+                        modeGroup("Multiplayer", modes: [.passAndPlay])
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            } else {
+                modeGroup("Quick", modes: [.quickGame])
+                modeGroup("Classic", modes: [.classic, .speedRun])
+                modeGroup("Big Box", modes: [.bigBox, .bigBoxSpeed])
+                modeGroup("Multiplayer", modes: [.passAndPlay])
+            }
+            if showsPlayers {
+                playerCountSection
+            }
+        }
+    }
 
     private func modeGroup(_ title: String, modes: [GameMode]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(L10n.string(title).uppercased())
                 .font(GameTypography.section(size: 12))
                 .tracking(1.3)
@@ -77,16 +140,15 @@ struct GameModeSelectionView: View {
             VStack(spacing: 0) {
                 ForEach(Array(modes.enumerated()), id: \.element) { index, mode in
                     if index > 0 {
-                        cardDivider
+                        Divider()
+                            .overlay(Color.white.opacity(0.08))
+                            .padding(.horizontal, 12)
                     }
                     modeRow(mode)
                 }
             }
             .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-            )
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
         }
     }
 
@@ -95,14 +157,15 @@ struct GameModeSelectionView: View {
         return Button {
             selectedMode = mode
         } label: {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text(mode.title)
                         .font(GameTypography.label(size: 17))
                         .foregroundStyle(isSelected ? theme.text : theme.text.opacity(0.70))
                     Text(mode.subtitle)
                         .font(GameTypography.caption(size: 13))
                         .foregroundStyle(theme.text.opacity(0.50))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 if isSelected {
@@ -115,16 +178,19 @@ struct GameModeSelectionView: View {
                         .frame(width: 20, height: 20)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 3)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     // MARK: - Player count
 
     private var playerCountSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 3) {
             Text("PLAYERS")
                 .font(GameTypography.section(size: 12))
                 .tracking(1.3)
@@ -137,7 +203,7 @@ struct GameModeSelectionView: View {
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 12)
+            .padding(.vertical, 2)
             .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
@@ -183,9 +249,11 @@ struct GameModeSelectionView: View {
 
     private var startButton: some View {
         Button {
-            UserDefaults.standard.set(playerCount, forKey: SettingsStorageKey.passAndPlayPlayerCount)
-            onStart(selectedMode, playerCount)
-            dismiss()
+            if requiresReplacementConfirmation() {
+                isConfirmingReplacement = true
+            } else {
+                startSelectedGame()
+            }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "play.fill")
@@ -194,17 +262,17 @@ struct GameModeSelectionView: View {
                     .font(GameTypography.button(size: 19))
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 58)
+            .frame(minHeight: 44)
         }
         .buttonStyle(ModeStartButtonStyle())
-        .padding(.top, 4)
     }
 
-    private var cardDivider: some View {
-        Divider()
-            .overlay(Color.white.opacity(0.08))
-            .padding(.horizontal, 16)
+    private func startSelectedGame() {
+        UserDefaults.standard.set(playerCount, forKey: SettingsStorageKey.passAndPlayPlayerCount)
+        onStart(selectedMode, playerCount)
+        dismiss()
     }
+
 }
 
 private struct ModeStartButtonStyle: ButtonStyle {

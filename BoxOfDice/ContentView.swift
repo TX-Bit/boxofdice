@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var isShowingModeSelection = false
     @State private var didApplyInitialSettings = false
     @State private var isGameOverVisible = false
+    @State private var duoDisplay: DuoDisplay?
 
     // Celebration state
     @State private var isShowingCelebration = false
@@ -85,13 +86,41 @@ struct ContentView: View {
                 WoodBackground(colors: theme.background)
                     .ignoresSafeArea()
 
-                switch layout {
-                case .phonePortrait:
-                    iPhonePortraitGameView(proxy: proxy)
-                case .phoneLandscape:
-                    iPhoneLandscapeGameView(proxy: proxy)
-                case .pad:
-                    iPadGameView(proxy: proxy, isLandscape: isLandscape)
+                if #available(iOS 27.1, *), let panes = duoInnerGamePanes(in: proxy) {
+                    if panes.board.midX < panes.controls.midX {
+                        twoPaneGameView(
+                            boardPane: panes.board,
+                            controlsPane: panes.controls,
+                            columns: duoBoardColumns,
+                            controlScale: 1.4,
+                            desiredDieSize: 158,
+                            boardFraction: viewModel.tiles.count == 18 ? 0.98 : 0.86,
+                            tileHeightRatio: viewModel.tiles.count == 18 ? 1.8 : 1.5,
+                            controlSpacing: viewModel.tiles.count == 18 ? 25 : 20,
+                            diceSpacing: 0.065,
+                            actionTopPadding: 24,
+                            showsTitle: true
+                        )
+                    } else {
+                        duoInnerPortraitGameView(boardPane: panes.board, controlsPane: panes.controls,
+                                                 isPartiallyOpen: duoDisplay != .fullyOpen)
+                    }
+                } else if #available(iOS 27.1, *), duoDisplay == .outer {
+                    GeometryReader { outer in
+                        duoOuterGameView(size: outer.size, isLandscape: outer.size.width > outer.size.height)
+                    }
+                    // The status bar reserves an entire side on the outer display.
+                    // The game sits below it and can use the full width.
+                    .ignoresSafeArea(.container, edges: .horizontal)
+                } else {
+                    switch layout {
+                    case .phonePortrait:
+                        iPhonePortraitGameView(proxy: proxy)
+                    case .phoneLandscape:
+                        iPhoneLandscapeGameView(proxy: proxy)
+                    case .pad:
+                        iPadGameView(proxy: proxy, isLandscape: isLandscape)
+                    }
                 }
 
                 if isGameOverVisible, case .gameOver = viewModel.gameState {
@@ -99,26 +128,17 @@ struct ContentView: View {
                         .ignoresSafeArea()
                         .transition(.opacity)
 
-                    if currentGameMode.isMultiplayer {
-                        multiplayerOverlay
+                    if #available(iOS 27.1, *), duoDisplay != .fullyOpen,
+                       let panes = duoInnerGamePanes(in: proxy) {
+                        gameResultCard
+                            .frame(width: panes.controls.width, height: panes.controls.height)
+                            .position(x: panes.controls.midX, y: panes.controls.midY)
+                    } else if #available(iOS 27.1, *), duoDisplay == .outer, isLandscape {
+                        gameResultCard
+                            .padding(.horizontal, max(proxy.safeAreaInsets.leading, proxy.safeAreaInsets.trailing))
+                            .ignoresSafeArea(.container, edges: .horizontal)
                     } else {
-                        GameOverView(
-                            kind: celebrationOutcome?.resultKind ?? .gameOver,
-                            tileScore: viewModel.score,
-                            elapsedSeconds: viewModel.elapsedSeconds,
-                            isTimed: currentGameMode.isTimed,
-                            remainingOpenTiles: viewModel.remainingOpenTiles,
-                            modeName: currentGameMode.title,
-                            isNewBest: celebrationOutcome?.isNewBest ?? false,
-                            isFirstScore: celebrationOutcome?.isFirstScore ?? false,
-                            previousBest: celebrationOutcome?.previousBest,
-                            shareMessage: makeShareMessage(),
-                            theme: theme,
-                            onNewGame: restartCurrentGame,
-                            onSettings: { isShowingSettings = true },
-                            onStats: { isShowingStats = true }
-                        )
-                        .transition(.scale(scale: 0.9).combined(with: .opacity))
+                        gameResultCard
                     }
                 }
 
@@ -150,6 +170,19 @@ struct ContentView: View {
                     .zIndex(3)
                 }
             }
+            .background {
+                if #available(iOS 27.1, *) {
+                    Color.clear.onHingeChange { _, context in
+                        if context.hinge?.status == .closed {
+                            duoDisplay = .outer
+                        } else if context.hinge?.status == .fullyOpen {
+                            duoDisplay = .fullyOpen
+                        } else {
+                            duoDisplay = nil
+                        }
+                    }
+                }
+            }
         }
         .onAppear {
             guard !didApplyInitialSettings else { return }
@@ -165,7 +198,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $isShowingModeSelection) {
-            GameModeSelectionView { mode, playerCount in
+            GameModeSelectionView(requiresReplacementConfirmation: { hasGameToReplace }) { mode, playerCount in
                 startNewGame(mode: mode, playerCount: playerCount)
             }
         }
@@ -215,6 +248,15 @@ struct ContentView: View {
     // MARK: - Adaptive layout selection
 
     private enum LayoutKind { case phonePortrait, phoneLandscape, pad }
+    private enum DuoDisplay { case outer, fullyOpen }
+
+    private var duoBoardColumns: Int? {
+        switch viewModel.tiles.count {
+        case 9: return 3
+        case 12: return 4
+        default: return nil
+        }
+    }
 
     // iPad full-screen is regular width AND regular height. iPhone landscape is always
     // compact height (even on a Max), so it can never be mistaken for an iPad here.
@@ -232,6 +274,226 @@ struct ContentView: View {
         case .phonePortrait: return 1.0
         case .phoneLandscape: return 0.9
         case .pad: return 1.5
+        }
+    }
+
+    // MARK: - Duo inner display
+
+    @available(iOS 27.1, *)
+    private func duoInnerGamePanes(in proxy: GeometryProxy) -> (board: CGRect, controls: CGRect)? {
+        let bounds = CGRect(origin: .zero, size: proxy.size)
+        for region in proxy.reservedRegions(kind: .division) {
+            let fold = region.frame
+            if fold.height > fold.width, fold.minX > 0, fold.maxX < bounds.width {
+                return sideBySidePanes(in: bounds, centeredAt: fold.midX, gap: max(20, fold.width))
+            }
+            if fold.width > fold.height, fold.minY > 0, fold.maxY < bounds.height {
+                // In tabletop posture, keep the interactive controls on the lower half.
+                return stackedPanes(in: bounds, centeredAt: fold.midY, gap: max(20, fold.height))
+            }
+        }
+        guard duoDisplay == .fullyOpen else { return nil }
+        let hinges = proxy.reservedRegions(kind: .division, options: .includeInactive).map(\.frame)
+        if bounds.width > bounds.height {
+            let hinge = hinges.first { $0.height > $0.width && bounds.minX < $0.midX && $0.midX < bounds.maxX }
+            return sideBySidePanes(in: bounds, centeredAt: hinge?.midX ?? bounds.midX, gap: 20)
+        }
+        let hinge = hinges.first { $0.width > $0.height && $0.minY > 0 && $0.maxY < bounds.height }
+        return stackedPanes(in: bounds, centeredAt: hinge?.midY ?? bounds.midY, gap: max(20, hinge?.height ?? 0))
+    }
+
+    private func stackedPanes(in bounds: CGRect, centeredAt center: CGFloat, gap: CGFloat)
+        -> (board: CGRect, controls: CGRect) {
+        let topEdge = max(1, center - gap / 2)
+        let bottomEdge = min(bounds.height - 1, center + gap / 2)
+        return (
+            CGRect(x: 0, y: 0, width: bounds.width, height: topEdge),
+            CGRect(x: 0, y: bottomEdge, width: bounds.width, height: bounds.height - bottomEdge)
+        )
+    }
+
+    private func sideBySidePanes(in bounds: CGRect, centeredAt center: CGFloat, gap: CGFloat)
+        -> (board: CGRect, controls: CGRect) {
+        let leftEdge = center - gap / 2
+        let rightEdge = center + gap / 2
+        return (
+            CGRect(x: 0, y: 0, width: leftEdge, height: bounds.height),
+            CGRect(x: rightEdge, y: 0, width: bounds.width - rightEdge, height: bounds.height)
+        )
+    }
+
+    private func twoPaneGameView(
+        boardPane: CGRect,
+        controlsPane: CGRect,
+        columns: Int?,
+        controlScale: CGFloat,
+        desiredDieSize: CGFloat,
+        boardFraction: CGFloat,
+        tileHeightRatio: CGFloat = 1.5,
+        controlSpacing: CGFloat = 12,
+        diceSpacing: CGFloat = ContentView.diceSpacingFactor,
+        actionTopPadding: CGFloat = 0,
+        showsTitle: Bool = false,
+        reservesToolbarSpace: Bool = true
+    ) -> some View {
+        let padding: CGFloat = 12
+        let board = boardSizing(
+            forHeight: (boardPane.height - padding * 2) * boardFraction,
+            width: (boardPane.width - padding * 2) * boardFraction,
+            maxTile: 120,
+            columns: columns,
+            tileHeightRatio: tileHeightRatio
+        )
+        let controlsWidth = max(1, controlsPane.width - padding * 2)
+        let dieSize = fittingDieSize(desired: desiredDieSize, count: viewModel.dieCount,
+                                     available: controlsWidth, spacing: diceSpacing)
+
+        return ZStack(alignment: .topLeading) {
+            ScrollView(showsIndicators: false) {
+                boardView(width: board.width, maxTileWidth: board.maxTile,
+                          numberFontSize: min(40, board.maxTile * 0.55),
+                          columns: columns, tileHeightRatio: tileHeightRatio)
+                    .padding(.vertical, padding)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: boardPane.height)
+            }
+            .frame(width: boardPane.width, height: boardPane.height)
+            .clipped()
+            .position(x: boardPane.midX, y: boardPane.midY)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: controlSpacing * controlScale) {
+                    phoneLandscapeHeader(scale: controlScale, showsTitle: showsTitle)
+                    diceSection(dieSize: dieSize, scale: controlScale, spacing: diceSpacing)
+                    actionButton(scale: controlScale)
+                        .padding(.top, actionTopPadding)
+                    secondaryToolBar(scale: controlScale, reservesSpace: reservesToolbarSpace)
+                }
+                .frame(width: controlsWidth)
+                .padding(.vertical, padding)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: controlsPane.height)
+            }
+            .frame(width: controlsPane.width, height: controlsPane.height)
+            .clipped()
+            .position(x: controlsPane.midX, y: controlsPane.midY)
+        }
+    }
+
+    @available(iOS 27.1, *)
+    @ViewBuilder
+    private func duoOuterGameView(size: CGSize, isLandscape: Bool) -> some View {
+        if isLandscape {
+            let sideMargin: CGFloat = 24
+            let availableWidth = size.width - sideMargin * 2
+            let boardWidth = availableWidth * 0.56
+            let topMargin: CGFloat = 24
+            let paneHeight = max(1, size.height - topMargin)
+            twoPaneGameView(
+                boardPane: CGRect(x: sideMargin, y: topMargin, width: boardWidth, height: paneHeight),
+                controlsPane: CGRect(x: sideMargin + boardWidth, y: topMargin,
+                                     width: availableWidth - boardWidth, height: paneHeight),
+                columns: currentGameMode == .quickGame ? 3 : nil,
+                controlScale: 1.1,
+                desiredDieSize: 100,
+                boardFraction: 0.92,
+                reservesToolbarSpace: false
+            )
+        } else {
+            duoOuterPortraitGameView(size: size)
+        }
+    }
+
+    @available(iOS 16.0, *)
+    private func duoOuterPortraitGameView(size: CGSize) -> some View {
+        let width = max(1, min(370, size.width - 36))
+        let isQuickGame = currentGameMode == .quickGame
+        let columns = isQuickGame ? 3 : 6
+        let tileHeightRatio: CGFloat = isQuickGame ? 1.27 : (viewModel.tiles.count == 18 ? 1.32 : 1.6)
+        let boardHeight: CGFloat = 282
+        let board = boardSizing(forHeight: boardHeight, width: width, maxTile: isQuickGame ? 46 : 68,
+                                columns: columns, tileHeightRatio: tileHeightRatio)
+        let dieSize = fittingDieSize(desired: 96, count: 3, available: width)
+
+        // Give shared controls the same position across modes and turn phases.
+        let content = VStack(spacing: 0) {
+            portraitHeader(scale: 1, scoreHeight: 47)
+                .frame(maxWidth: 290)
+                .frame(height: 88, alignment: .top)
+            boardView(width: board.width, maxTileWidth: board.maxTile, columns: columns,
+                      tileHeightRatio: tileHeightRatio)
+                .frame(height: boardHeight)
+            diceSection(dieSize: dieSize)
+                .frame(height: 120, alignment: .top)
+                .padding(.top, 5)
+            actionButton(scale: 1, closeButtonMinHeight: 58)
+                .frame(height: 90, alignment: .bottom)
+            secondaryToolBar(scale: 1, reservesSpace: true)
+                .padding(.top, 4)
+        }
+        .frame(width: width)
+        .padding(.top, 42)
+        .fixedSize(horizontal: false, vertical: true)
+
+        return ViewThatFits(in: .vertical) {
+            content
+            ScrollView(showsIndicators: false) {
+                content.frame(maxWidth: .infinity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    @available(iOS 16.0, *)
+    private func duoInnerPortraitGameView(boardPane: CGRect, controlsPane: CGRect,
+                                          isPartiallyOpen: Bool) -> some View {
+        let width = max(1, min(480, boardPane.width - 36))
+        let hasTwelveTiles = viewModel.tiles.count == 12
+        let columns = hasTwelveTiles ? 6 : duoBoardColumns
+        let tileHeightRatio: CGFloat = hasTwelveTiles ? 1.5 : (columns == 3 ? 1.35 : 1.25)
+        let headerHeight: CGFloat = 88
+        let upperSpacing: CGFloat = 8
+        let boardHeight = max(210, min(325, boardPane.height - headerHeight - upperSpacing * 3))
+        let boardInset: CGFloat = hasTwelveTiles && isPartiallyOpen ? 12 : 0
+        let board = boardSizing(forHeight: boardHeight - boardInset, width: width, maxTile: 68,
+                                columns: columns, tileHeightRatio: tileHeightRatio)
+        let dieSize = fittingDieSize(desired: 116, count: 3, available: width)
+
+        let upperContent = VStack(spacing: upperSpacing) {
+            portraitHeader(scale: 1, scoreHeight: 47)
+                .frame(maxWidth: 290)
+                .frame(height: headerHeight, alignment: .top)
+            boardView(width: board.width, maxTileWidth: board.maxTile, columns: columns,
+                      tileHeightRatio: tileHeightRatio)
+                .frame(height: boardHeight)
+        }
+        .padding(.bottom, upperSpacing)
+        .frame(maxWidth: .infinity)
+        let lowerContent = VStack(spacing: 0) {
+            diceSection(dieSize: dieSize)
+                .frame(height: 140, alignment: .top)
+            actionButton(scale: 1, closeButtonMinHeight: 58)
+                .frame(height: 90, alignment: .bottom)
+            secondaryToolBar(scale: 1, reservesSpace: true)
+                .padding(.top, 4)
+        }
+        .frame(width: width)
+        .padding(.top, 44)
+
+        return ZStack(alignment: .topLeading) {
+            ViewThatFits(in: .vertical) {
+                upperContent.fixedSize(horizontal: false, vertical: true)
+                ScrollView(showsIndicators: false) { upperContent }
+            }
+            .frame(width: boardPane.width, height: boardPane.height)
+            .position(x: boardPane.midX, y: boardPane.midY)
+
+            ViewThatFits(in: .vertical) {
+                lowerContent.fixedSize(horizontal: false, vertical: true)
+                ScrollView(showsIndicators: false) { lowerContent.frame(maxWidth: .infinity) }
+            }
+            .frame(width: controlsPane.width, height: controlsPane.height, alignment: .top)
+            .position(x: controlsPane.midX, y: controlsPane.midY)
         }
     }
 
@@ -403,8 +665,9 @@ struct ContentView: View {
 
     // Computes a tile size (and the matching tray width) so the board — including the
     // 3-row Big Box variant — fits both the available height and the target width.
-    private func boardSizing(forHeight availableHeight: CGFloat, width availableWidth: CGFloat, maxTile: CGFloat) -> BoardSizing {
-        let cols = viewModel.tiles.count > 10 ? 6 : 5
+    private func boardSizing(forHeight availableHeight: CGFloat, width availableWidth: CGFloat,
+                             maxTile: CGFloat, columns: Int? = nil, tileHeightRatio: CGFloat = 1.5) -> BoardSizing {
+        let cols = columns ?? (viewModel.tiles.count > 10 ? 6 : 5)
         let rows = max(1, Int(ceil(Double(viewModel.tiles.count) / Double(cols))))
         let tileSpacing: CGFloat = 8
         let frameThickness: CGFloat = 16
@@ -413,13 +676,37 @@ struct ContentView: View {
         let gridSpacing: CGFloat = 11
         let fixedHorizontalSpace = frameThickness * 2 + surfaceHorizontalPadding * 2 + tileSpacing * CGFloat(cols - 1)
         let fixedVerticalSpace = frameThickness * 2 + surfaceVerticalPadding * 2 + gridSpacing * CGFloat(rows - 1) + 10
-        let tileByHeight = (availableHeight - fixedVerticalSpace) / (CGFloat(rows) * 1.5)
+        let tileByHeight = (availableHeight - fixedVerticalSpace) / (CGFloat(rows) * tileHeightRatio)
         let tileByWidth = (availableWidth - fixedHorizontalSpace) / CGFloat(cols)
         let tile = max(28, min(maxTile, tileByHeight, tileByWidth))
         return BoardSizing(width: tile * CGFloat(cols) + fixedHorizontalSpace, maxTile: tile)
     }
 
-    // MARK: - Multiplayer overlay
+    // MARK: - Result overlays
+
+    @ViewBuilder
+    private var gameResultCard: some View {
+        if currentGameMode.isMultiplayer {
+            multiplayerOverlay
+        } else {
+            GameOverView(
+                kind: celebrationOutcome?.resultKind ?? .gameOver,
+                tileScore: viewModel.score,
+                elapsedSeconds: viewModel.elapsedSeconds,
+                isTimed: currentGameMode.isTimed,
+                modeName: currentGameMode.title,
+                isNewBest: celebrationOutcome?.isNewBest ?? false,
+                isFirstScore: celebrationOutcome?.isFirstScore ?? false,
+                previousBest: celebrationOutcome?.previousBest,
+                shareMessage: makeShareMessage(),
+                theme: theme,
+                onNewGame: restartCurrentGame,
+                onSettings: { isShowingSettings = true },
+                onStats: { isShowingStats = true }
+            )
+            .transition(.scale(scale: 0.9).combined(with: .opacity))
+        }
+    }
 
     @ViewBuilder
     private var multiplayerOverlay: some View {
@@ -467,8 +754,8 @@ struct ContentView: View {
 
     private var dimBackground: Color {
         theme.name == .minimalLight
-            ? Color(red: 20 / 255, green: 16 / 255, blue: 12 / 255).opacity(0.55)
-            : Color.black.opacity(0.55)
+            ? Color(red: 20 / 255, green: 16 / 255, blue: 12 / 255).opacity(0.68)
+            : Color.black.opacity(0.68)
     }
 
     private var diceAnimationSpeed: DiceAnimationSpeed {
@@ -479,22 +766,20 @@ struct ContentView: View {
 
     // Portrait header: the centred title/score/mode block with the stats & settings
     // buttons pinned in the top corners (same composition the iPhone always had).
-    private func portraitHeader(scale: CGFloat) -> some View {
+    private func portraitHeader(scale: CGFloat, scoreHeight: CGFloat? = nil) -> some View {
         ZStack(alignment: .top) {
-            scoreModeBlock(scale: scale)
+            scoreModeBlock(scale: scale, scoreHeight: scoreHeight)
             cornerIcons(scale: scale)
         }
     }
 
     // Title / score / mode pill — reused by every layout (in the corners on phone
     // portrait/iPad, and at the top of the right column in landscape).
-    private func scoreModeBlock(scale: CGFloat) -> some View {
+    private func scoreModeBlock(scale: CGFloat, scoreHeight: CGFloat? = nil) -> some View {
         VStack(spacing: 4 * scale) {
-            Text("BOX OF DICE")
-                .font(GameTypography.section(size: 10 * scale))
-                .tracking(3 * scale)
-                .foregroundStyle(theme.text.opacity(0.42))
+            gameTitle(scale: scale)
             headerScoreRow(scale: scale)
+                .frame(height: scoreHeight, alignment: .top)
             modePill(scale: scale)
                 .padding(.top, 1)
         }
@@ -502,8 +787,18 @@ struct ContentView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func phoneLandscapeHeader(scale: CGFloat) -> some View {
+    private func gameTitle(scale: CGFloat) -> some View {
+        Text("BOX OF DICE")
+            .font(GameTypography.section(size: 10 * scale))
+            .tracking(3 * scale)
+            .foregroundStyle(theme.text.opacity(0.42))
+    }
+
+    private func phoneLandscapeHeader(scale: CGFloat, showsTitle: Bool = false) -> some View {
         VStack(spacing: 4 * scale) {
+            if showsTitle {
+                gameTitle(scale: scale)
+            }
             HStack(alignment: .center) {
                 headerIconButton(systemName: "chart.bar.fill", label: "Statistics", scale: scale) { isShowingStats = true }
                 Spacer()
@@ -622,16 +917,17 @@ struct ContentView: View {
 
     // MARK: - Board
 
-    private func boardView(width: CGFloat, maxTileWidth: CGFloat = 68, numberFontSize: CGFloat = 27) -> some View {
+    private func boardView(width: CGFloat, maxTileWidth: CGFloat = 68, numberFontSize: CGFloat = 27,
+                           columns columnOverride: Int? = nil, tileHeightRatio: CGFloat = 1.5) -> some View {
         let availableWidth = width
-        let columnsCount = viewModel.tiles.count > 10 ? 6 : 5
+        let columnsCount = columnOverride ?? (viewModel.tiles.count > 10 ? 6 : 5)
         let tileSpacing: CGFloat = 8
         let frameThickness: CGFloat = 16
         let surfaceHorizontalPadding: CGFloat = 10
         let surfaceVerticalPadding: CGFloat = 16
         let fixedHorizontalSpace = frameThickness * 2 + surfaceHorizontalPadding * 2 + tileSpacing * CGFloat(columnsCount - 1)
         let tileWidth = max(28, min(maxTileWidth, (availableWidth - fixedHorizontalSpace) / CGFloat(columnsCount)))
-        let tileHeight = tileWidth * 1.5
+        let tileHeight = tileWidth * tileHeightRatio
         let gridWidth = tileWidth * CGFloat(columnsCount) + tileSpacing * CGFloat(columnsCount - 1)
         let trayWidth = gridWidth + surfaceHorizontalPadding * 2 + frameThickness * 2
         let columns = Array(repeating: GridItem(.fixed(tileWidth), spacing: tileSpacing), count: columnsCount)
@@ -691,15 +987,17 @@ struct ContentView: View {
 
     // Largest die that lets `count` dice (plus the gaps between them) fit within
     // `available` width — prevents the Big Box 3-dice row from spilling onto the board.
-    private func fittingDieSize(desired: CGFloat, count: Int, available: CGFloat) -> CGFloat {
+    private func fittingDieSize(desired: CGFloat, count: Int, available: CGFloat,
+                                spacing: CGFloat = ContentView.diceSpacingFactor) -> CGFloat {
         guard count > 0 else { return desired }
-        let rowFactor = CGFloat(count) + CGFloat(count - 1) * Self.diceSpacingFactor
+        let rowFactor = CGFloat(count) + CGFloat(count - 1) * spacing
         return max(40, min(desired, available / rowFactor))
     }
 
-    private func diceSection(dieSize: CGFloat = 108, scale: CGFloat = 1.0) -> some View {
+    private func diceSection(dieSize: CGFloat = 108, scale: CGFloat = 1.0,
+                             spacing: CGFloat = ContentView.diceSpacingFactor) -> some View {
         VStack(spacing: 8 * scale) {
-            HStack(alignment: .center, spacing: dieSize * Self.diceSpacingFactor) {
+            HStack(alignment: .center, spacing: dieSize * spacing) {
                 ForEach(0..<viewModel.dieCount, id: \.self) { index in
                     Dice3DView(
                         value: viewModel.dice[index],
@@ -837,7 +1135,7 @@ struct ContentView: View {
     // MARK: - Action button
 
     @ViewBuilder
-    private func actionButton(scale: CGFloat) -> some View {
+    private func actionButton(scale: CGFloat, closeButtonMinHeight: CGFloat = 54) -> some View {
         switch viewModel.gameState {
         case .waitingToRoll:
             // The opening throw of a game is manual (the Roll button). Once the
@@ -849,7 +1147,7 @@ struct ContentView: View {
                 rollStatus(scale: scale)
             }
         case .selecting:
-            selectingActionZone(scale: scale)
+            selectingActionZone(scale: scale, buttonMinHeight: closeButtonMinHeight)
         case .gameOver:
             EmptyView()
         }
@@ -896,7 +1194,7 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.2), value: viewModel.isRolling)
     }
 
-    private func selectingActionZone(scale: CGFloat) -> some View {
+    private func selectingActionZone(scale: CGFloat, buttonMinHeight: CGFloat) -> some View {
         let isMatch = viewModel.canConfirm
         // The target appears only here; preserve the preference to hide totals.
         let selection = showDiceTotal
@@ -919,7 +1217,7 @@ struct ContentView: View {
                         .font(.system(size: 18 * scale, weight: .semibold))
                 }
                 .frame(maxWidth: 280 * scale)
-                .frame(minHeight: 54 * scale)
+                .frame(minHeight: buttonMinHeight * scale)
             }
             .buttonStyle(BoardGameButtonStyle(isEnabled: isMatch, tint: .amber))
             .disabled(!isMatch)
@@ -929,6 +1227,15 @@ struct ContentView: View {
     }
 
     // MARK: - Game flow
+
+    private var hasGameToReplace: Bool {
+        if currentGameMode.isMultiplayer && !isShowingPassAndPlayResults {
+            if currentPassAndPlayPlayer > 0 || !passAndPlayScores.isEmpty { return true }
+            if case .gameOver = viewModel.gameState { return true }
+        }
+        if case .gameOver = viewModel.gameState { return false }
+        return viewModel.hasRolled || viewModel.isRolling
+    }
 
     private func startNewGame(mode: GameMode, playerCount: Int = 2) {
         hasSelectedInitialGameMode = true

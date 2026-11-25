@@ -143,7 +143,7 @@
 "Current win streak" = "Série de victoires actuelle";
 "Best win streak" = "Meilleure série de victoires";
 "Longest game" = "Partie la plus longue";
-"Shortest clear" = "Victoire en un minimum de coups";
+"Fewest moves to win" = "Victoire en un minimum de coups";
 "Most Common Remaining Tiles" = "Cases restantes les plus fréquentes";
 "No data yet — play a few games first" = "Pas encore de données — jouez quelques parties d'abord";
 "Played" = "Jouées";

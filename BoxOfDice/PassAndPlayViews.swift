@@ -14,53 +14,25 @@ struct PassAndPlayRoundEndView: View {
     let onNext: () -> Void      // "Next Player" — starts the next player's round
     let onResults: () -> Void   // "See Results" — shown to last player
 
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
-
     var body: some View {
-        GeometryReader { proxy in
-            let isLandscape = proxy.size.width > proxy.size.height
-            let isCompactLandscape = isLandscape && (proxy.size.height < 560 || verticalSizeClass == .compact)
-
-            ScrollView(.vertical, showsIndicators: false) {
-                Group {
-                    if isCompactLandscape {
-                        compactLandscapeCard
-                    } else {
-                        portraitCard
+        ResultCardLayout { isWide, isCompact in
+            VStack(spacing: isCompact ? 10 : 16) {
+                if isWide {
+                    HStack(spacing: 14) {
+                        header(isCompact: isCompact)
+                            .frame(maxWidth: .infinity)
+                        scorePanel(isCompact: isCompact)
                     }
+                } else {
+                    header(isCompact: isCompact)
+                    scorePanel(isCompact: isCompact)
                 }
-                .padding(.horizontal, isCompactLandscape ? 20 : 26)
-                .padding(.vertical, isCompactLandscape ? 16 : 28)
-                .frame(maxWidth: isCompactLandscape ? min(540, proxy.size.width - 32) : 350)
-                .background(cardBackground)
-                .overlay(cardBorder)
-                .shadow(color: .black.opacity(0.48), radius: 28, x: 0, y: 16)
-                .padding(.horizontal, isCompactLandscape ? 16 : 28)
-                .padding(.vertical, isCompactLandscape ? 10 : 20)
-                .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .center)
+                primaryButton(isCompact: isCompact)
             }
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    private var portraitCard: some View {
-        VStack(spacing: 22) {
-            header(isCompact: false)
-            scorePanel(isCompact: false)
-            primaryButton(isCompact: false)
-        }
-    }
-
-    private var compactLandscapeCard: some View {
-        HStack(alignment: .center, spacing: 20) {
-            header(isCompact: true)
-                .frame(maxWidth: .infinity)
-
-            VStack(spacing: 10) {
-                scorePanel(isCompact: true)
-                primaryButton(isCompact: true)
-            }
-            .frame(maxWidth: .infinity)
+        } background: {
+            PassAndPlayCardBackground()
+        } border: {
+            PassAndPlayCardBorder()
         }
     }
 
@@ -111,7 +83,7 @@ struct PassAndPlayRoundEndView: View {
             Text(L10n.string(isLastPlayer ? "See Results" : "Next Player"))
                 .font(GameTypography.button(size: isCompact ? 16 : 18))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, isCompact ? 11 : 15)
+                .frame(minHeight: isCompact ? 44 : 48)
         }
         .buttonStyle(PassAndPlayButtonStyle())
         .padding(.top, 2)
@@ -125,39 +97,6 @@ struct PassAndPlayRoundEndView: View {
         )
     }
 
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 26)
-            .fill(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 26)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.40, green: 0.19, blue: 0.08).opacity(0.94),
-                                Color(red: 0.16, green: 0.07, blue: 0.03).opacity(0.96)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-    }
-
-    private var cardBorder: some View {
-        RoundedRectangle(cornerRadius: 26)
-            .strokeBorder(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.28),
-                        Color(red: 1.0, green: 0.68, blue: 0.30).opacity(0.30),
-                        Color.black.opacity(0.30)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                ),
-                lineWidth: 1.5
-            )
-    }
 }
 
 // MARK: - Final results overlay (shown after all players have played)
@@ -165,8 +104,6 @@ struct PassAndPlayRoundEndView: View {
 struct PassAndPlayResultsView: View {
     let scores: [Int]
     let onNewGame: () -> Void
-
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     private var sortedResults: [(player: Int, score: Int)] {
         scores.enumerated()
@@ -179,51 +116,25 @@ struct PassAndPlayResultsView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let isLandscape = proxy.size.width > proxy.size.height
-            let isCompactLandscape = isLandscape && (proxy.size.height < 560 || verticalSizeClass == .compact)
-
-            ScrollView(.vertical, showsIndicators: false) {
-                Group {
-                    if isCompactLandscape {
-                        compactLandscapeCard
-                    } else {
-                        portraitCard
+        ResultCardLayout { isWide, isCompact in
+            VStack(spacing: isCompact ? 10 : 16) {
+                if isWide {
+                    HStack(spacing: 14) {
+                        header(isCompact: isCompact)
+                            .frame(maxWidth: .infinity)
+                        resultsTable(isCompact: isCompact)
+                            .frame(maxWidth: .infinity)
                     }
+                } else {
+                    header(isCompact: isCompact)
+                    resultsTable(isCompact: isCompact)
                 }
-                .padding(.horizontal, isCompactLandscape ? 20 : 26)
-                .padding(.vertical, isCompactLandscape ? 16 : 28)
-                .frame(maxWidth: isCompactLandscape ? min(560, proxy.size.width - 32) : 350)
-                .background(cardBackground)
-                .overlay(cardBorder)
-                .shadow(color: .black.opacity(0.48), radius: 28, x: 0, y: 16)
-                .padding(.horizontal, isCompactLandscape ? 16 : 28)
-                .padding(.vertical, isCompactLandscape ? 10 : 20)
-                .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .center)
+                newGameButton(isCompact: isCompact)
             }
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    private var portraitCard: some View {
-        VStack(spacing: 22) {
-            header(isCompact: false)
-            resultsTable(isCompact: false)
-            newGameButton(isCompact: false)
-        }
-    }
-
-    private var compactLandscapeCard: some View {
-        HStack(alignment: .top, spacing: 20) {
-            VStack(spacing: 12) {
-                header(isCompact: true)
-                Spacer(minLength: 8)
-                newGameButton(isCompact: true)
-            }
-            .frame(maxWidth: .infinity)
-
-            resultsTable(isCompact: true)
-                .frame(maxWidth: .infinity)
+        } background: {
+            PassAndPlayCardBackground()
+        } border: {
+            PassAndPlayCardBorder()
         }
     }
 
@@ -292,7 +203,7 @@ struct PassAndPlayResultsView: View {
             Text("New Game")
                 .font(GameTypography.button(size: isCompact ? 16 : 18))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, isCompact ? 11 : 15)
+                .frame(minHeight: isCompact ? 44 : 48)
         }
         .buttonStyle(PassAndPlayButtonStyle())
         .padding(.top, 2)
@@ -306,25 +217,19 @@ struct PassAndPlayResultsView: View {
         )
     }
 
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 26)
-            .fill(.ultraThinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 26)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.40, green: 0.19, blue: 0.08).opacity(0.94),
-                                Color(red: 0.16, green: 0.07, blue: 0.03).opacity(0.96)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-    }
+}
 
-    private var cardBorder: some View {
+private struct PassAndPlayCardBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 26)
+            .fill(LinearGradient(colors: [Color(red: 0.40, green: 0.19, blue: 0.08),
+                                          Color(red: 0.16, green: 0.07, blue: 0.03)],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+    }
+}
+
+private struct PassAndPlayCardBorder: View {
+    var body: some View {
         RoundedRectangle(cornerRadius: 26)
             .strokeBorder(
                 LinearGradient(

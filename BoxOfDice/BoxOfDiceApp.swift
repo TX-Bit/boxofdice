@@ -18,8 +18,6 @@ struct BoxOfDiceApp: App {
 #if os(iOS)
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 #endif
-    @AppStorage("settings.theme") private var themeRaw = "greenFelt"
-
     private var isRunningTests: Bool {
         NSClassFromString("XCTest") != nil ||
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -31,13 +29,6 @@ struct BoxOfDiceApp: App {
                 Color.clear
             } else {
                 ContentView()
-                    .task {
-                        _ = PhoneConnectivityManager.shared
-                        PhoneConnectivityManager.shared.sendTheme(themeRaw)
-                    }
-                    .onChange(of: themeRaw) { newValue in
-                        PhoneConnectivityManager.shared.sendTheme(newValue)
-                    }
             }
         }
     }
